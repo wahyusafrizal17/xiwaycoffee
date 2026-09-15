@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menu · Xiway Coffee</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   XIWAY COFFEE — TV MENU DISPLAY (43" / 1920x1080)
+   Semua yang perlu diubah ada di 2 tempat:
+   1. :root  -> warna & timing
+   2. const MENU (paling bawah) -> isi menu
+   ============================================================ */
+
+:root{
+  /* Palet: espresso gelap + krem + merah bata brand + kuningan */
+  --ink:        #100E0C;
+  --ink-soft:   #171310;
+  --line:       rgba(245,239,228,.12);
+  --cream:      #F5EFE4;
+  --cream-dim:  rgba(245,239,228,.58);
+  --red:        #AF2B22;
+  --red-bright: #D4382C;
+  --brass:      #C6A15B;
+
+  /* Durasi tiap halaman tampil (detik) */
+  --page-duration: 16s;
+
+  /* Skala tipografi global, dikoreksi otomatis oleh JS bila konten kepanjangan */
+  --scale: 1;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+html,body{height:100%;overflow:hidden}
+
+body{
+  background:var(--ink);
+  color:var(--cream);
+  font-family:'Archivo',-apple-system,'Segoe UI',sans-serif;
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+  cursor:none;               /* sembunyikan kursor di TV */
+}
+
+/* Cahaya hangat dari sudut kiri-atas, meniru lampu gantung kafe */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(90rem 60rem at 12% -10%, rgba(198,161,91,.10), transparent 60%),
+    radial-gradient(70rem 50rem at 110% 115%, rgba(175,43,34,.10), transparent 60%);
+}
+/* Vignette supaya tepi layar TV tidak "menguap" */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:40;
+  box-shadow:inset 0 0 18vmin 6vmin rgba(0,0,0,.55);
+}
+
+.stage{
+  position:relative;z-index:1;
+  height:100vh;
+  display:flex;flex-direction:column;
+  padding:4.2vh 4.4vw 3.2vh;
+}
+
+/* ---------------- HEADER ---------------- */
+
+.masthead{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:2rem;flex:none;
+}
+
+.brand{display:flex;align-items:center;gap:1.1vw}
+
+.brand-mark{
+  width:calc(3.1vw * var(--scale));height:calc(3.1vw * var(--scale));
+  flex:none;color:var(--red-bright);
+}
+.brand-name{line-height:1}
+.brand-name b{
+  display:block;
+  font-size:calc(1.55vw * var(--scale));
+  font-weight:800;letter-spacing:.34em;text-transform:uppercase;
+}
+.brand-name span{
+  display:block;margin-top:.45em;
+  font-size:calc(.72vw * var(--scale));
+  font-weight:500;letter-spacing:.52em;text-transform:uppercase;
+  color:var(--cream-dim);
+}
+
+.page-title{
+  text-align:right;line-height:.88;
+}
+.page-title em{
+  display:block;font-style:normal;
+  font-size:calc(.9vw * var(--scale));
+  font-weight:600;letter-spacing:.42em;text-transform:uppercase;
+  color:var(--brass);
+  margin-bottom:.9em;
+}
+.page-title h1{
+  font-size:calc(4.6vw * var(--scale));
+  font-weight:800;letter-spacing:-.025em;
+  text-transform:uppercase;
+}
+
+/* ---------------- AREA MENU ---------------- */
+
+.pages{position:relative;flex:1;min-height:0;margin-top:3.4vh}
+
+.page{
+  position:absolute;inset:0;
+  display:grid;gap:0 4vw;
+  align-content:start;
+  opacity:0;visibility:hidden;
+  transition:opacity .9s ease;
+}
+.page.is-active{opacity:1;visibility:visible}
+
+.group{min-width:0;break-inside:avoid}
+.group + .group{margin-top:4.2vh}
+.group[data-span="2"]{grid-column:span 2}
+
+.group-head{
+  display:flex;align-items:baseline;gap:1.2vw;
+  padding-bottom:1.5vh;margin-bottom:1.5vh;
+  border-bottom:1px solid var(--line);
+}
+.group-head h2{
+  font-size:calc(1.5vw * var(--scale));
+  font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+}
+.group-head small{
+  font-size:calc(.78vw * var(--scale));
+  font-weight:500;letter-spacing:.2em;
+  color:var(--cream-dim);
+}
+
+.items{list-style:none}
+.group[data-cols="2"] .items{column-count:2;column-gap:4vw}
+
+.item{
+  display:flex;align-items:baseline;gap:.8vw;
+  padding:calc(.95vh * var(--scale)) 0;
+  break-inside:avoid;
+}
+
+.item .name{
+  font-size:calc(1.28vw * var(--scale));
+  font-weight:500;letter-spacing:.005em;
+  white-space:nowrap;
+}
+.item.is-signature .name{font-weight:700}
+
+/* Garis titik penuntun mata — fungsional, bukan hiasan */
+.item .leader{
+  flex:1;height:1px;min-width:1.5vw;
+  transform:translateY(-.32em);
+  background-image:radial-gradient(circle, rgba(245,239,228,.38) 1px, transparent 1.4px);
+  background-size:.55vw 2px;background-repeat:repeat-x;
+}
+
+.item .price{
+  font-size:calc(1.28vw * var(--scale));
+  font-weight:700;letter-spacing:.02em;
+  color:var(--cream);
+}
+.item .price sup{
+  font-size:.58em;font-weight:600;vertical-align:.35em;
+  margin-left:.15em;color:var(--cream-dim);
+}
+.item.is-signature .price{color:var(--brass)}
+
+.sig-dot{
+  flex:none;width:.62em;height:.62em;border-radius:50%;
+  background:var(--brass);
+  transform:translateY(-.15em);
+  box-shadow:0 0 0 .22em rgba(198,161,91,.16);
+}
+
+/* ---------------- FOOTER ---------------- */
+
+.footer{
+  flex:none;display:flex;align-items:center;justify-content:space-between;
+  gap:2rem;padding-top:2.6vh;margin-top:2.6vh;
+  border-top:1px solid var(--line);
+  font-size:calc(.78vw * var(--scale));
+  font-weight:500;letter-spacing:.28em;text-transform:uppercase;
+  color:var(--cream-dim);
+}
+.legend{display:flex;align-items:center;gap:.7vw}
+.legend .sig-dot{width:.55em;height:.55em;transform:none}
+
+.ticker{display:flex;align-items:center;gap:.9vw}
+.tick{
+  width:2.6vw;height:3px;border-radius:2px;
+  background:rgba(245,239,228,.16);overflow:hidden;
+}
+.tick i{
+  display:block;height:100%;width:100%;
+  background:var(--red-bright);
+  transform-origin:left center;transform:scaleX(0);
+}
+.tick.is-done i{transform:scaleX(1);background:rgba(245,239,228,.35)}
+.tick.is-active i{animation:fill var(--page-duration) linear forwards}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* ---------------- ANIMASI ---------------- */
+
+/* Satu momen koreografi per halaman: baris naik berurutan */
+.page.is-active .reveal{animation:rise .75s cubic-bezier(.22,.9,.3,1) backwards}
+@keyframes rise{
+  from{opacity:0;transform:translateY(1.6vh)}
+  to{opacity:1;transform:none}
+}
+
+/* Judul halaman ikut berganti dengan animasi */
+.page-title h1.swap{animation:swap .7s cubic-bezier(.22,.9,.3,1)}
+@keyframes swap{
+  from{opacity:0;transform:translateY(1.2vh) scale(.985)}
+  to{opacity:1;transform:none}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .page,.page.is-active .reveal,.page-title h1.swap{animation:none!important;transition:none}
+  .tick.is-active i{animation:none;transform:scaleX(1)}
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <header class="masthead">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path d="M6 8 L24 26 L42 8" stroke="currentColor" stroke-width="4.2" stroke-linecap="square"/>
+        <path d="M6 40 L24 22 L42 40" stroke="currentColor" stroke-width="4.2" stroke-linecap="square" opacity=".42"/>
+      </svg>
+      <div class="brand-name">
+        <b>Xiway</b>
+        <span>Coffee</span>
+      </div>
+    </div>
+
+    <div class="page-title">
+      <em id="pageKicker">Menu</em>
+      <h1 id="pageName">Food &amp; Noodles</h1>
+    </div>
+  </header>
+
+  <main class="pages" id="pages"></main>
+
+  <footer class="footer">
+    <div class="legend"><span class="sig-dot"></span> Menu andalan</div>
+    <div>Harga dalam ribuan rupiah</div>
+    <div class="ticker" id="ticker"></div>
+  </footer>
+
+</div>
+
+<script>
+/* ============================================================
+   DATA MENU
+   - star:true  -> ditandai sebagai menu andalan (titik kuningan)
+   - price      -> angka ribuan saja (15 = 15.000)
+   - cols       -> 2 kalau daftarnya panjang dan mau dipecah 2 kolom
+   - Tambah halaman baru cukup dengan menambah objek di array ini.
+   ============================================================ */
+const MENU = [
+  {
+    kicker: 'Menu',
+    title: 'Makanan',
+    layout: '1fr 1fr',            // lebar kolom grid halaman ini
+    groups: [
+      {
+        name: 'Nasi & Ayam', note: 'Dimasak setelah dipesan', span: 2, cols: 2,
+        items: [
+          { name: 'Ayam Pecak', price: 15 },
+          { name: 'Ayam Sambal Matah', price: 15 },
+          { name: 'Nasi Ayam Cabai Ijo', price: 23 },
+          { name: 'Nasi Ayam Pecak', price: 25, star: true },
+          { name: 'Nasi Ayam Penyet', price: 25 },
+          { name: 'Nasi Ayam Sambal Geprek', price: 23 },
+          { name: 'Nasi Ayam Sambal Matah', price: 25, star: true },
+          { name: 'Nasi Goreng Hijau Ayam', price: 27 },
+          { name: 'Nasi Goreng Hijau Ayam Pecak', price: 28, star: true },
+          { name: 'Nasi Goreng Hijau Telur', price: 20 },
+          { name: 'Nasi Goreng Merah Ayam', price: 25 },
+          { name: 'Nasi Goreng Merah Ayam Sambal Matah', price: 28 },
+          { name: 'Nasi Goreng Merah Telur', price: 20 },
+          { name: 'Nasi Goreng Special', price: 27, star: true },
+          { name: 'Nasi Lele Pecak', price: 23 },
+          { name: 'Nasi Lele Sambal Matah', price: 23 },
+          { name: 'Nasi Nila Pecak', price: 29 },
+          { name: 'Nasi Nila Sambal Matah', price: 30 },
+          { name: 'Nasi Soto Ayam', price: 27 },
+          { name: 'Nasi Telur Pecak', price: 17 },
+          { name: 'Nasi Telur Sambal Matah', price: 17 }
+        ]
+      }
+    ]
+  },
+  {
+    kicker: 'Menu',
+    title: 'Mie & Snack',
+    layout: '1.15fr .85fr',
+    groups: [
+      {
+        name: 'Mie', note: 'Level pedas bisa diatur', cols: 1,
+        items: [
+          { name: 'Indomie Aceh Biasa', price: 17, star: true },
+          { name: 'Indomie Aceh Cumi', price: 25, star: true },
+          { name: 'Indomie Aceh Daging', price: 25, star: true },
+          { name: 'Indomie Aceh Telur', price: 20, star: true },
+          { name: 'Indomie Aceh Udang', price: 25, star: true },
+          { name: 'Indomie Original', price: 11 },
+          { name: 'Indomie Original Telur', price: 14 },
+          { name: 'Mie Aceh Biasa', price: 17, star: true },
+          { name: 'Mie Aceh Cumi', price: 25, star: true },
+          { name: 'Mie Aceh Daging', price: 25, star: true },
+          { name: 'Mie Aceh Telur', price: 20, star: true },
+          { name: 'Mie Aceh Udang', price: 25, star: true },
+          { name: 'Mie Goreng Telur', price: 15 },
+          { name: 'Mie Pedas Gila Telur', price: 15, star: true }
+        ]
+      },
+      {
+        name: 'Snack', note: 'Teman ngopi', cols: 1,
+        items: [
+          { name: 'Dimsum', price: 12 },
+          { name: 'Dimsum Mozarella', price: 13 },
+          { name: 'Dimsum Nori Roll', price: 12 },
+          { name: 'Ekado Telur', price: 13 },
+          { name: 'Lumpia', price: 12 },
+          { name: 'Lumpia Keju', price: 13 }
+        ]
+      }
+    ]
+  }
+
+  /* Contoh menambah halaman minuman — hapus tanda komentar lalu isi:
+  ,{
+    kicker: 'Menu', title: 'Coffee', layout: '1fr 1fr',
+    groups: [
+      { name: 'Espresso Based', cols: 1, items: [
+        { name: 'Americano', price: 18 },
+        { name: 'Kopi Susu Xiway', price: 22, star: true }
+      ]},
+      { name: 'Non Coffee', cols: 1, items: [
+        { name: 'Matcha Latte', price: 24 }
+      ]}
+    ]
+  }
+  */
+];
+
+/* ---------------- RENDER ---------------- */
+
+const pagesEl  = document.getElementById('pages');
+const tickerEl  = document.getElementById('ticker');
+const kickerEl  = document.getElementById('pageKicker');
+const nameEl    = document.getElementById('pageName');
+
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+MENU.forEach((page, i) => {
+  const el = document.createElement('section');
+  el.className = 'page';
+  el.style.gridTemplateColumns = page.layout || '1fr 1fr';
+
+  el.innerHTML = page.groups.map(g => `
+    <div class="group" ${g.span ? `data-span="${g.span}"` : ''} data-cols="${g.cols || 1}">
+      <div class="group-head reveal">
+        <h2>${esc(g.name)}</h2>
+        ${g.note ? `<small>${esc(g.note)}</small>` : ''}
+      </div>
+      <ul class="items">
+        ${g.items.map(it => `
+          <li class="item reveal ${it.star ? 'is-signature' : ''}">
+            ${it.star ? '<span class="sig-dot"></span>' : ''}
+            <span class="name">${esc(it.name)}</span>
+            <span class="leader"></span>
+            <span class="price">${it.price}<sup>K</sup></span>
+          </li>`).join('')}
+      </ul>
+    </div>`).join('');
+
+  pagesEl.appendChild(el);
+
+  const tick = document.createElement('span');
+  tick.className = 'tick';
+  tick.innerHTML = '<i></i>';
+  tickerEl.appendChild(tick);
+});
+
+const pageEls = [...document.querySelectorAll('.page')];
+const tickEls = [...document.querySelectorAll('.tick')];
+
+/* Auto-fit: kecilkan skala sampai konten muat, jadi daftar tidak pernah terpotong */
+function fit(el){
+  let scale = 1;
+  document.documentElement.style.setProperty('--scale', scale);
+  const room = pagesEl.clientHeight;
+  let guard = 40;
+  while (el.scrollHeight > room && scale > 0.55 && guard--){
+    scale = +(scale - 0.02).toFixed(2);
+    document.documentElement.style.setProperty('--scale', scale);
+  }
+}
+
+let current = -1;
+
+function show(i){
+  const page = MENU[i];
+  const el   = pageEls[i];
+
+  pageEls.forEach(p => p.classList.remove('is-active'));
+  el.classList.add('is-active');
+  fit(el);
+
+  // Stagger baris: makin ke bawah makin telat, dibatasi supaya tidak lama
+  el.querySelectorAll('.reveal').forEach((r, k) => {
+    r.style.animation = 'none';
+    void r.offsetWidth;
+    r.style.animation = '';
+    r.style.animationDelay = Math.min(k * 38, 900) + 'ms';
+  });
+
+  kickerEl.textContent = page.kicker || 'Menu';
+  nameEl.textContent   = page.title;
+  nameEl.classList.remove('swap'); void nameEl.offsetWidth; nameEl.classList.add('swap');
+
+  tickEls.forEach((t, k) => {
+    t.classList.toggle('is-active', k === i);
+    t.classList.toggle('is-done',   k < i);
+  });
+
+  current = i;
+}
+
+function next(){ show((current + 1) % MENU.length); }
+
+const duration = parseFloat(
+  getComputedStyle(document.documentElement).getPropertyValue('--page-duration')
+) * 1000;
+
+show(0);
+setInterval(next, duration);
+
+// Muat ulang tiap 6 jam supaya display tetap segar kalau ditinggal menyala
+setTimeout(() => location.reload(), 6 * 60 * 60 * 1000);
+
+// Panah kiri/kanan untuk pindah halaman manual saat setting di TV
+addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') next();
+  if (e.key === 'ArrowLeft')  show((current - 1 + MENU.length) % MENU.length);
+});
+
+addEventListener('resize', () => show(current));
+</script>
+</body>
+</html>
