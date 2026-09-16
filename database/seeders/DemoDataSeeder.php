@@ -299,6 +299,53 @@ class DemoDataSeeder extends Seeder
      */
     protected function seedBundle(array $outlets): void
     {
+        $nasi = Product::query()->where('name', 'Nasi Ayam Pecak')->where('is_active', true)->first();
+        $sanger = Product::query()->where('name', 'Sanger Classic')->where('is_active', true)->first();
+        $mie = Product::query()->where('name', 'Mie Aceh Biasa')->where('is_active', true)->first();
+        $tea = Product::query()->where('name', 'Lemon Tea')->where('is_active', true)->first();
+
+        if ($nasi && $sanger) {
+            $bundle = Bundle::query()->updateOrCreate(
+                ['sku' => 'BND-NASI-SANGER'],
+                [
+                    'name' => 'Paket Nasi + Sanger',
+                    'price' => 38000,
+                    'start_date' => null,
+                    'end_date' => null,
+                    'start_time' => null,
+                    'end_time' => null,
+                    'is_active' => true,
+                ],
+            );
+            $bundle->items()->delete();
+            $bundle->items()->createMany([
+                ['product_id' => $nasi->id, 'quantity' => 1],
+                ['product_id' => $sanger->id, 'quantity' => 1],
+            ]);
+            $bundle->outlets()->sync(collect($outlets)->pluck('id'));
+        }
+
+        if ($mie && $tea) {
+            $bundle = Bundle::query()->updateOrCreate(
+                ['sku' => 'BND-MIE-TEA'],
+                [
+                    'name' => 'Paket Mie + Tea',
+                    'price' => 28000,
+                    'start_date' => null,
+                    'end_date' => null,
+                    'start_time' => null,
+                    'end_time' => null,
+                    'is_active' => true,
+                ],
+            );
+            $bundle->items()->delete();
+            $bundle->items()->createMany([
+                ['product_id' => $mie->id, 'quantity' => 1],
+                ['product_id' => $tea->id, 'quantity' => 1],
+            ]);
+            $bundle->outlets()->sync(collect($outlets)->pluck('id'));
+        }
+
         Bundle::query()->where('sku', 'BND-HEMAT-A')->update(['is_active' => false]);
     }
 

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\PrinterStation;
 use App\Enums\ProductType;
+use App\Models\Bundle;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Unit;
@@ -89,6 +90,13 @@ class MenuDisplayTest extends TestCase
             'station' => PrinterStation::Kitchen->value,
         ]);
 
+        Bundle::query()->create([
+            'name' => 'Paket Nasi + Sanger',
+            'sku' => 'BND-TEST',
+            'price' => 38000,
+            'is_active' => true,
+        ]);
+
         $this->get('/display')
             ->assertOk()
             ->assertSee('Cormorant Garamond', false)
@@ -100,12 +108,15 @@ class MenuDisplayTest extends TestCase
             ->assertSee('Sanger Classic')
             ->assertSee('Nasi Ayam Pecak')
             ->assertSee('Mie Aceh Biasa')
+            ->assertSee('Paket Nasi + Sanger')
             ->assertSee('"name":"Makanan"', false)
             ->assertSee('"name":"Coffee"', false)
             ->assertSee('"name":"Mie"', false)
+            ->assertSee('"name":"Paket Bundle"', false)
             ->assertDontSee('"name":"Indomie"', false)
             ->assertSee('"price":18', false)
             ->assertSee('"price":25', false)
+            ->assertSee('"price":38', false)
             ->assertSee('"star":true', false)
             ->assertSee('sig-star', false)
             ->assertSee('--paper: #FFFFFF', false)

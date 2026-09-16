@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Bundle;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\View\View;
@@ -19,6 +20,7 @@ class MenuDisplayController extends Controller
             $this->column([
                 $this->group('Coffee', $this->items('coffee')),
                 $this->group('Xiway Main', $this->items('xiway-main')),
+                $this->group('Paket Bundle', $this->bundles()),
             ]),
             $this->column([
                 $this->group('Non Coffee', $this->items('non-coffee')),
@@ -76,6 +78,25 @@ class MenuDisplayController extends Controller
                 'name' => $product->name,
                 'price' => (int) round((float) $product->price / 1000),
                 'star' => (bool) $product->is_recommended,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{name: string, price: int, star: bool}>
+     */
+    protected function bundles(): array
+    {
+        return Bundle::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Bundle $bundle) => $bundle->isCurrentlyActive())
+            ->map(fn (Bundle $bundle) => [
+                'name' => $bundle->name,
+                'price' => (int) round((float) $bundle->price / 1000),
+                'star' => false,
             ])
             ->values()
             ->all();
