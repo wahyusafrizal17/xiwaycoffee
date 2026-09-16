@@ -39,6 +39,14 @@ class MenuDisplayTest extends TestCase
             'is_active' => true,
         ]);
 
+        $mie = Category::query()->create([
+            'name' => 'Mie',
+            'slug' => 'mie',
+            'station' => PrinterStation::Kitchen->value,
+            'sort_order' => 6,
+            'is_active' => true,
+        ]);
+
         Product::query()->create([
             'sku' => 'XIW-SANGER',
             'name' => 'Sanger Classic',
@@ -67,20 +75,41 @@ class MenuDisplayTest extends TestCase
             'station' => PrinterStation::Kitchen->value,
         ]);
 
+        Product::query()->create([
+            'sku' => 'XIW-MIE-ACEH',
+            'name' => 'Mie Aceh Biasa',
+            'category_id' => $mie->id,
+            'unit_id' => $unit->id,
+            'type' => ProductType::Finished,
+            'price' => 17000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+            'is_recommended' => true,
+            'station' => PrinterStation::Kitchen->value,
+        ]);
+
         $this->get('/display')
             ->assertOk()
-            ->assertSee('Archivo', false)
+            ->assertSee('Cormorant Garamond', false)
             ->assertSee('Menu andalan')
             ->assertSee('Harga dalam ribuan rupiah')
-            ->assertSee('"title":"Minuman"', false)
-            ->assertSee('"title":"Makanan"', false)
-            ->assertDontSee('"title":"Tea & Signature"', false)
+            ->assertDontSee('Menu Lengkap')
+            ->assertSee('"title":"Menu"', false)
+            ->assertDontSee('"title":"Minuman"', false)
             ->assertSee('Sanger Classic')
             ->assertSee('Nasi Ayam Pecak')
+            ->assertSee('Mie Aceh Biasa')
+            ->assertSee('"name":"Makanan"', false)
+            ->assertSee('"name":"Coffee"', false)
+            ->assertSee('"name":"Mie"', false)
+            ->assertDontSee('"name":"Indomie"', false)
             ->assertSee('"price":18', false)
             ->assertSee('"price":25', false)
             ->assertSee('"star":true', false)
             ->assertSee('sig-star', false)
-            ->assertSee('--bg:         #FFFFFF', false);
+            ->assertSee('--paper: #FFFFFF', false)
+            ->assertSee('images/logo/xiway-logo.png', false)
+            ->assertSee('watermark', false);
     }
 }

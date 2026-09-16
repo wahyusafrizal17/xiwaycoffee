@@ -10,44 +10,50 @@ class MenuDisplayController extends Controller
 {
     public function __invoke(): View
     {
+        // Clean scan path: food | coffee | the rest
+        $columns = array_values(array_filter([
+            $this->column([
+                $this->group('Makanan', $this->items('makanan')),
+                $this->group('Snack', $this->items('snack')),
+            ]),
+            $this->column([
+                $this->group('Coffee', $this->items('coffee')),
+                $this->group('Xiway Main', $this->items('xiway-main')),
+            ]),
+            $this->column([
+                $this->group('Non Coffee', $this->items('non-coffee')),
+                $this->group('Fit Tea', $this->items('fit-tea')),
+                $this->group('Mie', $this->items('mie')),
+            ]),
+        ]));
+
         return view('menu.display', [
-            'menu' => array_values(array_filter([
-                $this->page('Menu', 'Minuman', '1fr 1fr', [
-                    $this->group('Coffee', 'Espresso & susu', $this->items('coffee')),
-                    $this->group('Non Coffee', 'Tanpa kopi', $this->items('non-coffee')),
-                    $this->group('Fit Tea', 'Teh segar', $this->items('fit-tea')),
-                    $this->group('Xiway Main', 'Signature', $this->items('xiway-main')),
-                ]),
-                $this->page('Menu', 'Makanan', '1.25fr 1fr .85fr', [
-                    $this->group('Makanan', 'Dimasak setelah dipesan', $this->items('makanan')),
-                    $this->group('Mie', 'Level pedas bisa diatur', $this->items('mie')),
-                    $this->group('Snack', 'Teman ngopi', $this->items('snack')),
-                ]),
-            ])),
+            'menu' => $columns === [] ? [] : [[
+                'kicker' => 'Xiway Coffee',
+                'title' => 'Menu',
+                'columns' => $columns,
+            ]],
         ]);
     }
 
     /**
-     * @param  list<array{name: string, note: ?string, span: ?int, cols: int, items: list<array{name: string, price: int, star: bool}>}>  $groups
-     * @return array{kicker: string, title: string, layout: string, groups: list<array{name: string, note: ?string, span: ?int, cols: int, items: list<array{name: string, price: int, star: bool}>}>}|null
+     * @param  list<array{name: string, items: list<array{name: string, price: int, star: bool}>}>  $groups
+     * @return list<array{name: string, items: list<array{name: string, price: int, star: bool}>}>|null
      */
-    protected function page(string $kicker, string $title, string $layout, array $groups): ?array
+    protected function column(array $groups): ?array
     {
         $groups = array_values(array_filter($groups, fn (array $group) => $group['items'] !== []));
-        if ($groups === []) {
-            return null;
-        }
 
-        return compact('kicker', 'title', 'layout', 'groups');
+        return $groups === [] ? null : $groups;
     }
 
     /**
      * @param  list<array{name: string, price: int, star: bool}>  $items
-     * @return array{name: string, note: ?string, span: ?int, cols: int, items: list<array{name: string, price: int, star: bool}>}
+     * @return array{name: string, items: list<array{name: string, price: int, star: bool}>}
      */
-    protected function group(string $name, ?string $note, array $items, ?int $span = null, int $cols = 1): array
+    protected function group(string $name, array $items): array
     {
-        return compact('name', 'note', 'span', 'cols', 'items');
+        return compact('name', 'items');
     }
 
     /**
@@ -63,6 +69,7 @@ class MenuDisplayController extends Controller
         return Product::query()
             ->sellable()
             ->where('category_id', $category->id)
+            ->orderByDesc('is_recommended')
             ->orderBy('name')
             ->get()
             ->map(fn (Product $product) => [

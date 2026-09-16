@@ -55,18 +55,19 @@ class CatalogSeeder extends Seeder
         $commission = (float) config('pos.food_commission', 2000);
 
         foreach ([
-            ['name' => 'Sanger Classic', 'price' => 18000],
-            ['name' => 'Double Sanger', 'price' => 22000],
+            ['name' => 'Sanger Classic', 'price' => 18000, 'star' => true],
+            ['name' => 'Double Sanger', 'price' => 22000, 'star' => true],
             ['name' => 'Americano', 'price' => 16000],
-            ['name' => 'Kopi Susu Xiway', 'price' => 20000],
-            ['name' => 'Kopi Susu Classic', 'price' => 18000],
+            ['name' => 'Coffee Latte', 'price' => 23000],
+            ['name' => 'Kopi Susu Xiway', 'price' => 20000, 'star' => true],
+            ['name' => 'Kopi Susu Classic', 'price' => 18000, 'star' => true],
             ['name' => 'Kopi Susu Aren', 'price' => 20000],
             ['name' => 'Vanilla Latte', 'price' => 23000],
             ['name' => 'Caramel Latte', 'price' => 23000],
             ['name' => 'Butterscotch Latte', 'price' => 23000],
             ['name' => 'Tiramisu Latte', 'price' => 23000],
         ] as $item) {
-            $this->drink($item['name'], $category('Coffee'), $unit('PCS'), $item['price']);
+            $this->drink($item['name'], $category('Coffee'), $unit('PCS'), $item['price'], $item['star'] ?? false);
         }
 
         foreach ([
@@ -75,9 +76,9 @@ class CatalogSeeder extends Seeder
             ['name' => 'Taro', 'price' => 20000],
             ['name' => 'Redvelvet', 'price' => 20000],
             ['name' => 'Avocado', 'price' => 20000],
-            ['name' => 'Strawberry Mist', 'price' => 20000],
+            ['name' => 'Strawberry Mist', 'price' => 20000, 'star' => true],
         ] as $item) {
-            $this->drink($item['name'], $category('Non Coffee'), $unit('PCS'), $item['price']);
+            $this->drink($item['name'], $category('Non Coffee'), $unit('PCS'), $item['price'], $item['star'] ?? false);
         }
 
         foreach ([
@@ -86,20 +87,20 @@ class CatalogSeeder extends Seeder
             ['name' => 'Peach Tea', 'price' => 15000],
             ['name' => 'Strawberry Tea', 'price' => 15000],
         ] as $item) {
-            $this->drink($item['name'], $category('Fit Tea'), $unit('PCS'), $item['price']);
+            $this->drink($item['name'], $category('Fit Tea'), $unit('PCS'), $item['price'], $item['star'] ?? false);
         }
 
         foreach ([
-            ['name' => 'Xiway Sea Salt', 'price' => 25000],
-            ['name' => 'Butterscotch Noir', 'price' => 25000],
-            ['name' => 'Golden Cream Latte', 'price' => 25000],
-            ['name' => 'Mont Blanc', 'price' => 25000],
-            ['name' => 'Dark Berry', 'price' => 25000],
-            ['name' => 'Dirty Latte', 'price' => 25000],
-            ['name' => 'Scarlet Brew', 'price' => 25000],
-            ['name' => 'Passion Mist', 'price' => 25000],
+            ['name' => 'Xiway Sea Salt', 'price' => 25000, 'star' => true],
+            ['name' => 'Butterscotch Noir', 'price' => 25000, 'star' => true],
+            ['name' => 'Golden Cream Latte', 'price' => 25000, 'star' => true],
+            ['name' => 'Mont Blanc', 'price' => 25000, 'star' => true],
+            ['name' => 'Dark Berry', 'price' => 25000, 'star' => true],
+            ['name' => 'Dirty Latte', 'price' => 25000, 'star' => true],
+            ['name' => 'Scarlet Brew', 'price' => 25000, 'star' => true],
+            ['name' => 'Passion Mist', 'price' => 25000, 'star' => true],
         ] as $item) {
-            $this->drink($item['name'], $category('Xiway Main'), $unit('PCS'), $item['price']);
+            $this->drink($item['name'], $category('Xiway Main'), $unit('PCS'), $item['price'], $item['star'] ?? false);
         }
 
         foreach ([
