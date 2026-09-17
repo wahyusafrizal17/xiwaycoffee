@@ -30,6 +30,59 @@ body{
   cursor: none;
 }
 
+/* soft moving ambiance behind watermark */
+.bg-ambiance{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  overflow:hidden;
+}
+.bg-ambiance .orb{
+  position:absolute;
+  border-radius:50%;
+  filter: blur(70px);
+  will-change: transform, opacity;
+}
+.bg-ambiance .orb-a{
+  width: 48vw; height: 48vw;
+  left: -12vw; top: -18vh;
+  background: radial-gradient(circle, rgba(154,122,58,.18) 0%, transparent 70%);
+  animation: orb-drift-a 22s ease-in-out infinite;
+}
+.bg-ambiance .orb-b{
+  width: 42vw; height: 42vw;
+  right: -10vw; bottom: -16vh;
+  background: radial-gradient(circle, rgba(166,124,10,.14) 0%, transparent 70%);
+  animation: orb-drift-b 28s ease-in-out infinite;
+}
+.bg-ambiance .orb-c{
+  width: 36vw; height: 36vw;
+  left: 38vw; top: 28vh;
+  background: radial-gradient(circle, rgba(28,22,18,.05) 0%, transparent 68%);
+  animation: orb-drift-c 24s ease-in-out infinite;
+}
+.bg-ambiance .dust{
+  position:absolute;
+  inset:0;
+  background-image:
+    radial-gradient(circle, rgba(154,122,58,.28) 1px, transparent 1.4px),
+    radial-gradient(circle, rgba(166,124,10,.18) 1px, transparent 1.3px),
+    radial-gradient(circle, rgba(28,22,18,.1) .8px, transparent 1.2px);
+  background-size: 18vw 22vh, 14vw 18vh, 22vw 26vh;
+  background-position: 0 0, 40px 60px, 80px 20px;
+  opacity: .35;
+  animation: dust-drift 36s linear infinite;
+}
+.bg-ambiance .veil{
+  position:absolute;
+  inset:-10%;
+  background:
+    linear-gradient(115deg, transparent 35%, rgba(154,122,58,.06) 50%, transparent 65%);
+  background-size: 220% 220%;
+  animation: veil-sweep 16s ease-in-out infinite;
+}
+
 .watermark{
   position:fixed;
   inset:0;
@@ -42,7 +95,7 @@ body{
 .watermark img{
   width: min(40vw, 480px);
   height: auto;
-  opacity: .05;
+  opacity: .055;
   user-select: none;
   animation: watermark-drift 18s ease-in-out infinite;
 }
@@ -52,6 +105,28 @@ body{
   height:100vh;
   display:flex; flex-direction:column;
   padding:2.4vh 3.2vw 1.8vh;
+}
+
+.corner-gif{
+  position:fixed;
+  bottom:1.2vh;
+  z-index:0;
+  pointer-events:none;
+  width: min(11vw, 140px);
+  height: auto;
+  opacity: .92;
+  user-select: none;
+  filter: drop-shadow(0 6px 14px rgba(28,22,18,.12));
+}
+.corner-gif.is-left{
+  left: -.4vw;
+  bottom: -.2vh;
+}
+.corner-gif.is-right{
+  right: .1vw;
+  bottom: -3.5vh;
+  width: min(22vw, 280px);
+  opacity: .78;
 }
 
 .pages{position:relative; flex:1; min-height:0; overflow:hidden}
@@ -89,7 +164,7 @@ body{
 }
 .group-head h2{
   font-family:'Cormorant Garamond', serif;
-  font-size:calc(1.42vw * var(--scale));
+  font-size:calc(1.58vw * var(--scale));
   font-weight:600;
   font-style:italic;
   letter-spacing:.03em;
@@ -98,8 +173,8 @@ body{
 }
 .group-head .cat-icon{
   flex:none;
-  width:calc(1.15vw * var(--scale));
-  height:calc(1.15vw * var(--scale));
+  width:calc(1.28vw * var(--scale));
+  height:calc(1.28vw * var(--scale));
   color: var(--brass);
   opacity:.85;
 }
@@ -110,7 +185,7 @@ body{
   padding:calc(.34vh * var(--scale)) 0;
 }
 .item .name{
-  font-size:calc(.96vw * var(--scale));
+  font-size:calc(1.1vw * var(--scale));
   font-weight:500;
   letter-spacing:.015em;
   white-space:nowrap;
@@ -132,7 +207,7 @@ body{
 }
 .item .price{
   flex:none;
-  font-size:calc(.96vw * var(--scale));
+  font-size:calc(1.1vw * var(--scale));
   font-weight:600;
   letter-spacing:.015em;
   min-width:2.3em;
@@ -185,32 +260,33 @@ body{
   animation-delay: calc(var(--i, 0) * 180ms);
 }
 
-.footer{
-  flex:none;
-  display:flex; align-items:center; justify-content:space-between;
-  gap:1.5rem;
-  padding-top:1.1vh; margin-top:1vh;
-  border-top:1px solid var(--line);
-  font-size:.62vw;
-  font-weight:600; letter-spacing:.24em; text-transform:uppercase;
-  color:var(--muted);
-  opacity:0;
-  animation: rise 1.1s cubic-bezier(.16,1,.3,1) .4s forwards;
-}
-.footer.is-alive{
-  animation: footer-glow 8s ease-in-out infinite;
-  opacity:1;
-}
-.legend{display:flex; align-items:center; gap:.45vw}
-.legend .sig-star{font-size:1em; animation: star-pulse 4.5s ease-in-out infinite}
-
 @keyframes rise{
   from{opacity:0; transform:translateY(.7vh)}
   to{opacity:1; transform:none}
 }
 @keyframes watermark-drift{
-  0%,100%{opacity:.04; transform:scale(1)}
+  0%,100%{opacity:.045; transform:scale(1)}
   50%{opacity:.07; transform:scale(1.02)}
+}
+@keyframes orb-drift-a{
+  0%,100%{transform:translate(0,0) scale(1)}
+  50%{transform:translate(10vw, 8vh) scale(1.12)}
+}
+@keyframes orb-drift-b{
+  0%,100%{transform:translate(0,0) scale(1)}
+  50%{transform:translate(-9vw, -7vh) scale(1.1)}
+}
+@keyframes orb-drift-c{
+  0%,100%{transform:translate(0,0) scale(1); opacity:.8}
+  50%{transform:translate(-5vw, 6vh) scale(1.18); opacity:1}
+}
+@keyframes dust-drift{
+  0%{background-position: 0 0, 40px 60px, 80px 20px}
+  100%{background-position: 18vw -22vh, calc(40px - 14vw) calc(60px - 18vh), calc(80px + 11vw) calc(20px - 26vh)}
+}
+@keyframes veil-sweep{
+  0%,100%{background-position: 0% 50%; opacity:.55}
+  50%{background-position: 100% 50%; opacity:1}
 }
 @keyframes star-pulse{
   0%,100%{opacity:.55; filter:brightness(1)}
@@ -246,44 +322,45 @@ body{
   0%{background-position: 120% bottom}
   100%{background-position: -120% bottom}
 }
-@keyframes footer-glow{
-  0%,100%{opacity:.62}
-  50%{opacity:.92}
-}
 
 @media (prefers-reduced-motion:reduce){
   .watermark img,
+  .bg-ambiance .orb,
+  .bg-ambiance .dust,
+  .bg-ambiance .veil,
   .page.is-ready .reveal,
   .page.is-ready .item.reveal .leader,
   .page.is-alive .item .name .ch,
   .page.is-alive .item .leader,
   .page.is-alive .group-head,
-  .page.is-alive .item.is-signature .sig-star,
-  .legend .sig-star,
-  .footer,
-  .footer.is-alive{
+  .page.is-alive .item.is-signature .sig-star{
     animation:none!important;
   }
-  .reveal,.footer{opacity:1; transform:none}
+  .reveal{opacity:1; transform:none}
   .page.is-alive .group-head{background-position: center bottom}
 }
 </style>
 </head>
 <body>
 
+<div class="bg-ambiance" aria-hidden="true">
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="orb orb-c"></div>
+  <div class="dust"></div>
+  <div class="veil"></div>
+</div>
+
 <div class="watermark" aria-hidden="true">
   <img src="{{ asset('images/logo/xiway-logo.png') }}" alt="">
 </div>
 
+<img class="corner-gif is-left" src="https://cdn.pixabay.com/animation/2024/10/29/00/47/00-47-41-487_512.gif" alt="" aria-hidden="true">
+<img class="corner-gif is-right" src="https://cdn.pixabay.com/animation/2022/12/05/15/23/15-23-06-837_512.gif" alt="" aria-hidden="true">
+
 <div class="stage">
 
   <main class="pages" id="pages"></main>
-
-  <footer class="footer">
-    <div class="legend"><span class="sig-star" aria-hidden="true">★</span> Menu andalan</div>
-    <div>Harga dalam ribuan rupiah</div>
-    <div>Specialty Arabika Gayo</div>
-  </footer>
 
 </div>
 
@@ -432,7 +509,6 @@ function playReveal(el){
   setTimeout(() => {
     el.classList.remove('is-ready');
     el.classList.add('is-alive');
-    document.querySelector('.footer')?.classList.add('is-alive');
   }, entranceMs);
 }
 

@@ -19,7 +19,7 @@ class MenuDisplayController extends Controller
             ]),
             $this->column([
                 $this->group('Coffee', $this->items('coffee')),
-                $this->group('Xiway Main', $this->items('xiway-main')),
+                $this->group('Xiway Main Menu', $this->items('xiway-main')),
                 $this->group('Paket Bundle', $this->bundles()),
             ]),
             $this->column([

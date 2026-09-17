@@ -100,8 +100,6 @@ class MenuDisplayTest extends TestCase
         $this->get('/display')
             ->assertOk()
             ->assertSee('Cormorant Garamond', false)
-            ->assertSee('Menu andalan')
-            ->assertSee('Harga dalam ribuan rupiah')
             ->assertDontSee('Menu Lengkap')
             ->assertSee('"title":"Menu"', false)
             ->assertDontSee('"title":"Minuman"', false)
