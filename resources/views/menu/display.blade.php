@@ -64,15 +64,57 @@ body{
   user-select: none;
   filter: drop-shadow(0 6px 14px rgba(28,22,18,.12));
 }
-.corner-gif.is-left{
-  left: -.4vw;
-  bottom: -.2vh;
-}
 .corner-gif.is-right{
   right: .1vw;
   bottom: -3.5vh;
   width: min(22vw, 280px);
   opacity: .78;
+}
+
+.patrol-cat{
+  position:fixed;
+  left:0;
+  bottom: .6vh;
+  z-index:0;
+  width: min(7.5vw, 96px);
+  height: auto;
+  pointer-events:none;
+  user-select:none;
+  animation: cat-patrol 26s linear infinite;
+  filter: drop-shadow(0 4px 10px rgba(28,22,18,.12));
+  opacity: .9;
+}
+.patrol-cat svg{
+  display:block;
+  width:100%;
+  height:auto;
+  overflow:visible;
+}
+.patrol-cat .leg-f,
+.patrol-cat .leg-b{
+  transform-origin: top center;
+  animation: cat-step 0.45s ease-in-out infinite;
+}
+.patrol-cat .leg-b{ animation-delay: -.22s; }
+.patrol-cat .tail{
+  transform-origin: 18px 18px;
+  animation: cat-tail 0.9s ease-in-out infinite;
+}
+
+@keyframes cat-patrol{
+  0%{ transform: translateX(-8vw) scaleX(1); }
+  46%{ transform: translateX(78vw) scaleX(1); }
+  50%{ transform: translateX(78vw) scaleX(-1); }
+  96%{ transform: translateX(-8vw) scaleX(-1); }
+  100%{ transform: translateX(-8vw) scaleX(1); }
+}
+@keyframes cat-step{
+  0%,100%{ transform: rotate(18deg); }
+  50%{ transform: rotate(-18deg); }
+}
+@keyframes cat-tail{
+  0%,100%{ transform: rotate(-12deg); }
+  50%{ transform: rotate(14deg); }
 }
 
 .pages{position:relative; flex:1; min-height:0; overflow:hidden}
@@ -195,10 +237,15 @@ body{
 
 @media (prefers-reduced-motion:reduce){
   .page.is-ready .reveal,
-  .page.is-ready .item.reveal .leader{
+  .page.is-ready .item.reveal .leader,
+  .patrol-cat,
+  .patrol-cat .leg-f,
+  .patrol-cat .leg-b,
+  .patrol-cat .tail{
     animation:none!important;
   }
   .reveal{opacity:1; transform:none}
+  .patrol-cat{ left: 4vw; transform:none; }
 }
 </style>
 </head>
@@ -208,8 +255,24 @@ body{
   <img src="{{ asset('images/logo/xiway-logo.png') }}" alt="">
 </div>
 
-<img class="corner-gif is-left" src="https://cdn.pixabay.com/animation/2024/10/29/00/47/00-47-41-487_512.gif" alt="" aria-hidden="true">
 <img class="corner-gif is-right" src="https://cdn.pixabay.com/animation/2022/12/05/15/23/15-23-06-837_512.gif" alt="" aria-hidden="true">
+
+<div class="patrol-cat" aria-hidden="true">
+  <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <ellipse class="tail" cx="10" cy="18" rx="8" ry="3.2" fill="#2A2420"/>
+    <ellipse cx="34" cy="22" rx="16" ry="10" fill="#2A2420"/>
+    <circle cx="48" cy="14" r="7.5" fill="#2A2420"/>
+    <path d="M42 9l-1.5-7 5 4.5z" fill="#2A2420"/>
+    <path d="M52 8.5l3-6.5 2 7z" fill="#2A2420"/>
+    <circle cx="50.5" cy="13" r="1.1" fill="#F6EEE2"/>
+    <circle cx="46.2" cy="13.2" r="1.1" fill="#F6EEE2"/>
+    <path d="M54.8 15.2c1.4.4 2.2 1.2 2.4 2" stroke="#C47A5A" stroke-width="1.2" stroke-linecap="round"/>
+    <rect class="leg-b" x="24" y="28" width="3.2" height="9" rx="1.5" fill="#2A2420"/>
+    <rect class="leg-f" x="38" y="28" width="3.2" height="9" rx="1.5" fill="#2A2420"/>
+    <rect class="leg-b" x="29" y="28.5" width="3" height="8.5" rx="1.4" fill="#3A322C"/>
+    <rect class="leg-f" x="43" y="28.5" width="3" height="8.5" rx="1.4" fill="#3A322C"/>
+  </svg>
+</div>
 
 <div class="stage">
 
