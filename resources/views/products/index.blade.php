@@ -27,6 +27,7 @@
             'station' => old('station', data_get($focusPayload, 'station', '')),
             'prep_minutes' => old('prep_minutes', data_get($focusPayload, 'prep_minutes', 0)),
             'variants' => old('variants', data_get($focusPayload, 'variants', [])),
+            'option_groups' => old('option_groups', data_get($focusPayload, 'option_groups', [])),
             'id' => old('_product_id', data_get($focusPayload, 'id')),
             'mode' => old('_form_mode', 'create'),
             'update_url' => data_get($focusPayload, 'update_url', ''),
@@ -435,6 +436,62 @@
                                         <p class="text-[12px] text-muted" x-show="!form.variants.length">Opsional. Produk tanpa varian tetap bisa dijual.</p>
                                     </div>
                                 </div>
+
+                                <div class="sm:col-span-2 mt-2 border-t border-line pt-4">
+                                    <div class="mb-3 flex items-center justify-between gap-3">
+                                        <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Opsi / Add-ons</p>
+                                        <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="form.option_groups.push({ id: '', name: '', is_required: false, min_select: 0, max_select: 1, options: [{ id: '', name: '', price_adjustment: 0, is_active: true }] })">Tambah grup</button>
+                                    </div>
+                                    <div class="space-y-3">
+                                        <template x-for="(group, gIndex) in form.option_groups" :key="gIndex">
+                                            <div class="rounded-xl border border-line bg-[#fafafa] p-3">
+                                                <input type="hidden" :name="`option_groups[${gIndex}][id]`" x-model="group.id">
+                                                <div class="grid gap-2 sm:grid-cols-12">
+                                                    <div class="sm:col-span-4">
+                                                        <input class="input" :name="`option_groups[${gIndex}][name]`" x-model="group.name" placeholder="Nama grup (Sugar / Add-ons)">
+                                                    </div>
+                                                    <div class="sm:col-span-3">
+                                                        <label class="flex h-full items-center gap-2 rounded-lg border border-line bg-white px-3 text-xs">
+                                                            <input type="hidden" :name="`option_groups[${gIndex}][is_required]`" :value="group.is_required ? 1 : 0">
+                                                            <input type="checkbox" x-model="group.is_required" @change="if (group.is_required && Number(group.min_select) < 1) group.min_select = 1">
+                                                            Wajib pilih
+                                                        </label>
+                                                    </div>
+                                                    <div class="sm:col-span-2">
+                                                        <input class="input" type="number" min="0" max="20" :name="`option_groups[${gIndex}][min_select]`" x-model="group.min_select" placeholder="Min">
+                                                    </div>
+                                                    <div class="sm:col-span-2">
+                                                        <input class="input" type="number" min="1" max="20" :name="`option_groups[${gIndex}][max_select]`" x-model="group.max_select" placeholder="Max">
+                                                    </div>
+                                                    <button type="button" class="btn-ghost sm:col-span-1 !px-2" @click="form.option_groups.splice(gIndex, 1)">×</button>
+                                                </div>
+                                                <div class="mt-2 space-y-2">
+                                                    <template x-for="(option, oIndex) in group.options" :key="oIndex">
+                                                        <div class="grid grid-cols-12 gap-2">
+                                                            <input type="hidden" :name="`option_groups[${gIndex}][options][${oIndex}][id]`" x-model="option.id">
+                                                            <div class="col-span-5">
+                                                                <input class="input" :name="`option_groups[${gIndex}][options][${oIndex}][name]`" x-model="option.name" placeholder="Nama opsi">
+                                                            </div>
+                                                            <div class="col-span-4">
+                                                                <input class="input" type="number" step="0.01" :name="`option_groups[${gIndex}][options][${oIndex}][price_adjustment]`" x-model="option.price_adjustment" placeholder="+ harga">
+                                                            </div>
+                                                            <div class="col-span-2">
+                                                                <label class="flex h-full items-center gap-1.5 rounded-lg border border-line bg-white px-2 text-[11px]">
+                                                                    <input type="hidden" :name="`option_groups[${gIndex}][options][${oIndex}][is_active]`" :value="option.is_active ? 1 : 0">
+                                                                    <input type="checkbox" x-model="option.is_active">
+                                                                    Aktif
+                                                                </label>
+                                                            </div>
+                                                            <button type="button" class="btn-ghost col-span-1 !px-2" @click="group.options.splice(oIndex, 1)">×</button>
+                                                        </div>
+                                                    </template>
+                                                    <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="group.options.push({ id: '', name: '', price_adjustment: 0, is_active: true })">Tambah opsi</button>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <p class="text-[12px] text-muted" x-show="!form.option_groups.length">Contoh: grup Sugar (wajib, max 1) + Add-ons (opsional, max 3).</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -491,6 +548,7 @@
                 station: '',
                 prep_minutes: 0,
                 variants: [],
+                option_groups: [],
                 recipe: [],
                 update_url: '',
                 delete_url: '',
@@ -503,10 +561,10 @@
 
             let form = emptyForm();
             if (focus) {
-                form = { ...emptyForm(), ...focus, variants: focus.variants || [] };
+                form = { ...emptyForm(), ...focus, variants: focus.variants || [], option_groups: focus.option_groups || [] };
             }
             if (formError) {
-                form = { ...form, ...formOld, variants: formOld.variants || form.variants || [] };
+                form = { ...form, ...formOld, variants: formOld.variants || form.variants || [], option_groups: formOld.option_groups || form.option_groups || [] };
             }
 
             return {
@@ -529,7 +587,7 @@
                 openEdit(row) {
                     if (! row) return;
                     this.formMode = 'edit';
-                    this.form = { ...emptyForm(), ...row, variants: row.variants ? [...row.variants] : [] };
+                    this.form = { ...emptyForm(), ...row, variants: row.variants ? [...row.variants] : [], option_groups: row.option_groups ? JSON.parse(JSON.stringify(row.option_groups)) : [] };
                     this.viewOpen = false;
                     this.deleteOpen = false;
                     this.serverFormError = false;

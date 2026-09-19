@@ -17,8 +17,10 @@ use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\ProductOption;
 use App\Models\ProductVariant;
 use App\Models\TableSession;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -67,7 +69,7 @@ class OrderService
         $this->assertMutable($order);
 
         return DB::transaction(function () use ($order, $payload) {
-            $product = Product::query()->findOrFail($payload['product_id']);
+            $product = Product::query()->with(['optionGroups.options', 'category'])->findOrFail($payload['product_id']);
             $variant = ! empty($payload['product_variant_id'])
                 ? ProductVariant::query()->find($payload['product_variant_id'])
                 : null;
@@ -75,16 +77,30 @@ class OrderService
                 ? Bundle::query()->find($payload['bundle_id'])
                 : null;
 
+            $selectedOptions = $bundle
+                ? collect()
+                : $this->resolveSelectedOptions($product, $payload['option_ids'] ?? []);
+
             $qty = (float) ($payload['quantity'] ?? 1);
-            $price = $bundle
+            $base = $bundle
                 ? (float) $bundle->price
                 : (float) $product->price + (float) ($variant?->price_adjustment ?? 0);
+            $optionTotal = (float) $selectedOptions->sum(fn (ProductOption $option) => (float) $option->price_adjustment);
+            $price = $base + $optionTotal;
+
+            $name = $bundle?->name ?? $product->name;
+            if ($variant) {
+                $name = "{$product->name} ({$variant->name})";
+            }
+            if ($selectedOptions->isNotEmpty()) {
+                $name .= ' · '.$selectedOptions->pluck('name')->implode(', ');
+            }
 
             $item = $order->items()->create([
                 'product_id' => $product->id,
                 'product_variant_id' => $variant?->id,
                 'bundle_id' => $bundle?->id,
-                'name' => $variant ? "{$product->name} ({$variant->name})" : ($bundle?->name ?? $product->name),
+                'name' => $name,
                 'quantity' => $qty,
                 'unit_price' => $price,
                 'discount_amount' => 0,
@@ -96,10 +112,65 @@ class OrderService
                 'status' => 'new',
             ]);
 
+            foreach ($selectedOptions as $option) {
+                $item->options()->create([
+                    'product_option_id' => $option->id,
+                    'group_name' => $option->group->name,
+                    'name' => $option->name,
+                    'price_adjustment' => $option->price_adjustment,
+                ]);
+            }
+
             $this->recalculate($order->fresh(['items', 'discount']));
 
-            return $item->fresh();
+            return $item->fresh(['options']);
         });
+    }
+
+    /**
+     * @param  list<int|string>  $optionIds
+     * @return Collection<int, ProductOption>
+     */
+    protected function resolveSelectedOptions(Product $product, array $optionIds): Collection
+    {
+        $ids = collect($optionIds)->filter()->map(fn ($id) => (int) $id)->unique()->values();
+        $groups = $product->optionGroups;
+        if ($groups->isEmpty()) {
+            return collect();
+        }
+
+        $options = ProductOption::query()
+            ->with('group')
+            ->whereIn('id', $ids)
+            ->where('is_active', true)
+            ->whereIn('product_option_group_id', $groups->pluck('id'))
+            ->get()
+            ->keyBy('id');
+
+        if ($ids->count() !== $options->count()) {
+            throw ValidationException::withMessages(['option_ids' => 'Pilihan opsi tidak valid.']);
+        }
+
+        foreach ($groups as $group) {
+            $picked = $options->filter(fn (ProductOption $option) => (int) $option->product_option_group_id === (int) $group->id);
+            $count = $picked->count();
+            $min = $group->is_required ? max(1, (int) $group->min_select) : (int) $group->min_select;
+            $max = max($min, (int) $group->max_select);
+
+            if ($count < $min) {
+                throw ValidationException::withMessages([
+                    'option_ids' => "Pilih {$group->name} terlebih dahulu.",
+                ]);
+            }
+
+            if ($count > $max) {
+                throw ValidationException::withMessages([
+                    'option_ids' => "{$group->name}: maksimal {$max} pilihan.",
+                ]);
+            }
+        }
+
+        return $options->values();
     }
 
     public function updateItem(OrderItem $item, array $payload): Order

@@ -18,6 +18,7 @@ class SettingController extends Controller
         'company_name',
         'receipt_footer',
         'qz_printer',
+        'kitchen_whatsapp',
     ];
 
     protected array $defaults = [
@@ -28,6 +29,7 @@ class SettingController extends Controller
         'company_name' => 'Rasa',
         'receipt_footer' => 'Terima kasih',
         'qz_printer' => '',
+        'kitchen_whatsapp' => '',
     ];
 
     public function index(): View
@@ -60,6 +62,7 @@ class SettingController extends Controller
             'company_name' => ['nullable', 'string', 'max:150'],
             'receipt_footer' => ['nullable', 'string', 'max:255'],
             'qz_printer' => ['nullable', 'string', 'max:120'],
+            'kitchen_whatsapp' => ['nullable', 'string', 'max:20'],
         ], [
             'tax_rate.required' => 'Tarif pajak wajib diisi.',
             'tax_rate.max' => 'Tarif pajak maksimal 100%.',

@@ -321,78 +321,112 @@
     }
 
     .menu-card {
-        @apply flex overflow-hidden rounded-[18px] bg-canvas text-left shadow-[0_8px_22px_rgba(17,17,17,0.08)];
+        @apply relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#ebe7e2] bg-white text-left transition;
+        box-shadow: 0 1px 2px rgba(17, 17, 17, 0.04);
+    }
+
+    .menu-card:hover {
+        border-color: #ddd6ce;
+        box-shadow: 0 10px 28px rgba(17, 17, 17, 0.08);
+        transform: translateY(-1px);
     }
 
     .menu-card-visual {
-        @apply relative w-[42%] shrink-0 self-stretch overflow-hidden bg-canvas pr-3;
+        @apply relative aspect-[4/3] w-full overflow-hidden bg-[#f6f3ef];
     }
 
     .menu-card-badge {
-        position: absolute;
-        top: 0;
-        left: 0;
-        z-index: 1;
-        width: 72%;
-        height: 78%;
-        padding: 14px 16px 0 16px;
-        background: #f4a024;
-        border-top-left-radius: 18px;
-        border-bottom-right-radius: 100%;
-        color: #fff;
-        font-family: 'Juana', ui-serif, Georgia, serif;
-        font-size: 15px;
-        font-weight: 700;
-        line-height: 1.15;
-        word-break: break-word;
+        @apply absolute left-2.5 top-2.5 z-10 max-w-[70%] truncate rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b635c] backdrop-blur-sm;
     }
 
     .menu-card-photo {
-        position: absolute;
-        top: 50%;
-        left: 46%;
-        z-index: 10;
-        width: calc(100% - 2.25rem);
-        height: calc(100% - 1.75rem);
-        transform: translate(-50%, -50%);
-        object-fit: contain;
-        object-position: center;
+        @apply h-full w-full object-cover object-center transition duration-300;
+    }
+
+    .menu-card:hover .menu-card-photo {
+        transform: scale(1.03);
     }
 
     .menu-card-body {
-        @apply flex min-w-0 flex-1 flex-col justify-between py-4 pl-3 pr-4;
+        @apply flex min-w-0 flex-1 flex-col gap-2 p-3;
     }
 
     .menu-card-add {
-        @apply mt-3 inline-flex w-full items-center justify-center rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark;
+        @apply mt-auto inline-flex w-full items-center justify-center rounded-xl bg-heading px-3 py-2 text-[12px] font-semibold text-white transition hover:bg-black;
     }
 
     .order-panel {
-        @apply flex min-h-0 flex-col overflow-hidden rounded-[18px] bg-white shadow-[0_8px_22px_rgba(17,17,17,0.08)];
+        @apply flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#ebe7e2] bg-white;
+        box-shadow: 0 8px 28px rgba(17, 17, 17, 0.06);
     }
 
     .order-item {
-        @apply rounded-2xl border border-[#eee] bg-[#fafafa] p-3.5;
+        @apply rounded-xl bg-[#faf9f7] p-3;
     }
 
     .order-qty {
-        @apply inline-flex overflow-hidden rounded-lg border border-[#e5e5e5] bg-white;
+        @apply inline-flex overflow-hidden rounded-lg border border-[#e8e4df] bg-white;
     }
 
     .order-qty button {
-        @apply flex h-8 w-8 items-center justify-center text-base text-heading transition hover:bg-neutral-50;
+        @apply flex h-8 w-8 items-center justify-center text-base text-heading transition hover:bg-[#f3f0ec];
     }
 
     .order-qty span {
-        @apply flex h-8 min-w-8 items-center justify-center border-x border-[#e5e5e5] text-sm font-semibold text-heading;
+        @apply flex h-8 min-w-8 items-center justify-center border-x border-[#e8e4df] text-sm font-semibold text-heading;
     }
 
     .order-note {
-        @apply h-8 w-full rounded-lg border border-[#e5e5e5] bg-white px-2.5 text-xs text-heading outline-none placeholder:text-neutral-400 focus:border-heading;
+        @apply h-8 w-full rounded-lg border border-[#e8e4df] bg-white px-2.5 text-xs text-heading outline-none placeholder:text-neutral-400 focus:border-heading;
     }
 
     .order-row {
         @apply flex items-center justify-between text-[13px];
+    }
+
+    .pos-chip {
+        @apply shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition;
+    }
+
+    .pos-chip-active {
+        @apply bg-heading text-white;
+    }
+
+    .pos-chip-idle {
+        @apply bg-[#f3f0ec] text-heading hover:bg-[#ebe7e2];
+    }
+
+    .pos-shell {
+        @apply grid h-full min-h-0 flex-1 gap-3 p-3;
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    @media (min-width: 1024px) {
+        .pos-shell {
+            grid-template-columns: minmax(0, 1fr) 380px;
+        }
+    }
+
+    .pos-catalog {
+        @apply flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#ebe7e2] bg-white;
+    }
+
+    .pos-cart-fab {
+        @apply fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-heading px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(17,17,17,0.25)] lg:hidden;
+    }
+
+    .pos-cart-backdrop {
+        @apply fixed inset-0 z-40 bg-black/40 lg:hidden;
+    }
+
+    .pos-cart-sheet {
+        @apply fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col rounded-t-3xl bg-white shadow-[0_-12px_40px_rgba(0,0,0,0.18)] lg:static lg:z-auto lg:max-h-none lg:rounded-2xl lg:shadow-none;
+    }
+
+    @media (min-width: 1024px) {
+        .pos-cart-sheet {
+            @apply h-full;
+        }
     }
 
     .floor-canvas {

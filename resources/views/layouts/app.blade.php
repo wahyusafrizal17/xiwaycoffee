@@ -35,6 +35,8 @@
                             ['label' => 'Dashboard', 'route' => 'dashboard', 'perm' => 'dashboard.view', 'icon' => 'home'],
                             ['label' => 'POS', 'route' => 'pos.index', 'perm' => 'pos.access', 'icon' => 'pos'],
                             ['label' => 'Orders', 'route' => 'orders.index', 'perm' => 'orders.view', 'icon' => 'orders'],
+                            ['label' => 'Absensi', 'route' => 'attendance.index', 'perm' => 'attendance.clock', 'icon' => 'clipboard'],
+                            ['label' => 'BOP', 'route' => 'reports.expenses', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
                         ],
                         'Commerce' => [
                             ['label' => 'Marketing', 'route' => 'marketing.discounts', 'perm' => 'marketing.view', 'icon' => 'marketing', 'children' => [
@@ -200,7 +202,11 @@
     </div>
 
     <nav class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-white px-2 py-2 lg:hidden">
-        <a href="{{ route('dashboard') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('dashboard') ? 'text-brand' : 'text-muted' }}">Home</a>
+        @if (auth()->user()?->hasPermission('dashboard.view'))
+            <a href="{{ route('dashboard') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('dashboard') ? 'text-brand' : 'text-muted' }}">Home</a>
+        @elseif (auth()->user()?->hasPermission('attendance.clock'))
+            <a href="{{ route('attendance.index') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('attendance.*') ? 'text-brand' : 'text-muted' }}">Absen</a>
+        @endif
         @if (auth()->user()?->can('pos.access'))
             <a href="{{ route('pos.index') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('pos.*') ? 'text-brand' : 'text-muted' }}">POS</a>
         @endif

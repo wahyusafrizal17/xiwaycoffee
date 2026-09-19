@@ -14,16 +14,29 @@ return [
     'waste_prefix' => 'WST',
 
     'partners' => [
-        ['name' => 'Wahyu', 'capital' => 90_000_000],
-        ['name' => 'Rizky', 'capital' => 135_000_000],
-        ['name' => 'Johan', 'capital' => 72_500_000],
+        ['name' => 'Wahyu', 'capital' => 100_000_000],
+        ['name' => 'Rizky', 'capital' => 150_000_000],
+        ['name' => 'Johan', 'capital' => 74_000_000],
     ],
 
     'food_commission' => 2000,
 
+    // Fixed operating costs. Target omzet minuman = monthly total (cover BOP; HPP tuned later).
+    'bop' => [
+        'items' => [
+            ['name' => 'Sewa Ruko', 'category' => 'sewa', 'amount' => 45_000_000, 'period' => 'year'],
+            ['name' => 'Listrik', 'category' => 'listrik', 'amount' => 1_000_000, 'period' => 'month'],
+            ['name' => 'Wifi', 'category' => 'wifi', 'amount' => 325_000, 'period' => 'month'],
+            ['name' => 'Gaji Karyawan', 'category' => 'gaji', 'amount' => 8_900_000, 'period' => 'month'],
+            ['name' => 'Iuran', 'category' => 'iuran', 'amount' => 125_000, 'period' => 'month'],
+        ],
+        'drink_categories' => ['Coffee', 'Non Coffee', 'Fit Tea', 'Xiway Main'],
+    ],
+
     'roles' => [
         'admin' => 'Admin',
         'cashier' => 'Cashier',
+        'karyawan' => 'Karyawan',
     ],
 
     'permissions' => [
@@ -60,6 +73,9 @@ return [
         'outlets.manage',
         'settings.manage',
         'audit.view',
+        'attendance.clock',
+        'attendance.manage',
+        'bop.manage',
     ],
 
     'role_permissions' => [
@@ -67,6 +83,16 @@ return [
         'cashier' => [
             'dashboard.view', 'pos.access', 'orders.view', 'orders.manage', 'orders.checkout', 'orders.check', 'orders.cancel',
             'tables.view', 'tables.manage', 'customers.view', 'customers.manage',
+            'attendance.clock',
+            'bop.manage',
         ],
+        'karyawan' => [
+            'attendance.clock',
+        ],
+    ],
+
+    'attendance' => [
+        'late_after' => '08:30',
+        'geo_radius_m' => 150,
     ],
 ];

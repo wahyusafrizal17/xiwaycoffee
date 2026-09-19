@@ -45,6 +45,11 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    public function employee(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Employee::class);
+    }
+
     public function role(): ?Role
     {
         if ($this->relationLoaded('roles')) {

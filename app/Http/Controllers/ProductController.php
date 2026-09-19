@@ -17,7 +17,7 @@ class ProductController extends Controller
         abort_unless($request->user()->hasPermission('products.view'), 403);
 
         $filters = $request->only(['sku', 'name', 'category_id', 'type', 'status']);
-        $query = Product::query()->with(['category', 'unit', 'variants']);
+        $query = Product::query()->with(['category', 'unit', 'variants', 'optionGroups.options']);
 
         if (filled($filters['sku'] ?? null)) {
             $query->where('sku', 'like', '%'.$filters['sku'].'%');
@@ -38,7 +38,7 @@ class ProductController extends Controller
         }
 
         $focusProduct = $request->filled('product')
-            ? Product::query()->with(['category', 'unit', 'variants'])->find($request->integer('product'))
+            ? Product::query()->with(['category', 'unit', 'variants', 'optionGroups.options'])->find($request->integer('product'))
             : null;
 
         return view('products.index', [
@@ -67,6 +67,7 @@ class ProductController extends Controller
         abort_unless($request->user()->hasPermission('products.manage'), 403);
         $product = Product::query()->create($this->payload($request));
         $this->syncVariants($product, $request->input('variants', []));
+        $this->syncOptionGroups($product, $request->input('option_groups', []));
         $this->syncRecipeCost($product);
 
         return redirect()->route('products.index')->with('success', 'Produk ditambahkan.');
@@ -84,6 +85,7 @@ class ProductController extends Controller
         abort_unless($request->user()->hasPermission('products.manage'), 403);
         $product->update($this->payload($request, $product));
         $this->syncVariants($product, $request->input('variants', []));
+        $this->syncOptionGroups($product, $request->input('option_groups', []));
         $this->syncRecipeCost($product);
 
         return redirect()->route('products.index')->with('success', 'Produk diperbarui.');
@@ -100,7 +102,7 @@ class ProductController extends Controller
     protected function payload(Request $request, ?Product $product = null): array
     {
         $data = $this->validated($request, $product?->id);
-        unset($data['image_file'], $data['variants']);
+        unset($data['image_file'], $data['variants'], $data['option_groups']);
 
         if ($request->hasFile('image_file')) {
             $data['image'] = $request->file('image_file')->store('products', 'public');
@@ -134,6 +136,64 @@ class ProductController extends Controller
         }
 
         $product->variants()->whereNotIn('id', $keep ?: [0])->delete();
+    }
+
+    protected function syncOptionGroups(Product $product, array $groups): void
+    {
+        $keepGroups = [];
+
+        foreach (array_values($groups) as $gIndex => $row) {
+            if (! filled($row['name'] ?? null)) {
+                continue;
+            }
+
+            $isRequired = filter_var($row['is_required'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $maxSelect = max(1, (int) ($row['max_select'] ?? 1));
+            $minSelect = $isRequired ? max(1, (int) ($row['min_select'] ?? 1)) : max(0, (int) ($row['min_select'] ?? 0));
+            if ($minSelect > $maxSelect) {
+                $minSelect = $maxSelect;
+            }
+
+            $payload = [
+                'name' => $row['name'],
+                'is_required' => $isRequired,
+                'min_select' => $minSelect,
+                'max_select' => $maxSelect,
+                'sort_order' => $gIndex,
+            ];
+
+            $id = (int) ($row['id'] ?? 0);
+            $group = $id > 0
+                ? $product->optionGroups()->updateOrCreate(['id' => $id], $payload)
+                : $product->optionGroups()->create($payload);
+
+            $keepGroups[] = $group->id;
+            $keepOptions = [];
+
+            foreach (array_values($row['options'] ?? []) as $oIndex => $optionRow) {
+                if (! filled($optionRow['name'] ?? null)) {
+                    continue;
+                }
+
+                $optionPayload = [
+                    'name' => $optionRow['name'],
+                    'price_adjustment' => $optionRow['price_adjustment'] ?? 0,
+                    'is_active' => filter_var($optionRow['is_active'] ?? true, FILTER_VALIDATE_BOOLEAN),
+                    'sort_order' => $oIndex,
+                ];
+
+                $optionId = (int) ($optionRow['id'] ?? 0);
+                $option = $optionId > 0
+                    ? $group->options()->updateOrCreate(['id' => $optionId], $optionPayload)
+                    : $group->options()->create($optionPayload);
+
+                $keepOptions[] = $option->id;
+            }
+
+            $group->options()->whereNotIn('id', $keepOptions ?: [0])->delete();
+        }
+
+        $product->optionGroups()->whereNotIn('id', $keepGroups ?: [0])->delete();
     }
 
     protected function syncRecipeCost(Product $product): void
@@ -177,6 +237,17 @@ class ProductController extends Controller
             'variants.*.name' => ['nullable', 'string', 'max:80'],
             'variants.*.sku' => ['nullable', 'string', 'max:50'],
             'variants.*.price_adjustment' => ['nullable', 'numeric'],
+            'option_groups' => ['nullable', 'array'],
+            'option_groups.*.id' => ['nullable'],
+            'option_groups.*.name' => ['nullable', 'string', 'max:80'],
+            'option_groups.*.is_required' => ['nullable'],
+            'option_groups.*.min_select' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'option_groups.*.max_select' => ['nullable', 'integer', 'min:1', 'max:20'],
+            'option_groups.*.options' => ['nullable', 'array'],
+            'option_groups.*.options.*.id' => ['nullable'],
+            'option_groups.*.options.*.name' => ['nullable', 'string', 'max:80'],
+            'option_groups.*.options.*.price_adjustment' => ['nullable', 'numeric'],
+            'option_groups.*.options.*.is_active' => ['nullable'],
         ], [
             'sku.required' => 'SKU wajib diisi.',
             'sku.unique' => 'SKU sudah dipakai produk lain.',

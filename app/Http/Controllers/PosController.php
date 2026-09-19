@@ -13,10 +13,15 @@ use App\Services\InventoryService;
 use App\Services\OrderService;
 use App\Services\PrinterRoutingService;
 use App\Services\TableService;
+use App\Services\WaCloudService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
+use RuntimeException;
 
 class PosController extends Controller
 {
@@ -26,7 +31,7 @@ class PosController extends Controller
 
         $outletId = current_outlet_id();
 
-        $products = Product::query()->sellable()->with(['category', 'unit', 'variants'])->orderBy('name')->get();
+        $products = Product::query()->sellable()->with(['category', 'unit', 'variants', 'optionGroups.options'])->orderBy('name')->get();
         $lowStock = app(InventoryService::class)->lowStock($outletId);
 
         return view('pos.index', [
@@ -56,6 +61,26 @@ class PosController extends Controller
                 ->values(),
             'lowStock' => $lowStock,
             'productImages' => $products->mapWithKeys(fn ($product) => [(string) $product->id => $product->imageUrl()]),
+            'productCatalog' => $products->mapWithKeys(fn (Product $product) => [
+                (string) $product->id => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'price' => (float) $product->price,
+                    'option_groups' => $product->optionGroups->map(fn ($group) => [
+                        'id' => $group->id,
+                        'name' => $group->name,
+                        'is_required' => (bool) $group->is_required,
+                        'min_select' => (int) $group->min_select,
+                        'max_select' => (int) $group->max_select,
+                        'options' => $group->options->map(fn ($option) => [
+                            'id' => $option->id,
+                            'name' => $option->name,
+                            'price_adjustment' => (float) $option->price_adjustment,
+                            'is_active' => (bool) $option->is_active,
+                        ])->values(),
+                    ])->values(),
+                ],
+            ]),
             'lowStockNames' => $lowStock->take(3)->pluck('name')->join(', '),
             'lowStockExtra' => max(0, $lowStock->count() - 3),
             'qzPrinter' => setting('qz_printer', ''),
@@ -91,11 +116,13 @@ class PosController extends Controller
             'bundle_id' => ['nullable', 'exists:bundles,id'],
             'quantity' => ['nullable', 'numeric', 'min:0.01'],
             'notes' => ['nullable', 'string', 'max:255'],
+            'option_ids' => ['nullable', 'array'],
+            'option_ids.*' => ['integer', 'exists:product_options,id'],
         ]);
 
         $orders->addItem($order, $data);
 
-        return response()->json($order->fresh(['items.product', 'customer', 'table']));
+        return response()->json($order->fresh(['items.product', 'items.options', 'customer', 'table']));
     }
 
     public function updateItem(Request $request, Order $order, $item, OrderService $orders): JsonResponse
@@ -171,7 +198,7 @@ class PosController extends Controller
         return response()->json($orders->assignCustomer($order, $data['customer_id'] ?? null));
     }
 
-    public function submit(Request $request, Order $order, OrderService $orders, PrinterRoutingService $printers): JsonResponse
+    public function submit(Request $request, Order $order, OrderService $orders, PrinterRoutingService $printers, WaCloudService $wa): JsonResponse
     {
         abort_unless((int) $order->outlet_id === (int) current_outlet_id(), 403);
 
@@ -181,10 +208,12 @@ class PosController extends Controller
         ]);
 
         $submitted = $orders->submit($order, $data)->load(['items.product', 'customer', 'table', 'outlet', 'user']);
+        $kitchenWa = $this->notifyKitchenWhatsApp($submitted, $printers, $wa);
 
         return response()->json([
             'order' => $submitted,
-            'print_jobs' => $this->escposJobs($printers->route($submitted), $submitted),
+            'print_jobs' => $this->escposJobs($this->printJobsForQz($printers->route($submitted), $kitchenWa), $submitted),
+            'kitchen_whatsapp_sent' => $kitchenWa,
             'qz_printer' => setting('qz_printer', ''),
         ]);
     }
@@ -204,7 +233,7 @@ class PosController extends Controller
         return response()->json($order->fresh(['items.product', 'customer', 'table']));
     }
 
-    public function checkout(Request $request, Order $order, OrderService $orders, PrinterRoutingService $printers): JsonResponse
+    public function checkout(Request $request, Order $order, OrderService $orders, PrinterRoutingService $printers, WaCloudService $wa): JsonResponse
     {
         abort_unless($request->user()->hasPermission('orders.checkout'), 403);
 
@@ -218,21 +247,73 @@ class PosController extends Controller
         ]);
 
         $completed = $orders->checkout($order, $data)->load(['items.product', 'payments', 'outlet', 'customer', 'table', 'user']);
-
-        $escpos = app(EscPosPrinter::class);
-        $prepItems = $completed->items;
+        $kitchenWa = $this->notifyKitchenWhatsApp($completed, $printers, $wa);
 
         return response()->json([
             'order' => $completed,
-            'print_jobs' => $this->escposJobs($printers->route($completed), $completed),
-            'receipt_escpos' => base64_encode($escpos->receipt($completed)),
-            'receipt_html' => $escpos->receiptHtml($completed),
-            'receipt_height_mm' => $escpos->receiptHeightMm($completed),
-            'prep_ticket_escpos' => base64_encode($escpos->ticket($completed, 'prep', $prepItems)),
-            'prep_ticket_html' => $escpos->ticketHtml($completed, 'prep', $prepItems),
-            'prep_ticket_height_mm' => $escpos->ticketHeightMm($prepItems),
+            'kitchen_whatsapp_sent' => $kitchenWa,
+            // Customer invoice goes via WhatsApp modal — no receipt print.
+            'print_jobs' => $this->escposJobs($this->printJobsForQz($printers->route($completed), $kitchenWa), $completed),
             'qz_printer' => setting('qz_printer', ''),
         ]);
+    }
+
+    public function sendInvoiceWhatsapp(Request $request, Order $order, WaCloudService $wa): JsonResponse
+    {
+        abort_unless($request->user()->hasPermission('orders.checkout'), 403);
+        abort_unless((int) $order->outlet_id === (int) current_outlet_id(), 403);
+
+        $data = $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+        ]);
+
+        $order->load(['items', 'payments', 'outlet', 'customer', 'table', 'user']);
+
+        $via = 'text';
+        $notice = null;
+
+        try {
+            if ($this->invoicePdfIsPubliclyReachable()) {
+                $filename = 'Invoice-'.$order->order_number.'.pdf';
+                $pdfUrl = URL::temporarySignedRoute(
+                    'pos.invoice.pdf',
+                    now()->addHours(6),
+                    ['order' => $order->id],
+                );
+                $wa->sendDocument($data['phone'], $pdfUrl, $filename, $wa->invoiceCaption($order));
+                $via = 'pdf';
+            } else {
+                $wa->sendText($data['phone'], $wa->invoiceMessage($order));
+                $notice = 'Invoice dikirim sebagai teks (APP_URL lokal tidak bisa diambil WACloud untuk PDF).';
+            }
+        } catch (RuntimeException $e) {
+            // Document quota / API failure → text receipt so checkout isn't blocked.
+            try {
+                $wa->sendText($data['phone'], $wa->invoiceMessage($order));
+                $via = 'text';
+                $notice = $e->getMessage().' Invoice dikirim sebagai teks.';
+            } catch (RuntimeException $textError) {
+                return response()->json(['message' => $textError->getMessage()], 422);
+            }
+        }
+
+        return response()->json(['ok' => true, 'via' => $via, 'notice' => $notice]);
+    }
+
+    public function invoicePdf(Order $order): Response
+    {
+        $order->load(['items', 'payments', 'outlet', 'customer', 'table', 'user']);
+
+        return Pdf::loadView('pos.invoice-pdf', ['order' => $order])
+            ->setPaper('a5')
+            ->stream('Invoice-'.$order->order_number.'.pdf');
+    }
+
+    protected function invoicePdfIsPubliclyReachable(): bool
+    {
+        $host = strtolower((string) parse_url((string) config('app.url'), PHP_URL_HOST));
+
+        return $host !== '' && ! in_array($host, ['localhost', '127.0.0.1', '::1'], true);
     }
 
     public function cancel(Request $request, Order $order, OrderService $orders): JsonResponse|RedirectResponse
@@ -319,5 +400,32 @@ class PosController extends Controller
 
             return $job;
         }, $jobs);
+    }
+
+    protected function notifyKitchenWhatsApp(Order $order, PrinterRoutingService $printers, WaCloudService $wa): bool
+    {
+        try {
+            return $wa->sendKitchenOrder($order, $printers);
+        } catch (RuntimeException $e) {
+            report($e);
+
+            return false;
+        }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $jobs
+     * @return list<array<string, mixed>>
+     */
+    protected function printJobsForQz(array $jobs, bool $kitchenViaWhatsApp): array
+    {
+        if (! $kitchenViaWhatsApp) {
+            return $jobs;
+        }
+
+        return array_values(array_filter(
+            $jobs,
+            fn (array $job) => ($job['payload']['station'] ?? '') !== 'kitchen',
+        ));
     }
 }

@@ -8,6 +8,8 @@ enum ExpenseCategory: string
     case Rent = 'sewa';
     case Salary = 'gaji';
     case Electricity = 'listrik';
+    case Wifi = 'wifi';
+    case Dues = 'iuran';
     case Other = 'lain';
 
     public function label(): string
@@ -17,6 +19,8 @@ enum ExpenseCategory: string
             self::Rent => 'Sewa',
             self::Salary => 'Gaji',
             self::Electricity => 'Listrik',
+            self::Wifi => 'Wifi',
+            self::Dues => 'Iuran',
             self::Other => 'Lainnya',
         };
     }

@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'wacloud' => [
+        'base_url' => env('WACLOUD_BASE_URL', 'https://app.wacloud.id/api/v1'),
+        'api_key' => env('WACLOUD_API_KEY'),
+        'device_id' => env('WACLOUD_DEVICE_ID'),
+    ],
+
 ];

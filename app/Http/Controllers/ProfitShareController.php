@@ -21,7 +21,7 @@ class ProfitShareController extends Controller
 
     public function expenses(Request $request): View
     {
-        abort_unless($request->user()->hasPermission('reports.view'), 403);
+        abort_unless($this->canManageBop($request), 403);
 
         $outletId = current_outlet_id();
 
@@ -36,12 +36,13 @@ class ProfitShareController extends Controller
             'total' => (float) OperatingExpense::query()
                 ->when($outletId, fn ($q, $id) => $q->where('outlet_id', $id))
                 ->sum('amount'),
+            'bopMonthly' => monthly_bop(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->hasPermission('reports.view'), 403);
+        abort_unless($this->canManageBop($request), 403);
 
         $data = $request->validate([
             'spent_on' => ['required', 'date'],
@@ -85,5 +86,12 @@ class ProfitShareController extends Controller
             'outlets' => Outlet::query()->orderBy('name')->get(),
             ...$this->reports->foodSetoran($filters),
         ]);
+    }
+
+    protected function canManageBop(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user->hasPermission('bop.manage') || $user->hasPermission('reports.view');
     }
 }

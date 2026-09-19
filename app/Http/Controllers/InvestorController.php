@@ -6,7 +6,7 @@ use App\Enums\PaymentStatus;
 use App\Models\Investor;
 use App\Models\InvestorTopup;
 use App\Models\MonthlyTarget;
-use App\Models\Order;
+use App\Models\OrderItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,14 +34,9 @@ class InvestorController extends Controller
             ->where('month', $month)
             ->first();
 
-        $actual = (float) Order::query()
-            ->where('payment_status', PaymentStatus::Paid->value)
-            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
-            ->whereYear('created_at', $year)
-            ->whereMonth('created_at', $month)
-            ->sum('grand_total');
-
-        $targetAmount = (float) ($target?->amount ?? 0);
+        $bopMonthly = monthly_bop();
+        $targetAmount = (float) ($target?->amount ?? $bopMonthly);
+        $actual = $this->drinkSalesForMonth($outletId, $year, $month);
         $progress = $targetAmount > 0 ? min(100, round($actual / $targetAmount * 100, 1)) : 0;
 
         return view('investors.index', [
@@ -58,7 +53,22 @@ class InvestorController extends Controller
             'targetProgress' => $progress,
             'targetYear' => $year,
             'targetMonth' => $month,
+            'bopItems' => bop_items(),
+            'bopMonthly' => $bopMonthly,
         ]);
+    }
+
+    protected function drinkSalesForMonth(?int $outletId, int $year, int $month): float
+    {
+        return (float) OrderItem::query()
+            ->whereHas('order', function ($q) use ($outletId, $year, $month) {
+                $q->where('payment_status', PaymentStatus::Paid->value)
+                    ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
+                    ->whereYear('created_at', $year)
+                    ->whereMonth('created_at', $month);
+            })
+            ->whereHas('product.category', fn ($q) => $q->whereIn('name', drink_category_names()))
+            ->sum('total');
     }
 
     public function store(Request $request): RedirectResponse

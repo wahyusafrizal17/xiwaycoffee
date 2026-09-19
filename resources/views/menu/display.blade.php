@@ -50,7 +50,7 @@ body{
   position:relative; z-index:1;
   height:100vh;
   display:flex; flex-direction:column;
-  padding:2.4vh 3.2vw 1.8vh;
+  padding:1.8vh 2.8vw 1.4vh;
 }
 
 .corner-gif{
@@ -71,59 +71,13 @@ body{
   opacity: .78;
 }
 
-.patrol-cat{
-  position:fixed;
-  left:0;
-  bottom: .6vh;
-  z-index:0;
-  width: min(7.5vw, 96px);
-  height: auto;
-  pointer-events:none;
-  user-select:none;
-  animation: cat-patrol 26s linear infinite;
-  filter: drop-shadow(0 4px 10px rgba(28,22,18,.12));
-  opacity: .9;
-}
-.patrol-cat svg{
-  display:block;
-  width:100%;
-  height:auto;
-  overflow:visible;
-}
-.patrol-cat .leg-f,
-.patrol-cat .leg-b{
-  transform-origin: top center;
-  animation: cat-step 0.45s ease-in-out infinite;
-}
-.patrol-cat .leg-b{ animation-delay: -.22s; }
-.patrol-cat .tail{
-  transform-origin: 18px 18px;
-  animation: cat-tail 0.9s ease-in-out infinite;
-}
-
-@keyframes cat-patrol{
-  0%{ transform: translateX(-8vw) scaleX(1); }
-  46%{ transform: translateX(78vw) scaleX(1); }
-  50%{ transform: translateX(78vw) scaleX(-1); }
-  96%{ transform: translateX(-8vw) scaleX(-1); }
-  100%{ transform: translateX(-8vw) scaleX(1); }
-}
-@keyframes cat-step{
-  0%,100%{ transform: rotate(18deg); }
-  50%{ transform: rotate(-18deg); }
-}
-@keyframes cat-tail{
-  0%,100%{ transform: rotate(-12deg); }
-  50%{ transform: rotate(14deg); }
-}
-
 .pages{position:relative; flex:1; min-height:0; overflow:hidden}
 .page{
   --scale: 1;
   position:absolute; inset:0;
   display:grid;
   grid-template-columns: 1.06fr 1fr 1fr;
-  gap:0 3.2vw;
+  gap:0 2.8vw;
   align-content:start;
   opacity:0; visibility:hidden;
 }
@@ -132,7 +86,7 @@ body{
 .column{
   min-width:0;
   display:flex; flex-direction:column;
-  gap:calc(1.9vh * var(--scale));
+  gap:calc(1.35vh * var(--scale));
 }
 
 .group{min-width:0}
@@ -140,13 +94,13 @@ body{
   display:flex;
   align-items:center;
   gap:.55vw;
-  padding-bottom:.5vh;
-  margin-bottom:.35vh;
+  padding-bottom:.45vh;
+  margin-bottom:.28vh;
   border-bottom:1px solid var(--line);
 }
 .group-head h2{
   font-family:'Cormorant Garamond', serif;
-  font-size:calc(1.58vw * var(--scale));
+  font-size:calc(2.15vw * var(--scale));
   font-weight:600;
   font-style:italic;
   letter-spacing:.03em;
@@ -155,23 +109,23 @@ body{
 }
 .group-head .cat-icon{
   flex:none;
-  width:calc(1.28vw * var(--scale));
-  height:calc(1.28vw * var(--scale));
+  width:calc(1.65vw * var(--scale));
+  height:calc(1.65vw * var(--scale));
   color: var(--brass);
   opacity:.85;
 }
 
 .items{list-style:none}
 .item{
-  display:flex; align-items:baseline; gap:.35vw;
-  padding:calc(.34vh * var(--scale)) 0;
+  display:flex; align-items:baseline; gap:.4vw;
+  padding:calc(.48vh * var(--scale)) 0;
 }
 .item .name{
-  font-size:calc(1.1vw * var(--scale));
+  font-size:calc(1.55vw * var(--scale));
   font-weight:500;
-  letter-spacing:.015em;
+  letter-spacing:.01em;
   white-space:nowrap;
-  max-width:66%;
+  max-width:70%;
   overflow:hidden;
   text-overflow:ellipsis;
 }
@@ -189,9 +143,9 @@ body{
 }
 .item .price{
   flex:none;
-  font-size:calc(1.1vw * var(--scale));
+  font-size:calc(1.55vw * var(--scale));
   font-weight:600;
-  letter-spacing:.015em;
+  letter-spacing:.01em;
   min-width:2.3em;
   text-align:right;
   color: var(--ink);
@@ -237,15 +191,10 @@ body{
 
 @media (prefers-reduced-motion:reduce){
   .page.is-ready .reveal,
-  .page.is-ready .item.reveal .leader,
-  .patrol-cat,
-  .patrol-cat .leg-f,
-  .patrol-cat .leg-b,
-  .patrol-cat .tail{
+  .page.is-ready .item.reveal .leader{
     animation:none!important;
   }
   .reveal{opacity:1; transform:none}
-  .patrol-cat{ left: 4vw; transform:none; }
 }
 </style>
 </head>
@@ -256,23 +205,6 @@ body{
 </div>
 
 <img class="corner-gif is-right" src="https://cdn.pixabay.com/animation/2022/12/05/15/23/15-23-06-837_512.gif" alt="" aria-hidden="true">
-
-<div class="patrol-cat" aria-hidden="true">
-  <svg viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <ellipse class="tail" cx="10" cy="18" rx="8" ry="3.2" fill="#2A2420"/>
-    <ellipse cx="34" cy="22" rx="16" ry="10" fill="#2A2420"/>
-    <circle cx="48" cy="14" r="7.5" fill="#2A2420"/>
-    <path d="M42 9l-1.5-7 5 4.5z" fill="#2A2420"/>
-    <path d="M52 8.5l3-6.5 2 7z" fill="#2A2420"/>
-    <circle cx="50.5" cy="13" r="1.1" fill="#F6EEE2"/>
-    <circle cx="46.2" cy="13.2" r="1.1" fill="#F6EEE2"/>
-    <path d="M54.8 15.2c1.4.4 2.2 1.2 2.4 2" stroke="#C47A5A" stroke-width="1.2" stroke-linecap="round"/>
-    <rect class="leg-b" x="24" y="28" width="3.2" height="9" rx="1.5" fill="#2A2420"/>
-    <rect class="leg-f" x="38" y="28" width="3.2" height="9" rx="1.5" fill="#2A2420"/>
-    <rect class="leg-b" x="29" y="28.5" width="3" height="8.5" rx="1.4" fill="#3A322C"/>
-    <rect class="leg-f" x="43" y="28.5" width="3" height="8.5" rx="1.4" fill="#3A322C"/>
-  </svg>
-</div>
 
 <div class="stage">
 
@@ -385,15 +317,16 @@ function fit(el){
   const room = pagesEl.clientHeight;
   if (room < 1) return;
 
-  let guard = 140;
-  while (contentHeight(el) > room && scale > 0.42 && guard--){
+  // Shrink until one screen, then grow to fill leftover space for readability.
+  let guard = 160;
+  while (contentHeight(el) > room && scale > 0.4 && guard--){
     scale = +(scale - 0.02).toFixed(2);
     el.style.setProperty('--scale', scale);
     void el.offsetHeight;
   }
 
-  guard = 40;
-  while (contentHeight(el) < room * 0.94 && scale < 1.15 && guard--){
+  guard = 60;
+  while (contentHeight(el) < room * 0.97 && scale < 1.65 && guard--){
     const next = +(scale + 0.02).toFixed(2);
     el.style.setProperty('--scale', next);
     void el.offsetHeight;

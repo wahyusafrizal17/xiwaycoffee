@@ -38,21 +38,58 @@
                 <div class="w-full">
                     <div class="mb-2 flex items-start justify-between gap-3">
                         <div>
-                            <p class="stat-kicker">Target omzet {{ $monthLabel }}</p>
+                            <p class="stat-kicker">Target omzet minuman {{ $monthLabel }}</p>
                             <p class="stat-value">{{ $targetAmount > 0 ? money($targetAmount) : '—' }}</p>
+                            <p class="stat-hint">Minimal menutupi BOP {{ money($bopMonthly) }}/bln</p>
                         </div>
                         <button type="button" class="btn-secondary !px-3 !py-1.5 text-sm shrink-0" @click="targetOpen = true">
                             Set target
                         </button>
                     </div>
                     <div class="mb-1.5 flex items-center justify-between text-xs text-slate-500">
-                        <span>Tercapai {{ money($actualSales) }}</span>
+                        <span>Omzet minuman {{ money($actualSales) }}</span>
                         <span>{{ $targetAmount > 0 ? number_format($targetProgress, 1, ',', '.') . '%' : 'Belum diset' }}</span>
                     </div>
                     <div class="h-2 overflow-hidden rounded-full bg-slate-100">
                         <div class="h-full rounded-full bg-brand transition-all" style="width: {{ $targetAmount > 0 ? $targetProgress : 0 }}%"></div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div class="mb-5 card overflow-hidden">
+            <div class="card-header">
+                <div>
+                    <h5 class="card-header-title">BOP bulanan (rencana)</h5>
+                    <p class="card-header-subtitle">Biaya tetap yang harus ditutup omzet minuman.</p>
+                </div>
+                <p class="text-lg font-semibold text-heading">{{ money($bopMonthly) }}</p>
+            </div>
+            <div class="table-wrap">
+                <table class="list-table">
+                    <thead>
+                        <tr>
+                            <th>Biaya</th>
+                            <th>Periode</th>
+                            <th class="text-right">Nominal</th>
+                            <th class="text-right">Per bulan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($bopItems as $item)
+                            <tr>
+                                <td>{{ $item['name'] }}</td>
+                                <td>{{ $item['period'] === 'year' ? 'Tahunan' : 'Bulanan' }}</td>
+                                <td class="text-right">{{ money($item['amount']) }}{{ $item['period'] === 'year' ? '/thn' : '/bln' }}</td>
+                                <td class="text-right">{{ money($item['monthly']) }}</td>
+                            </tr>
+                        @endforeach
+                        <tr class="font-semibold">
+                            <td colspan="3">Total BOP / bulan</td>
+                            <td class="text-right">{{ money($bopMonthly) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -209,24 +246,25 @@
                     <div class="crud-modal-body">
                         <div class="mb-4 flex items-start justify-between gap-3">
                             <div>
-                                <h5 class="card-header-title">Set target omzet</h5>
-                                <p class="card-header-subtitle">{{ $monthLabel }} · outlet aktif</p>
+                                <h5 class="card-header-title">Set target omzet minuman</h5>
+                                <p class="card-header-subtitle">{{ $monthLabel }} · minimal BOP {{ money($bopMonthly) }}</p>
                             </div>
                             <button type="button" class="modal-close" @click="targetOpen = false">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
                         </div>
                         <div>
-                            <label class="label">Target omzet (Rp)</label>
+                            <label class="label">Target omzet minuman (Rp)</label>
                             <input
                                 class="input"
                                 type="number"
                                 name="amount"
                                 min="0.01"
                                 step="0.01"
-                                value="{{ old('amount', $targetAmount > 0 ? $targetAmount : '') }}"
+                                value="{{ old('amount', $targetAmount > 0 ? (int) $targetAmount : (int) $bopMonthly) }}"
                                 required
                             >
+                            <p class="mt-1 text-xs text-muted">Hanya omzet kategori Coffee / Non Coffee / Fit Tea / Xiway Main yang dihitung.</p>
                             @error('amount') <p class="mt-1 text-xs text-brand">{{ $message }}</p> @enderror
                         </div>
                     </div>

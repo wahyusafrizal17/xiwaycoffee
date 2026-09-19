@@ -10,27 +10,27 @@
     <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.5/qz-tray.js"></script>
     @include('layouts.partials.qz-print')
 </head>
-<body class="h-screen overflow-hidden bg-canvas text-ink">
+<body class="h-screen overflow-hidden bg-[#f5f2ee] text-ink">
     <div class="flex h-screen flex-col">
-        <header class="flex h-14 shrink-0 items-center justify-between border-b border-line bg-white px-4">
+        <header class="flex h-14 shrink-0 items-center justify-between border-b border-[#ebe7e2] bg-white/90 px-4 backdrop-blur">
             <div class="flex items-center gap-3">
-                <img src="{{ asset('images/logo/logo.png') }}" alt="Rasa POS" class="h-14 w-auto max-w-[180px] object-contain">
+                <img src="{{ asset('images/logo/logo.png') }}" alt="Rasa POS" class="h-12 w-auto max-w-[160px] object-contain">
             </div>
-            <div class="flex items-center gap-2.5">
+            <div class="flex items-center gap-2">
                 @if (auth()->user()->canSwitchOutlet())
                     <form method="GET" action="{{ url()->current() }}">
                         @foreach (request()->except('switch_outlet') as $k => $v)
                             @if (!is_array($v)) <input type="hidden" name="{{ $k }}" value="{{ $v }}"> @endif
                         @endforeach
-                        <select name="switch_outlet" onchange="this.form.submit()" class="input !w-auto !rounded-lg !py-1.5 !text-[13px]">
+                        <select name="switch_outlet" onchange="this.form.submit()" class="input !w-auto !rounded-xl !border-[#ebe7e2] !bg-[#faf9f7] !py-1.5 !text-[13px]">
                             @foreach (\App\Models\Outlet::query()->where('is_active', true)->get() as $outlet)
                                 <option value="{{ $outlet->id }}" @selected(current_outlet_id() === $outlet->id)>{{ $outlet->name }}</option>
                             @endforeach
                         </select>
                     </form>
                 @endif
-                <a href="{{ route('dashboard') }}" class="btn-ghost !px-3 !py-2 text-xs">Dashboard</a>
-                <a href="{{ route('orders.index') }}" class="btn-ghost !px-3 !py-2 text-xs">Orders</a>
+                <a href="{{ route('dashboard') }}" class="btn-ghost !rounded-xl !px-3 !py-2 text-xs">Dashboard</a>
+                <a href="{{ route('orders.index') }}" class="btn-ghost !rounded-xl !px-3 !py-2 text-xs">Orders</a>
                 @include('layouts.partials.user-menu')
             </div>
         </header>

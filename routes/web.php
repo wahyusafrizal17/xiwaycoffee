@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AlertController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\CheckerController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
@@ -37,6 +38,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', fn () => redirect()->route('login'));
 Route::get('/display', MenuDisplayController::class)->name('menu.display');
 Route::get('/invite/{slug}', [InviteController::class, 'show'])->name('invites.show');
+Route::get('/pos/{order}/invoice.pdf', [PosController::class, 'invoicePdf'])
+    ->middleware('signed')
+    ->name('pos.invoice.pdf');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
@@ -56,6 +60,10 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 
+    Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn'])->name('attendance.clock-in');
+    Route::post('/attendance/clock-out', [AttendanceController::class, 'clockOut'])->name('attendance.clock-out');
+
     Route::prefix('pos')->name('pos.')->group(function () {
         Route::get('/', [PosController::class, 'index'])->name('index');
         Route::get('/held', [PosController::class, 'held'])->name('held');
@@ -71,6 +79,7 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
         Route::post('/{order}/hold', [PosController::class, 'hold'])->name('hold');
         Route::get('/{order}/recall', [PosController::class, 'recall'])->name('recall');
         Route::post('/{order}/checkout', [PosController::class, 'checkout'])->name('checkout');
+        Route::post('/{order}/invoice-whatsapp', [PosController::class, 'sendInvoiceWhatsapp'])->name('invoice.whatsapp');
         Route::post('/{order}/cancel', [PosController::class, 'cancel'])->name('cancel');
         Route::get('/{order}/receipt', [PosController::class, 'receipt'])->name('receipt');
         Route::get('/{order}/ticket/{station}', [PosController::class, 'ticket'])->name('ticket');

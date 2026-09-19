@@ -52,6 +52,11 @@ class Product extends Model
         return $this->hasMany(ProductVariant::class);
     }
 
+    public function optionGroups(): HasMany
+    {
+        return $this->hasMany(ProductOptionGroup::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function inventories(): HasMany
     {
         return $this->hasMany(Inventory::class);
@@ -130,7 +135,7 @@ class Product extends Model
 
     public function toModalArray(): array
     {
-        $this->loadMissing(['category', 'unit', 'variants']);
+        $this->loadMissing(['category', 'unit', 'variants', 'optionGroups.options']);
         $recipe = $this->recipeLines();
 
         return [
@@ -170,6 +175,19 @@ class Product extends Model
                 'sku' => $variant->sku ?? '',
                 'price_adjustment' => (float) $variant->price_adjustment,
                 'price_adjustment_label' => money($variant->price_adjustment),
+            ])->values()->all(),
+            'option_groups' => $this->optionGroups->map(fn (ProductOptionGroup $group) => [
+                'id' => $group->id,
+                'name' => $group->name,
+                'is_required' => (bool) $group->is_required,
+                'min_select' => (int) $group->min_select,
+                'max_select' => (int) $group->max_select,
+                'options' => $group->options->map(fn (ProductOption $option) => [
+                    'id' => $option->id,
+                    'name' => $option->name,
+                    'price_adjustment' => (float) $option->price_adjustment,
+                    'is_active' => (bool) $option->is_active,
+                ])->values()->all(),
             ])->values()->all(),
             'update_url' => route('products.update', $this),
             'delete_url' => route('products.destroy', $this),

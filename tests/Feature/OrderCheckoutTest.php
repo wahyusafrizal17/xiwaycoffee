@@ -130,7 +130,7 @@ class OrderCheckoutTest extends TestCase
         $this->assertSame(PaymentStatus::Paid, $order->payment_status);
     }
 
-    public function test_checkout_returns_customer_and_prep_invoices(): void
+    public function test_checkout_returns_without_customer_receipt_print_payload(): void
     {
         $this->actingAsAtOutlet($this->cashier);
 
@@ -156,22 +156,13 @@ class OrderCheckoutTest extends TestCase
         $service->addItem($order, ['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
         $service->addItem($order->fresh(), ['product_id' => $drink->id, 'quantity' => 1]);
 
-        $response = $this->postJson(route('pos.checkout', $order), [
+        $this->postJson(route('pos.checkout', $order), [
             'method' => 'cash',
             'tendered' => 200000,
         ])->assertOk()
-            ->assertJsonStructure(['receipt_escpos', 'prep_ticket_escpos', 'receipt_html', 'prep_ticket_html']);
-
-        $receipt = base64_decode($response->json('receipt_escpos'));
-        $prep = base64_decode($response->json('prep_ticket_escpos'));
-
-        $this->assertStringContainsString($order->fresh()->order_number, $receipt);
-        $this->assertStringContainsString('DAPUR / BAR', $prep);
-        $this->assertStringContainsString('[DAPUR]', $prep);
-        $this->assertStringContainsString('Chicken Burger', $prep);
-        $this->assertStringContainsString('[BAR]', $prep);
-        $this->assertStringContainsString('Espresso', $prep);
-        $this->assertStringContainsString('DAPUR / BAR', $response->json('prep_ticket_html'));
+            ->assertJsonStructure(['order', 'print_jobs', 'kitchen_whatsapp_sent'])
+            ->assertJsonMissingPath('receipt_escpos')
+            ->assertJsonMissingPath('prep_ticket_escpos');
     }
 
     public function test_escpos_receipt_is_raw_bytes_and_cuts_paper(): void

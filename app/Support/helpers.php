@@ -63,6 +63,36 @@ function tax_rate(): float
     return (float) setting('tax_rate', 11);
 }
 
+/**
+ * @return list<array{name: string, category: string, amount: float, period: string, monthly: float}>
+ */
+function bop_items(): array
+{
+    return array_map(function (array $item) {
+        $amount = (float) $item['amount'];
+        $monthly = ($item['period'] ?? 'month') === 'year' ? round($amount / 12, 2) : $amount;
+
+        return [
+            'name' => (string) $item['name'],
+            'category' => (string) $item['category'],
+            'amount' => $amount,
+            'period' => (string) ($item['period'] ?? 'month'),
+            'monthly' => $monthly,
+        ];
+    }, config('pos.bop.items', []));
+}
+
+function monthly_bop(): float
+{
+    return round(array_sum(array_column(bop_items(), 'monthly')), 2);
+}
+
+/** @return list<string> */
+function drink_category_names(): array
+{
+    return config('pos.bop.drink_categories', ['Coffee', 'Non Coffee', 'Fit Tea', 'Xiway Main']);
+}
+
 function points_per_amount(): int
 {
     return (int) setting('points_earn_per_amount', 10000);

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\Concerns\AppliesFillableAttribute;
 
 #[Fillable([
@@ -50,6 +51,11 @@ class OrderItem extends Model
     public function bundle(): BelongsTo
     {
         return $this->belongsTo(Bundle::class);
+    }
+
+    public function options(): HasMany
+    {
+        return $this->hasMany(OrderItemOption::class);
     }
 
     public function batch(): BelongsTo

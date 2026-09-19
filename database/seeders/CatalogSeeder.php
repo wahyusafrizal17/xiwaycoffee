@@ -55,52 +55,53 @@ class CatalogSeeder extends Seeder
         $commission = (float) config('pos.food_commission', 2000);
 
         foreach ([
-            ['name' => 'Sanger Classic', 'price' => 18000, 'star' => true],
-            ['name' => 'Double Sanger', 'price' => 22000, 'star' => true],
-            ['name' => 'Americano', 'price' => 16000],
-            ['name' => 'Coffee Latte', 'price' => 23000],
-            ['name' => 'Kopi Susu Xiway', 'price' => 20000, 'star' => true],
-            ['name' => 'Kopi Susu Classic', 'price' => 18000, 'star' => true],
-            ['name' => 'Kopi Susu Aren', 'price' => 20000],
-            ['name' => 'Vanilla Latte', 'price' => 23000],
-            ['name' => 'Caramel Latte', 'price' => 23000],
-            ['name' => 'Butterscotch Latte', 'price' => 23000],
-            ['name' => 'Tiramisu Latte', 'price' => 23000],
+            // Harga final hasil survey Cimahi; HPP dari sheet resep (food cost ideal ≤35%)
+            ['name' => 'Sanger Classic', 'price' => 18000, 'cost' => 5157, 'star' => true],
+            ['name' => 'Americano', 'price' => 18000, 'cost' => 5850],
+            ['name' => 'Coffee Latte', 'price' => 20000, 'cost' => 6200],
+            ['name' => 'Kopi Susu Classic', 'price' => 21000, 'cost' => 7585],
+            ['name' => 'Kopi Susu Xiway', 'price' => 22000, 'cost' => 7559, 'star' => true],
+            ['name' => 'Kosuren', 'price' => 22000, 'cost' => 6815],
+            ['name' => 'Double Sanger', 'price' => 23000, 'cost' => 8500, 'star' => true],
+            ['name' => 'Butterscotch Latte', 'price' => 25000, 'cost' => 9335],
+            ['name' => 'Vanilla Latte', 'price' => 25000, 'cost' => 9335],
+            ['name' => 'Tiramisu Latte', 'price' => 25000, 'cost' => 9335],
+            ['name' => 'Caramel Latte', 'price' => 25000, 'cost' => 9335],
+            ['name' => 'Dirty Latte', 'price' => 25000, 'cost' => 8218],
         ] as $item) {
-            $this->drink($item['name'], $category('Coffee'), $unit('PCS'), $item['price'], $item['star'] ?? false);
+            $this->drink($item['name'], $category('Coffee'), $unit('PCS'), $item['price'], $item['cost'], $item['star'] ?? false);
         }
 
         foreach ([
-            ['name' => 'Coklat', 'price' => 20000],
-            ['name' => 'Matcha', 'price' => 20000],
-            ['name' => 'Taro', 'price' => 20000],
-            ['name' => 'Redvelvet', 'price' => 20000],
-            ['name' => 'Avocado', 'price' => 20000],
-            ['name' => 'Strawberry Mist', 'price' => 20000, 'star' => true],
+            ['name' => 'Chocolate', 'price' => 20000, 'cost' => 6670],
+            ['name' => 'Red Velvet', 'price' => 20000, 'cost' => 6492],
+            ['name' => 'Taro', 'price' => 20000, 'cost' => 6492],
+            ['name' => 'Strawberry Mist', 'price' => 22000, 'cost' => 7137],
+            ['name' => 'Creamy Cookie', 'price' => 24000, 'cost' => 8252],
+            ['name' => 'Matcha', 'price' => 25000, 'cost' => 8085],
+            ['name' => 'Avocado', 'price' => 25000, 'cost' => 8420],
+            ['name' => 'Air Mineral', 'price' => 5000, 'cost' => 2500],
         ] as $item) {
-            $this->drink($item['name'], $category('Non Coffee'), $unit('PCS'), $item['price'], $item['star'] ?? false);
+            $this->drink($item['name'], $category('Non Coffee'), $unit('PCS'), $item['price'], $item['cost'], $item['star'] ?? false);
         }
 
         foreach ([
-            ['name' => 'Lychee Tea', 'price' => 15000],
-            ['name' => 'Lemon Tea', 'price' => 15000],
-            ['name' => 'Peach Tea', 'price' => 15000],
-            ['name' => 'Strawberry Tea', 'price' => 15000],
+            ['name' => 'Peach Tea', 'price' => 15000, 'cost' => 3697],
+            ['name' => 'Lychee Tea', 'price' => 15000, 'cost' => 3697],
+            ['name' => 'Strawberry Tea', 'price' => 15000, 'cost' => 3697],
         ] as $item) {
-            $this->drink($item['name'], $category('Fit Tea'), $unit('PCS'), $item['price'], $item['star'] ?? false);
+            $this->drink($item['name'], $category('Fit Tea'), $unit('PCS'), $item['price'], $item['cost'], $item['star'] ?? false);
         }
 
         foreach ([
-            ['name' => 'Xiway Sea Salt', 'price' => 25000, 'star' => true],
-            ['name' => 'Butterscotch Noir', 'price' => 25000, 'star' => true],
-            ['name' => 'Golden Cream Latte', 'price' => 25000, 'star' => true],
-            ['name' => 'Mont Blanc', 'price' => 25000, 'star' => true],
-            ['name' => 'Dark Berry', 'price' => 25000, 'star' => true],
-            ['name' => 'Dirty Latte', 'price' => 25000, 'star' => true],
-            ['name' => 'Scarlet Brew', 'price' => 25000, 'star' => true],
-            ['name' => 'Passion Mist', 'price' => 25000, 'star' => true],
+            ['name' => 'Scarlet Brew', 'price' => 24000, 'cost' => 6015],
+            ['name' => 'Dark Berry', 'price' => 25000, 'cost' => 7660],
+            ['name' => 'Passion Brew', 'price' => 22000, 'cost' => 5148],
+            ['name' => 'Butterscotch Noir', 'price' => 28000, 'cost' => 9835, 'star' => true],
+            ['name' => 'Golden Cream Latte', 'price' => 28000, 'cost' => 9835, 'star' => true],
+            ['name' => 'Xiway Sea Salt', 'price' => 29000, 'cost' => 10000, 'star' => true],
         ] as $item) {
-            $this->drink($item['name'], $category('Xiway Main'), $unit('PCS'), $item['price'], $item['star'] ?? false);
+            $this->drink($item['name'], $category('Xiway Main'), $unit('PCS'), $item['price'], $item['cost'], $item['star'] ?? false);
         }
 
         foreach ([
@@ -140,16 +141,16 @@ class CatalogSeeder extends Seeder
 
         $mieStyles = ['Goreng', 'Tumis', 'Kuah'];
         foreach ([
-            ['name' => 'Mie Aceh Biasa', 'price' => 17000, 'star' => true],
-            ['name' => 'Mie Aceh Telur', 'price' => 20000, 'star' => true],
+            ['name' => 'Mie Aceh Biasa', 'price' => 17000],
+            ['name' => 'Mie Aceh Telur', 'price' => 20000],
             ['name' => 'Mie Aceh Daging', 'price' => 25000, 'star' => true],
-            ['name' => 'Mie Aceh Udang', 'price' => 25000, 'star' => true],
-            ['name' => 'Mie Aceh Cumi', 'price' => 25000, 'star' => true],
-            ['name' => 'Indomie Aceh Biasa', 'price' => 17000, 'star' => true],
-            ['name' => 'Indomie Aceh Telur', 'price' => 20000, 'star' => true],
+            ['name' => 'Mie Aceh Udang', 'price' => 25000],
+            ['name' => 'Mie Aceh Cumi', 'price' => 25000],
+            ['name' => 'Indomie Aceh Biasa', 'price' => 17000],
+            ['name' => 'Indomie Aceh Telur', 'price' => 20000],
             ['name' => 'Indomie Aceh Daging', 'price' => 25000, 'star' => true],
-            ['name' => 'Indomie Aceh Udang', 'price' => 25000, 'star' => true],
-            ['name' => 'Indomie Aceh Cumi', 'price' => 25000, 'star' => true],
+            ['name' => 'Indomie Aceh Udang', 'price' => 25000],
+            ['name' => 'Indomie Aceh Cumi', 'price' => 25000],
         ] as $item) {
             $product = $this->food($item['name'], $category('Mie'), $unit('POR'), $item['price'], $commission, $item['star'] ?? false);
             foreach ($mieStyles as $style) {
@@ -161,15 +162,39 @@ class CatalogSeeder extends Seeder
         }
 
         foreach ([
-            ['name' => 'Dimsum', 'price' => 12000],
-            ['name' => 'Lumpia', 'price' => 12000],
-            ['name' => 'Lumpia Keju', 'price' => 13000],
-            ['name' => 'Ekado Telur', 'price' => 13000],
-            ['name' => 'Dimsum Nori Roll', 'price' => 12000],
-            ['name' => 'Dimsum Mozarella', 'price' => 13000],
+            ['name' => 'French Fries', 'price' => 15000],
+            ['name' => 'Nugget', 'price' => 15000],
+            ['name' => 'Sosis', 'price' => 15000],
+            ['name' => 'Mix (Kentang, Nugget & Sosis)', 'price' => 23000],
+            ['name' => 'Dimsum', 'price' => 15000],
+            ['name' => 'Lumpia', 'price' => 15000],
+            ['name' => 'Lumpia Keju', 'price' => 15000],
+            ['name' => 'Ekado Telur', 'price' => 15000],
+            ['name' => 'Dimsum Nori Roll', 'price' => 15000],
+            ['name' => 'Dimsum Mozarella', 'price' => 15000],
+            ['name' => 'Udang Crispy', 'price' => 15000],
         ] as $item) {
             $this->food($item['name'], $category('Snack'), $unit('POR'), $item['price'], $commission);
         }
+
+        $keepFoodNames = collect([
+            'Ayam Pecak', 'Ayam Sambal Matah', 'Nasi Ayam Pecak', 'Nasi Ayam Sambal Matah', 'Nasi Ayam Penyet',
+            'Nasi Telur Pecak', 'Nasi Telur Sambal Matah', 'Nasi Soto Ayam', 'Nasi Ayam Sambal Geprek', 'Nasi Ayam Cabai Ijo',
+            'Nasi Goreng Special', 'Nasi Goreng Hijau Telur', 'Nasi Goreng Hijau Ayam', 'Nasi Goreng Merah Telur', 'Nasi Goreng Merah Ayam',
+            'Nasi Goreng Hijau Ayam Pecak', 'Nasi Goreng Merah Ayam Sambal Matah',
+            'Nasi Nila Pecak', 'Nasi Nila Sambal Matah', 'Nasi Lele Pecak', 'Nasi Lele Sambal Matah',
+            'Mie Goreng Telur', 'Mie Pedas Gila Telur', 'Indomie Original', 'Indomie Original Telur',
+            'Mie Aceh Biasa', 'Mie Aceh Telur', 'Mie Aceh Daging', 'Mie Aceh Udang', 'Mie Aceh Cumi',
+            'Indomie Aceh Biasa', 'Indomie Aceh Telur', 'Indomie Aceh Daging', 'Indomie Aceh Udang', 'Indomie Aceh Cumi',
+            'French Fries', 'Nugget', 'Sosis', 'Mix (Kentang, Nugget & Sosis)', 'Dimsum', 'Lumpia', 'Lumpia Keju',
+            'Ekado Telur', 'Dimsum Nori Roll', 'Dimsum Mozarella', 'Udang Crispy',
+        ]);
+
+        Product::query()
+            ->where('station', PrinterStation::Kitchen->value)
+            ->where('is_sellable', true)
+            ->whereNotIn('name', $keepFoodNames)
+            ->update(['is_active' => false, 'is_sellable' => false]);
 
         foreach ([
             ['name' => 'Coffee Bean', 'unit' => 'KG', 'cost' => 280000, 'reorder' => 5, 'min' => 2, 'max' => 80],
@@ -214,14 +239,18 @@ class CatalogSeeder extends Seeder
             ['name' => 'Milk', 'quantity' => 0.12],
             ['name' => 'Creamer', 'quantity' => 0.015],
         ]);
+
+        // BOM applyToProduct overwrites cost — keep sheet HPP as source of truth for now.
+        Product::query()->where('name', 'Sanger Classic')->update(['cost' => 5157]);
+        Product::query()->where('name', 'Double Sanger')->update(['cost' => 8500]);
     }
 
-    protected function drink(string $name, Category $category, int $unitId, float $price, bool $star = false): Product
+    protected function drink(string $name, Category $category, int $unitId, float $price, float $cost = 0, bool $star = false): Product
     {
         return $this->product($this->sku($name), $name, $category, $unitId, [
             'type' => ProductType::Finished,
             'price' => $price,
-            'cost' => 0,
+            'cost' => $cost,
             'consignment_commission' => 0,
             'station' => PrinterStation::Bar->value,
             'prep_minutes' => 6,

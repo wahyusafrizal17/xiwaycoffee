@@ -30,6 +30,10 @@ class LoginController extends Controller
             session(['current_outlet_id' => $outlet->id]);
         }
 
+        if ($user->hasPermission('attendance.clock') && ! $user->hasPermission('dashboard.view')) {
+            return redirect()->intended(route('attendance.index'));
+        }
+
         return redirect()->intended(route('dashboard'));
     }
 

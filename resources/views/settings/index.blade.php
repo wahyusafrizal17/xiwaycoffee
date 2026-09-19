@@ -100,6 +100,12 @@
                         <p class="mt-1 text-[12px] text-muted">Harus sama persis dengan nama di Windows, contoh GEZHI micro-printer. Di driver printer set Paper Size ke 80mm / Roll Paper, jangan Letter/A4.</p>
                         @error('qz_printer')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                     </div>
+                    <div class="sm:col-span-2">
+                        <label class="label">WhatsApp dapur (makanan)</label>
+                        <input class="input" type="text" name="kitchen_whatsapp" maxlength="20" value="{{ $settings['kitchen_whatsapp'] }}" placeholder="62812xxxxxxxx">
+                        <p class="mt-1 text-[12px] text-muted">Nomor WA dapur untuk list pesanan makanan. Format 628… Kosongkan jika belum dipakai.</p>
+                        @error('kitchen_whatsapp')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                    </div>
                 </div>
             </section>
         </div>

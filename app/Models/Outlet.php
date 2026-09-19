@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Concerns\AppliesFillableAttribute;
 
-#[Fillable(['code', 'name', 'city', 'address', 'phone', 'is_central_kitchen', 'is_active', 'opens_at', 'closes_at'])]
+#[Fillable(['code', 'name', 'city', 'address', 'phone', 'latitude', 'longitude', 'geo_radius_m', 'is_central_kitchen', 'is_active', 'opens_at', 'closes_at'])]
 class Outlet extends Model
 {
     use AppliesFillableAttribute, SoftDeletes;
@@ -19,6 +19,9 @@ class Outlet extends Model
         return [
             'is_central_kitchen' => 'boolean',
             'is_active' => 'boolean',
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
+            'geo_radius_m' => 'integer',
         ];
     }
 
@@ -47,6 +50,11 @@ class Outlet extends Model
     public function printers(): HasMany
     {
         return $this->hasMany(Printer::class);
+    }
+
+    public function employees(): HasMany
+    {
+        return $this->hasMany(Employee::class);
     }
 
     public function statusLabel(): string

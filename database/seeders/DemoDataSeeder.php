@@ -4,44 +4,28 @@ namespace Database\Seeders;
 
 use App\Enums\DiscountType;
 use App\Enums\MembershipLevel;
-use App\Enums\OrderChannel;
-use App\Enums\OrderStatus;
-use App\Enums\OrderType;
-use App\Enums\PaymentMethod;
-use App\Enums\PaymentStatus;
 use App\Enums\PrinterStation;
 use App\Enums\ProductType;
-use App\Enums\StockMovementType;
 use App\Enums\TableStatus;
 use App\Enums\WasteReason;
 use App\Models\AuditLog;
-use App\Models\Bundle;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\CustomerPoint;
 use App\Models\DiningTable;
 use App\Models\Discount;
 use App\Models\Inventory;
-use App\Models\InventoryMovement;
 use App\Models\Investor;
-use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\OrderStatusHistory;
 use App\Models\Outlet;
-use App\Models\Payment;
 use App\Models\Printer;
 use App\Models\Product;
 use App\Models\Reward;
 use App\Models\Role;
 use App\Models\Setting;
-use App\Models\TableReservation;
 use App\Models\User;
-use App\Services\OrderService;
 use App\Services\StockOpnameService;
-use App\Services\StockTransferService;
 use App\Services\WasteService;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
@@ -58,42 +42,44 @@ class DemoDataSeeder extends Seeder
         $this->seedSettings();
         $this->seedInvestors();
         $this->attachCatalogToOutlets($outlets);
-        $tables = $this->seedTables($outlets);
-        $customers = $this->seedCustomers();
+        $this->seedTables($outlets);
+        $this->seedCustomers();
         $this->seedRewards();
         $this->seedInventories($outlets);
-        $this->seedBundle($outlets);
         $this->seedDiscounts($outlets);
-        $this->seedPrinters($outlets['bdg']);
+        $this->seedPrinters($outlets['main']);
 
-        $this->seedPaidOrders($outlets, $users, $tables, $customers);
-        $this->seedOpenOrders($outlets, $users, $tables, $customers);
-        $this->seedReservation($outlets['bdg'], $tables['bdg']->firstWhere('code', 'T-10'), $customers->first());
-        $this->seedWastes($outlets['bdg']);
+        $this->seedWastes($outlets['main']);
         $this->seedTransfers($outlets);
-        $this->seedOpname($outlets['bdg']);
+        $this->seedOpname($outlets['main']);
         $this->seedAuditLogs($admin);
     }
 
     /**
-     * @return array{bdg: Outlet, jkt: Outlet}
+     * @return array{main: Outlet}
      */
     protected function seedOutlets(): array
     {
-        $rows = [
-            'bdg' => ['code' => 'BDG', 'name' => 'Outlet Bandung', 'city' => 'Bandung', 'address' => 'Jl. Dago No. 12', 'phone' => '022-555-1001', 'is_central_kitchen' => false],
-            'jkt' => ['code' => 'JKT', 'name' => 'Outlet Jakarta', 'city' => 'Jakarta', 'address' => 'Jl. Senopati No. 8', 'phone' => '021-555-2002', 'is_central_kitchen' => false],
-        ];
+        $outlet = Outlet::query()->updateOrCreate(
+            ['code' => 'CMH'],
+            [
+                'name' => 'Xiway Coffee Cimahi',
+                'city' => 'Cimahi',
+                'address' => 'Cimahi, Jawa Barat',
+                'phone' => '',
+                'latitude' => -6.8721000,
+                'longitude' => 107.5425000,
+                'geo_radius_m' => 150,
+                'is_central_kitchen' => false,
+                'is_active' => true,
+                'opens_at' => '08:00:00',
+                'closes_at' => '22:00:00',
+            ],
+        );
 
-        $outlets = [];
-        foreach ($rows as $key => $row) {
-            $outlets[$key] = Outlet::query()->updateOrCreate(
-                ['code' => $row['code']],
-                $row + ['is_active' => true, 'opens_at' => '08:00:00', 'closes_at' => '22:00:00'],
-            );
-        }
+        Outlet::query()->whereKeyNot($outlet->id)->update(['is_active' => false]);
 
-        return $outlets;
+        return ['main' => $outlet];
     }
 
     /**
@@ -115,7 +101,7 @@ class DemoDataSeeder extends Seeder
                 'name' => 'Dina Cashier',
                 'email' => 'cashier@example.com',
                 'role' => 'cashier',
-                'outlets' => [$outlets['bdg']],
+                'outlets' => [$outlets['main']],
             ],
         ];
 
@@ -204,8 +190,7 @@ class DemoDataSeeder extends Seeder
     protected function seedTables(array $outlets): array
     {
         $plans = [
-            'bdg' => ['prefix' => 'T', 'from' => 1, 'to' => 10, 'occupied' => [1, 2]],
-            'jkt' => ['prefix' => 'T', 'from' => 11, 'to' => 15, 'occupied' => []],
+            'main' => ['prefix' => 'T', 'from' => 1, 'to' => 10, 'occupied' => [1, 2]],
         ];
         $capacities = [2, 4, 6];
         $tables = [];
@@ -312,78 +297,8 @@ class DemoDataSeeder extends Seeder
     /**
      * @param  array<string, Outlet>  $outlets
      */
-    protected function seedBundle(array $outlets): void
-    {
-        $nasi = Product::query()->where('name', 'Nasi Ayam Pecak')->where('is_active', true)->first();
-        $sanger = Product::query()->where('name', 'Sanger Classic')->where('is_active', true)->first();
-        $mie = Product::query()->where('name', 'Mie Aceh Biasa')->where('is_active', true)->first();
-        $tea = Product::query()->where('name', 'Lemon Tea')->where('is_active', true)->first();
-
-        if ($nasi && $sanger) {
-            $bundle = Bundle::query()->updateOrCreate(
-                ['sku' => 'BND-NASI-SANGER'],
-                [
-                    'name' => 'Paket Nasi + Sanger',
-                    'price' => 38000,
-                    'start_date' => null,
-                    'end_date' => null,
-                    'start_time' => null,
-                    'end_time' => null,
-                    'is_active' => true,
-                ],
-            );
-            $bundle->items()->delete();
-            $bundle->items()->createMany([
-                ['product_id' => $nasi->id, 'quantity' => 1],
-                ['product_id' => $sanger->id, 'quantity' => 1],
-            ]);
-            $bundle->outlets()->sync(collect($outlets)->pluck('id'));
-        }
-
-        if ($mie && $tea) {
-            $bundle = Bundle::query()->updateOrCreate(
-                ['sku' => 'BND-MIE-TEA'],
-                [
-                    'name' => 'Paket Mie + Tea',
-                    'price' => 28000,
-                    'start_date' => null,
-                    'end_date' => null,
-                    'start_time' => null,
-                    'end_time' => null,
-                    'is_active' => true,
-                ],
-            );
-            $bundle->items()->delete();
-            $bundle->items()->createMany([
-                ['product_id' => $mie->id, 'quantity' => 1],
-                ['product_id' => $tea->id, 'quantity' => 1],
-            ]);
-            $bundle->outlets()->sync(collect($outlets)->pluck('id'));
-        }
-
-        Bundle::query()->where('sku', 'BND-HEMAT-A')->update(['is_active' => false]);
-    }
-
-    /**
-     * @param  array<string, Outlet>  $outlets
-     */
     protected function seedDiscounts(array $outlets): void
     {
-        $weekday = Discount::query()->updateOrCreate(
-            ['code' => 'WEEKDAY10'],
-            [
-                'name' => 'Promo Weekday 10%',
-                'type' => DiscountType::Percentage,
-                'scope' => 'order',
-                'value' => 10,
-                'minimum_transaction' => 50000,
-                'maximum_discount' => 20000,
-                'start_date' => null,
-                'end_date' => null,
-                'is_active' => true,
-            ],
-        );
-
         $happyHour = Discount::query()->updateOrCreate(
             ['code' => 'HAPPYHOUR'],
             [
@@ -399,12 +314,10 @@ class DemoDataSeeder extends Seeder
             ],
         );
 
-        $ids = collect($outlets)->pluck('id');
-        $weekday->outlets()->sync($ids);
-        $happyHour->outlets()->sync($ids);
+        $happyHour->outlets()->sync(collect($outlets)->pluck('id'));
     }
 
-    protected function seedPrinters(Outlet $bandung): void
+    protected function seedPrinters(Outlet $outlet): void
     {
         $makanan = Category::query()->where('name', 'Makanan')->first();
         $mie = Category::query()->where('name', 'Mie')->first();
@@ -412,7 +325,7 @@ class DemoDataSeeder extends Seeder
         $drinkNames = ['Coffee', 'Non Coffee', 'Fit Tea', 'Xiway Main'];
 
         $kitchen = Printer::query()->updateOrCreate(
-            ['outlet_id' => $bandung->id, 'name' => 'Bandung Kitchen'],
+            ['outlet_id' => $outlet->id, 'name' => 'Cimahi Kitchen'],
             ['station' => PrinterStation::Kitchen, 'ip_address' => '192.168.1.21', 'port' => 9100, 'is_active' => true],
         );
         $kitchen->routes()->delete();
@@ -423,7 +336,7 @@ class DemoDataSeeder extends Seeder
         }
 
         $bar = Printer::query()->updateOrCreate(
-            ['outlet_id' => $bandung->id, 'name' => 'Bandung Bar'],
+            ['outlet_id' => $outlet->id, 'name' => 'Cimahi Bar'],
             ['station' => PrinterStation::Bar, 'ip_address' => '192.168.1.22', 'port' => 9100, 'is_active' => true],
         );
         $bar->routes()->delete();
@@ -435,297 +348,9 @@ class DemoDataSeeder extends Seeder
         }
 
         Printer::query()->updateOrCreate(
-            ['outlet_id' => $bandung->id, 'name' => 'Bandung Cashier'],
+            ['outlet_id' => $outlet->id, 'name' => 'Cimahi Cashier'],
             ['station' => PrinterStation::Cashier, 'ip_address' => '192.168.1.20', 'port' => 9100, 'is_active' => true],
         );
-    }
-
-    /**
-     * @param  array<string, Outlet>  $outlets
-     * @param  array<string, User>  $users
-     * @param  array<string, \Illuminate\Support\Collection<int, DiningTable>>  $tables
-     * @param  \Illuminate\Support\Collection<int, Customer>  $customers
-     */
-    protected function seedPaidOrders(array $outlets, array $users, array $tables, $customers): void
-    {
-        $sellables = Product::query()
-            ->with(['variants', 'category'])
-            ->where('is_sellable', true)
-            ->where('is_active', true)
-            ->where('type', '!=', ProductType::Package)
-            ->orderBy('id')
-            ->get();
-
-        $saleOutlets = [$outlets['bdg'], $outlets['jkt']];
-        $cashiers = [$users['admin'], $users['cashier']];
-        $methods = [PaymentMethod::Cash, PaymentMethod::Card, PaymentMethod::Qris];
-        $types = [OrderType::DineIn, OrderType::Pickup, OrderType::Online];
-        $channels = [OrderChannel::Pos, OrderChannel::Pickup, OrderChannel::Online];
-
-        $index = 0;
-        $sequences = [];
-
-        for ($day = 13; $day >= 0; $day--) {
-            $perDay = $day === 0 ? 8 : 3 + ($day % 2);
-            for ($n = 0; $n < $perDay; $n++) {
-                $when = Carbon::today()->subDays($day)->setTime(10 + ($n * 1), 15 + ($n * 7));
-                $outlet = $saleOutlets[$index % count($saleOutlets)];
-                $user = $cashiers[$index % count($cashiers)];
-                $type = $types[$index % count($types)];
-                $channel = $type === OrderType::DineIn ? OrderChannel::Pos : $channels[$index % count($channels)];
-                $method = $methods[$index % count($methods)];
-                $customer = $index % 3 === 0 ? null : $customers[$index % $customers->count()];
-                $table = null;
-                if ($type === OrderType::DineIn) {
-                    $outletTables = match ($outlet->code) {
-                        'BDG' => $tables['bdg'],
-                        default => $tables['jkt'],
-                    };
-                    $table = $outletTables[$index % $outletTables->count()];
-                }
-
-                $dateKey = $when->format('Ymd');
-                $sequences[$dateKey] = ($sequences[$dateKey] ?? 0) + 1;
-                $orderNumber = sprintf('ORD-%s-%04d', $dateKey, $sequences[$dateKey]);
-
-                $lineCount = 1 + ($index % 4);
-                $lines = [];
-                $subtotal = 0;
-                for ($i = 0; $i < $lineCount; $i++) {
-                    $product = $sellables[($index + $i) % $sellables->count()];
-                    $variant = $product->variants->isNotEmpty()
-                        ? $product->variants[$i % $product->variants->count()]
-                        : null;
-                    $qty = 1 + (($index + $i) % 2);
-                    $price = (float) $product->price + (float) ($variant?->price_adjustment ?? 0);
-                    $lines[] = compact('product', 'variant', 'qty', 'price');
-                    $subtotal += $price * $qty;
-                }
-
-                $tax = round($subtotal * 0.11, 2);
-                $grand = $subtotal + $tax;
-                $tendered = $method === PaymentMethod::Cash ? ceil($grand / 10000) * 10000 : $grand;
-
-                $order = new Order([
-                    'order_number' => $orderNumber,
-                    'outlet_id' => $outlet->id,
-                    'user_id' => $user->id,
-                    'customer_id' => $customer?->id,
-                    'table_id' => $type === OrderType::DineIn ? $table?->id : null,
-                    'channel' => $channel,
-                    'order_type' => $type,
-                    'status' => OrderStatus::Completed,
-                    'payment_status' => PaymentStatus::Paid,
-                    'subtotal' => $subtotal,
-                    'discount_amount' => 0,
-                    'tax_amount' => $tax,
-                    'tax_rate' => 11,
-                    'service_charge' => 0,
-                    'grand_total' => $grand,
-                    'guest_count' => 1 + ($index % 4),
-                    'completed_at' => $when->copy()->addMinutes(18),
-                ]);
-                $order->created_at = $when;
-                $order->updated_at = $when->copy()->addMinutes(18);
-                $order->save();
-
-                foreach ($lines as $line) {
-                    OrderItem::query()->create([
-                        'order_id' => $order->id,
-                        'product_id' => $line['product']->id,
-                        'product_variant_id' => $line['variant']?->id,
-                        'name' => $line['variant']
-                            ? $line['product']->name.' ('.$line['variant']->name.')'
-                            : $line['product']->name,
-                        'quantity' => $line['qty'],
-                        'unit_price' => $line['price'],
-                        'discount_amount' => 0,
-                        'tax_amount' => 0,
-                        'total' => $line['price'] * $line['qty'],
-                        'consignment_commission' => (float) ($line['product']->consignment_commission ?? 0),
-                        'station' => $line['product']->station ?? $line['product']->category?->station,
-                        'status' => 'completed',
-                    ]);
-
-                    if ($line['product']->is_stockable) {
-                        $this->recordSaleMovement($outlet, $line['product'], (float) $line['qty'], $order, $when);
-                    }
-                }
-
-                Payment::query()->create([
-                    'order_id' => $order->id,
-                    'user_id' => $user->id,
-                    'method' => $method,
-                    'amount' => $grand,
-                    'tendered' => $tendered,
-                    'change_amount' => max(0, $tendered - $grand),
-                    'reference' => $method === PaymentMethod::Cash ? null : strtoupper($method->value).'-'.$order->id,
-                    'status' => 'paid',
-                    'created_at' => $when->copy()->addMinutes(16),
-                    'updated_at' => $when->copy()->addMinutes(16),
-                ]);
-
-                foreach ([
-                    [null, OrderStatus::Draft->value, 'Order dibuat'],
-                    [OrderStatus::Draft->value, OrderStatus::New->value, 'Order dikirim ke dapur'],
-                    [OrderStatus::New->value, OrderStatus::Completed->value, 'Order selesai'],
-                ] as $history) {
-                    OrderStatusHistory::query()->create([
-                        'order_id' => $order->id,
-                        'user_id' => $user->id,
-                        'from_status' => $history[0],
-                        'to_status' => $history[1],
-                        'notes' => $history[2],
-                        'created_at' => $when,
-                        'updated_at' => $when,
-                    ]);
-                }
-
-                if ($customer) {
-                    $customer->increment('total_transaction', $grand);
-                    $customer->update(['last_transaction_at' => $order->completed_at]);
-
-                    $points = (int) floor($grand / 10000);
-                    if ($points > 0) {
-                        $balance = (int) $customer->points + $points;
-                        $customer->update(['points' => $balance]);
-                        CustomerPoint::query()->create([
-                            'customer_id' => $customer->id,
-                            'order_id' => $order->id,
-                            'user_id' => $user->id,
-                            'type' => 'earn',
-                            'points' => $points,
-                            'balance_after' => $balance,
-                            'reason' => 'Pembelian '.$order->order_number,
-                            'created_at' => $order->completed_at,
-                            'updated_at' => $order->completed_at,
-                        ]);
-                    }
-                    $customer->refreshMembership();
-                }
-
-                $index++;
-            }
-        }
-    }
-
-    protected function recordSaleMovement(Outlet $outlet, Product $product, float $qty, Order $order, Carbon $when): void
-    {
-        $inventory = Inventory::query()->firstOrCreate(
-            ['outlet_id' => $outlet->id, 'product_id' => $product->id],
-            ['quantity' => 0, 'reserved_quantity' => 0],
-        );
-
-        $before = (float) $inventory->quantity;
-        $after = max(0, $before - $qty);
-        $inventory->update(['quantity' => $after]);
-
-        $movement = InventoryMovement::query()->create([
-            'reference_number' => $order->order_number,
-            'outlet_id' => $outlet->id,
-            'product_id' => $product->id,
-            'unit_id' => $product->unit_id,
-            'user_id' => $order->user_id,
-            'type' => StockMovementType::Sale,
-            'quantity' => -$qty,
-            'before_stock' => $before,
-            'after_stock' => $after,
-            'reason' => 'Penjualan '.$order->order_number,
-            'reference_type' => Order::class,
-            'reference_id' => $order->id,
-        ]);
-        $movement->forceFill(['created_at' => $when, 'updated_at' => $when])->save();
-    }
-
-    /**
-     * @param  array<string, Outlet>  $outlets
-     * @param  array<string, User>  $users
-     * @param  array<string, \Illuminate\Support\Collection<int, DiningTable>>  $tables
-     * @param  \Illuminate\Support\Collection<int, Customer>  $customers
-     */
-    protected function seedOpenOrders(array $outlets, array $users, array $tables, $customers): void
-    {
-        $orders = app(OrderService::class);
-        $sanger = Product::query()->where('name', 'Sanger Classic')->where('is_active', true)->firstOrFail();
-        $pecak = Product::query()->where('name', 'Nasi Ayam Pecak')->where('is_active', true)->firstOrFail();
-        $tea = Product::query()->where('name', 'Lemon Tea')->where('is_active', true)->firstOrFail();
-        $mie = Product::query()->where('name', 'Mie Aceh Biasa')->where('is_active', true)->firstOrFail();
-
-        $held = $orders->createDraft([
-            'outlet_id' => $outlets['bdg']->id,
-            'customer_id' => $customers[1]->id,
-            'order_type' => OrderType::Pickup->value,
-            'channel' => OrderChannel::Pos->value,
-            'guest_count' => 1,
-            'notes' => 'Held for later',
-        ]);
-        $orders->addItem($held, ['product_id' => $tea->id, 'quantity' => 2]);
-        $orders->hold($held);
-
-        $new = $orders->createDraft([
-            'outlet_id' => $outlets['bdg']->id,
-            'table_id' => $tables['bdg']->firstWhere('code', 'T-01')->id,
-            'customer_id' => $customers[0]->id,
-            'order_type' => OrderType::DineIn->value,
-            'channel' => OrderChannel::Pos->value,
-            'guest_count' => 2,
-        ]);
-        $orders->addItem($new, ['product_id' => $pecak->id, 'quantity' => 1]);
-        $orders->addItem($new, ['product_id' => $sanger->id, 'quantity' => 1]);
-        $orders->submit($new);
-
-        $processing = $orders->createDraft([
-            'outlet_id' => $outlets['bdg']->id,
-            'table_id' => $tables['bdg']->firstWhere('code', 'T-02')->id,
-            'order_type' => OrderType::DineIn->value,
-            'channel' => OrderChannel::Pos->value,
-            'guest_count' => 4,
-        ]);
-        $orders->addItem($processing, ['product_id' => $pecak->id, 'quantity' => 2]);
-        $orders->submit($processing);
-        $orders->transition($processing->fresh(), OrderStatus::Processing, 'Sedang dimasak');
-
-        $ready = $orders->createDraft([
-            'outlet_id' => $outlets['jkt']->id,
-            'order_type' => OrderType::Pickup->value,
-            'channel' => OrderChannel::Pickup->value,
-            'customer_id' => $customers[3]->id,
-            'guest_count' => 1,
-        ]);
-        $orders->addItem($ready, ['product_id' => $sanger->id, 'quantity' => 1]);
-        $orders->submit($ready);
-        $orders->transition($ready->fresh(), OrderStatus::Ready, 'Siap diambil');
-
-        $online = $orders->createDraft([
-            'outlet_id' => $outlets['jkt']->id,
-            'order_type' => OrderType::Online->value,
-            'channel' => OrderChannel::Online->value,
-            'customer_id' => $customers[2]->id,
-            'guest_count' => 1,
-        ]);
-        $orders->addItem($online, ['product_id' => $mie->id, 'quantity' => 1]);
-        $orders->submit($online);
-    }
-
-    protected function seedReservation(Outlet $outlet, ?DiningTable $table, Customer $customer): void
-    {
-        if (! $table) {
-            return;
-        }
-
-        TableReservation::query()->create([
-            'outlet_id' => $outlet->id,
-            'table_id' => $table->id,
-            'customer_id' => $customer->id,
-            'guest_name' => $customer->name,
-            'guest_phone' => $customer->phone,
-            'guest_count' => 4,
-            'reserved_at' => now()->addHours(3),
-            'status' => 'reserved',
-            'notes' => 'Reservasi malam ini',
-        ]);
-
-        $table->update(['status' => TableStatus::Reserved]);
     }
 
     protected function seedWastes(Outlet $outlet): void
@@ -759,35 +384,7 @@ class DemoDataSeeder extends Seeder
      */
     protected function seedTransfers(array $outlets): void
     {
-        $transfers = app(StockTransferService::class);
-        $bean = Product::query()->where('name', 'Coffee Bean')->where('is_active', true)->first();
-        $sugar = Product::query()->where('name', 'Sugar')->where('is_active', true)->first();
-        if (! $bean || ! $sugar) {
-            return;
-        }
-
-        $transfers->create([
-            'source_outlet_id' => $outlets['jkt']->id,
-            'destination_outlet_id' => $outlets['bdg']->id,
-            'transfer_date' => now()->toDateString(),
-            'notes' => 'Draft restock Bandung',
-            'items' => [
-                ['product_id' => $sugar->id, 'quantity' => 8],
-            ],
-        ]);
-
-        $completed = $transfers->create([
-            'source_outlet_id' => $outlets['jkt']->id,
-            'destination_outlet_id' => $outlets['bdg']->id,
-            'transfer_date' => now()->toDateString(),
-            'notes' => 'Transfer biji kopi Jakarta ke Bandung',
-            'items' => [
-                ['product_id' => $bean->id, 'quantity' => 12],
-            ],
-        ]);
-        $transfers->approve($completed);
-        $transfers->ship($completed->fresh());
-        $transfers->receive($completed->fresh());
+        // Single outlet — no inter-branch transfer demo data.
     }
 
     protected function seedOpname(Outlet $outlet): void
@@ -795,7 +392,7 @@ class DemoDataSeeder extends Seeder
         $opnames = app(StockOpnameService::class);
         $opname = $opnames->create([
             'outlet_id' => $outlet->id,
-            'notes' => 'Opname harian Bandung',
+            'notes' => 'Opname harian Cimahi',
         ]);
 
         $flour = Product::query()->where('name', 'Sugar')->where('is_active', true)->first();
