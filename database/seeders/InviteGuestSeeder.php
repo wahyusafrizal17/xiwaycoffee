@@ -30,6 +30,7 @@ class InviteGuestSeeder extends Seeder
             'Luthfi & Istri',
             'Klikmedis & Team',
             'Tanpa Kamu Mana Asik Team',
+            'Marco & Keluarga',
         ];
 
         foreach ($guests as $i => $name) {
