@@ -3,12 +3,41 @@
 namespace App\Services;
 
 use App\Enums\PaymentStatus;
+use App\Models\Investor;
 use App\Models\OperatingExpense;
 use App\Models\Order;
 use App\Models\OrderItem;
 
 class ProfitShareService
 {
+    /**
+     * @return list<array{name: string, capital: float}>
+     */
+    public function partners(): array
+    {
+        $fromDb = Investor::query()
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->get(['name', 'capital']);
+
+        if ($fromDb->isNotEmpty()) {
+            return $fromDb
+                ->map(fn (Investor $investor) => [
+                    'name' => $investor->name,
+                    'capital' => (float) $investor->capital,
+                ])
+                ->all();
+        }
+
+        return array_map(
+            fn (array $partner) => [
+                'name' => $partner['name'],
+                'capital' => (float) $partner['capital'],
+            ],
+            config('pos.partners', []),
+        );
+    }
+
     /**
      * @param  list<array{name: string, capital: int|float}>  $partners
      * @return list<array{name: string, capital: int|float, percent: float, amount: float}>
@@ -66,7 +95,7 @@ class ProfitShareService
             'food_setoran' => $setoran,
             'bop' => $bop,
             'remainder' => $remainder,
-            'shares' => $this->split($remainder, config('pos.partners')),
+            'shares' => $this->split($remainder, $this->partners()),
             'expenses' => $expenses,
         ];
     }

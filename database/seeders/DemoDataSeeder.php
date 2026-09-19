@@ -23,6 +23,7 @@ use App\Models\DiningTable;
 use App\Models\Discount;
 use App\Models\Inventory;
 use App\Models\InventoryMovement;
+use App\Models\Investor;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
@@ -55,6 +56,7 @@ class DemoDataSeeder extends Seeder
         Auth::login($admin);
 
         $this->seedSettings();
+        $this->seedInvestors();
         $this->attachCatalogToOutlets($outlets);
         $tables = $this->seedTables($outlets);
         $customers = $this->seedCustomers();
@@ -142,6 +144,19 @@ class DemoDataSeeder extends Seeder
         }
 
         return $users;
+    }
+
+    protected function seedInvestors(): void
+    {
+        foreach (config('pos.partners', []) as $partner) {
+            Investor::query()->updateOrCreate(
+                ['name' => $partner['name']],
+                [
+                    'capital' => $partner['capital'],
+                    'is_active' => true,
+                ],
+            );
+        }
     }
 
     protected function seedSettings(): void

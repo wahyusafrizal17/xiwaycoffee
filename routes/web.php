@@ -12,6 +12,8 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\InviteController;
+use App\Http\Controllers\InvestorController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\MenuDisplayController;
@@ -34,6 +36,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('login'));
 Route::get('/display', MenuDisplayController::class)->name('menu.display');
+Route::get('/invite/{slug}', [InviteController::class, 'show'])->name('invites.show');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
@@ -172,6 +175,13 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
     Route::post('/reports/expenses', [ProfitShareController::class, 'store'])->name('reports.expenses.store');
     Route::get('/reports/profit', [ProfitShareController::class, 'profit'])->name('reports.profit');
     Route::get('/reports/setoran', [ProfitShareController::class, 'setoran'])->name('reports.setoran');
+
+    Route::get('/investors', [InvestorController::class, 'index'])->name('investors.index');
+    Route::post('/investors', [InvestorController::class, 'store'])->name('investors.store');
+    Route::post('/investors/topup', [InvestorController::class, 'topup'])->name('investors.topup');
+    Route::post('/investors/target', [InvestorController::class, 'storeTarget'])->name('investors.target');
+
+    Route::get('/invites', [InviteController::class, 'index'])->name('invites.index');
 
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');

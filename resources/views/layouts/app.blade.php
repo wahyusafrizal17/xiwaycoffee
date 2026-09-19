@@ -69,6 +69,8 @@
                                 ['label' => 'BOP', 'route' => 'reports.expenses', 'icon' => 'clipboard'],
                                 ['label' => 'Setoran makanan', 'route' => 'reports.setoran', 'icon' => 'clipboard'],
                                 ['label' => 'Bagi hasil', 'route' => 'reports.profit', 'icon' => 'chart'],
+                                ['label' => 'Investor', 'route' => 'investors.index', 'icon' => 'user'],
+                                ['label' => 'Undangan', 'route' => 'invites.index', 'icon' => 'megaphone'],
                             ]],
                             ['label' => 'Printers', 'route' => 'printers.index', 'perm' => 'printers.view', 'icon' => 'printers'],
                             ['label' => 'Settings', 'route' => 'settings.index', 'perm' => 'settings.manage', 'icon' => 'settings', 'children' => [
