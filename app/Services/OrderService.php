@@ -96,6 +96,35 @@ class OrderService
                 $name .= ' · '.$selectedOptions->pluck('name')->implode(', ');
             }
 
+            $notes = $payload['notes'] ?? null;
+            $optionIds = $selectedOptions->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+
+            $existing = $order->items()
+                ->with('options')
+                ->where('product_id', $product->id)
+                ->where('product_variant_id', $variant?->id)
+                ->where('bundle_id', $bundle?->id)
+                ->when(
+                    filled($notes),
+                    fn ($q) => $q->where('notes', $notes),
+                    fn ($q) => $q->where(fn ($inner) => $inner->whereNull('notes')->orWhere('notes', '')),
+                )
+                ->get()
+                ->first(function (OrderItem $item) use ($optionIds) {
+                    $existingIds = $item->options->pluck('product_option_id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+
+                    return $existingIds === $optionIds;
+                });
+
+            if ($existing) {
+                $existing->quantity = (float) $existing->quantity + $qty;
+                $existing->total = ((float) $existing->unit_price * (float) $existing->quantity) - (float) $existing->discount_amount;
+                $existing->save();
+                $this->recalculate($order->fresh(['items', 'discount']));
+
+                return $existing->fresh(['options']);
+            }
+
             $item = $order->items()->create([
                 'product_id' => $product->id,
                 'product_variant_id' => $variant?->id,
@@ -107,7 +136,7 @@ class OrderService
                 'tax_amount' => 0,
                 'total' => $price * $qty,
                 'consignment_commission' => (float) ($product->consignment_commission ?? 0),
-                'notes' => $payload['notes'] ?? null,
+                'notes' => $notes,
                 'station' => $product->station ?? $product->category?->station,
                 'status' => 'new',
             ]);

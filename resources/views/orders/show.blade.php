@@ -3,30 +3,13 @@
 @section('breadcrumb', 'Orders')
 @section('content')
     @php
-        $flow = [
-            ['label' => 'Pesanan Baru', 'statuses' => ['new'], 'next' => 'processing'],
-            ['label' => 'Proses', 'statuses' => ['processing', 'preparing'], 'next' => 'ready'],
-            ['label' => 'Siap', 'statuses' => ['ready'], 'next' => 'completed'],
-            ['label' => 'Selesai', 'statuses' => ['completed'], 'next' => null],
-        ];
-        $current = $order->status->value;
-        $flowIndex = collect($flow)->search(fn ($step) => in_array($current, $step['statuses'], true));
-        $flowIndex = $flowIndex === false ? -1 : $flowIndex;
-        $nextStatus = $flowIndex === -1 ? 'new' : $flow[$flowIndex]['next'];
-        $nextLabel = match ($nextStatus) {
-            'new' => 'Pesanan Baru',
-            'processing' => 'Proses',
-            'ready' => 'Siap',
-            'completed' => 'Selesai',
-            default => null,
-        };
-        $linePercent = $flowIndex < 1 ? 0 : min(100, (int) round(($flowIndex / (count($flow) - 1)) * 100));
         $itemCount = $order->items->count();
-        $allItemsReady = $order->allItemsReady();
-        $canCheckItems = auth()->user()?->can('orders.check') || auth()->user()?->can('orders.manage');
+        $canCancel = auth()->user()?->can('orders.cancel') || auth()->user()?->can('orders.manage');
+        $canSendInvoice = auth()->user()?->can('orders.checkout') || auth()->user()?->can('orders.manage');
+        $isPaid = $order->payment_status === \App\Enums\PaymentStatus::Paid;
     @endphp
 
-    <div class="grid gap-4 lg:grid-cols-3">
+    <div class="grid gap-4 lg:grid-cols-3" x-data="orderInvoice()">
         <div class="space-y-4 lg:col-span-2">
             <div class="card overflow-hidden">
                 <div class="card-header">
@@ -116,54 +99,27 @@
                                 <th>Harga</th>
                                 <th>Diskon</th>
                                 <th>Total</th>
-                                <th class="col-actions"></th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse ($order->items as $item)
-                                @php
-                                    $itemDone = in_array($item->status, ['ready', 'served'], true);
-                                    $canToggleItem = $canCheckItems;
-                                @endphp
-                                <tr class="{{ $itemDone ? 'item-ready' : 'item-wait' }}">
+                                <tr>
                                     <td class="col-no">{{ $loop->iteration }}</td>
                                     <td>
                                         <p class="font-semibold">{{ $item->name }}</p>
                                         @if ($item->notes)
                                             <p class="text-xs text-muted">{{ $item->notes }}</p>
                                         @endif
-                                        <p class="text-xs text-muted">{{ $item->product?->sku }} · {{ $item->station }} · {{ $item->status }}</p>
-                                        @if ($item->batch)
-                                            <p class="text-xs text-muted">Batch {{ $item->batch->batch_number }}</p>
-                                        @endif
+                                        <p class="text-xs text-muted">{{ $item->product?->sku }}@if ($item->station) · {{ $item->station }}@endif</p>
                                     </td>
                                     <td>{{ number_format($item->quantity, 0) }}</td>
                                     <td>{{ money($item->unit_price) }}</td>
                                     <td class="{{ $item->discount_amount > 0 ? 'font-medium text-[#ff9f43]' : 'text-muted' }}">{{ money($item->discount_amount) }}</td>
                                     <td class="font-semibold">{{ money($item->total) }}</td>
-                                    <td class="col-actions">
-                                        @if ($itemDone)
-                                            <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#1f9d57] text-white" title="Siap">
-                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 12l5 5L19 7"/></svg>
-                                            </span>
-                                        @elseif ($canToggleItem)
-                                            <form method="POST" action="{{ route('order-items.status', $item) }}">
-                                                @csrf
-                                                <input type="hidden" name="status" value="ready">
-                                                <button class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#d4d4d4] bg-white text-muted transition hover:border-[#1f9d57] hover:text-[#1f9d57]" type="submit" title="Tandai siap">
-                                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 12l5 5L19 7"/></svg>
-                                                </button>
-                                            </form>
-                                        @else
-                                            <span class="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e8e8e8] text-[#c0c0c0]" title="Belum siap">
-                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 12l5 5L19 7"/></svg>
-                                            </span>
-                                        @endif
-                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="py-16 text-center text-sm text-muted">Tidak ada item pada order ini.</td>
+                                    <td colspan="6" class="py-16 text-center text-sm text-muted">Tidak ada item pada order ini.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -212,7 +168,7 @@
                 <div class="space-y-3 px-6 pb-6 text-sm">
                     <div class="flex justify-between text-muted"><span>Subtotal</span><span class="font-medium text-heading">{{ money($order->subtotal) }}</span></div>
                     <div class="flex justify-between text-muted"><span>Diskon {{ $order->discount?->name }}</span><span class="font-medium {{ $order->discount_amount > 0 ? 'text-[#ff9f43]' : 'text-heading' }}">{{ money($order->discount_amount) }}</span></div>
-                    <div class="flex justify-between text-muted"><span>Pajak</span><span class="font-medium text-heading">{{ money($order->tax_amount) }}</span></div>
+                    <div class="flex justify-between text-muted"><span>Charge</span><span class="font-medium text-heading">{{ money($order->tax_amount) }}</span></div>
                     <div class="flex justify-between text-muted"><span>Service</span><span class="font-medium text-heading">{{ money($order->service_charge) }}</span></div>
                     <div class="flex justify-between text-muted"><span>Poin</span><span class="font-medium text-heading">- {{ money($order->points_value) }}</span></div>
                     <div class="flex justify-between text-muted"><span>Terbayar</span><span class="font-medium text-heading">{{ money($order->paidTotal()) }}</span></div>
@@ -224,78 +180,79 @@
                 </div>
             </div>
 
-            @if ($order->status !== \App\Enums\OrderStatus::Cancelled)
-                <div class="card p-6">
-                    <p class="stat-kicker">Alur pengerjaan</p>
-                    <div class="relative mt-6">
-                        <div class="absolute left-[12%] right-[12%] top-4 h-[2px] bg-[#e8e8e8]"></div>
-                        <div class="absolute left-[12%] top-4 h-[2px] bg-[#1f9d57]" style="width: calc((100% - 24%) * {{ $linePercent }} / 100)"></div>
-                        <div class="relative flex justify-between">
-                            @foreach ($flow as $index => $step)
-                                @php $reached = $flowIndex >= $index; @endphp
-                                <div class="flex w-1/4 flex-col items-center">
-                                    <span class="flex h-8 w-8 items-center justify-center rounded-full {{ $reached ? 'bg-[#1f9d57] text-white' : 'bg-[#e8e8e8] text-[#b0b0b0]' }}">
-                                        @if ($reached)
-                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 12l5 5L19 7"/></svg>
-                                        @endif
-                                    </span>
-                                    <p class="mt-2 text-center text-[11px] font-semibold {{ $reached ? 'text-[#1f9d57]' : 'text-muted' }}">{{ $step['label'] }}</p>
-                                </div>
-                            @endforeach
+            @if ($isPaid && $canSendInvoice)
+                <div class="card overflow-hidden">
+                    <div class="card-header">
+                        <div>
+                            <h5 class="card-header-title">Invoice</h5>
+                            <p class="card-header-subtitle">Kirim invoice ke WhatsApp pelanggan</p>
                         </div>
                     </div>
-                    @if ($order->status->isOpen())
-                        @php
-                            $canAdvance = auth()->user()?->can('orders.manage') || auth()->user()?->can('orders.check');
-                            $canCancel = auth()->user()?->can('orders.cancel') || auth()->user()?->can('orders.manage');
-                        @endphp
-                        @if ($canAdvance || $canCancel)
-                            @php $needItemsReady = $nextStatus === 'ready' && ! $allItemsReady; @endphp
-                            <div class="mt-6 flex gap-2">
-                                @if ($canAdvance && $nextStatus)
-                                    <form method="POST" action="{{ route('orders.status', $order) }}" class="min-w-0 flex-1">
-                                        @csrf
-                                        <input type="hidden" name="status" value="{{ $nextStatus }}">
-                                        <button class="btn-add w-full" type="submit" @disabled($needItemsReady)>Lanjut: {{ $nextLabel }}</button>
-                                    </form>
-                                @endif
-                                @if ($canCancel)
-                                    <form id="cancel-order-form" method="POST" action="{{ route('pos.cancel', $order) }}" class="min-w-0 flex-1">
-                                        @csrf
-                                        <input type="hidden" name="reason">
-                                        <button id="cancel-order-btn" class="btn-ghost w-full text-brand hover:bg-brand-soft" style="border-color: #6f1715" type="button">Cancel order</button>
-                                    </form>
-                                @endif
+                    <div class="space-y-3 px-6 pb-6">
+                        <div>
+                            <label class="label">Nomor WhatsApp</label>
+                            <div class="flex gap-2">
+                                <input class="input" type="tel" inputmode="tel" x-model="phone" placeholder="08xxxxxxxxxx" @keydown.enter.prevent="send()">
+                                <button type="button" class="btn-add shrink-0" @click="send()" :disabled="busy || !phone">
+                                    <span x-show="!busy">Kirim</span>
+                                    <span x-show="busy" x-cloak>…</span>
+                                </button>
                             </div>
-                            @if ($needItemsReady)
-                                <p class="mt-2 text-center text-[12px] text-muted">Tandai semua item siap di Daftar item dulu.</p>
-                            @endif
-                        @endif
-                    @endif
+                            <p class="mt-2 text-[12px] text-muted" x-show="notice" x-text="notice" x-cloak></p>
+                            <p class="mt-2 text-[12px] text-brand" x-show="error" x-text="error" x-cloak></p>
+                        </div>
+                    </div>
                 </div>
             @endif
 
-            <div class="space-y-2">
-                <p class="stat-kicker px-1">Invoice</p>
-                @if ($order->payment_status === \App\Enums\PaymentStatus::Paid)
-                    <a href="{{ route('pos.receipt', $order) }}" class="btn-add w-full">
-                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v7H6v-7z"/></svg>
-                        Invoice customer
-                    </a>
-                    <a href="{{ route('pos.ticket', [$order, 'prep']) }}?reprint=1" target="_blank" class="btn-ghost w-full">Tiket dapur / bar</a>
-                @endif
-            </div>
+            @if ($order->status->isOpen() && $canCancel)
+                <form id="cancel-order-form" method="POST" action="{{ route('pos.cancel', $order) }}">
+                    @csrf
+                    <input type="hidden" name="reason">
+                    <button id="cancel-order-btn" class="btn-ghost w-full text-brand hover:bg-brand-soft" style="border-color: #6f1715" type="button">Cancel order</button>
+                </form>
+            @endif
         </div>
     </div>
 @endsection
 
 @push('scripts')
-    <style>
-        .list-table tr.item-wait td { background-color: #fff8e1 !important; }
-        .list-table tr.item-ready td { background-color: #e8f8ee !important; }
-    </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        function orderInvoice() {
+            return {
+                phone: @json($order->customer?->phone ?: ''),
+                busy: false,
+                notice: '',
+                error: '',
+                async send() {
+                    if (! this.phone || this.busy) return;
+                    this.busy = true;
+                    this.notice = '';
+                    this.error = '';
+                    try {
+                        const res = await fetch(@json(route('pos.invoice.whatsapp', $order)), {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ phone: this.phone }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (! res.ok) throw new Error(data.message || 'Gagal mengirim invoice.');
+                        this.notice = data.notice || (data.via === 'pdf' ? 'Invoice PDF terkirim via WhatsApp.' : 'Invoice teks terkirim via WhatsApp.');
+                        await Swal.fire({ icon: 'success', title: 'Terkirim', text: this.notice, timer: 2200, showConfirmButton: false });
+                    } catch (e) {
+                        this.error = e.message || 'Gagal mengirim invoice.';
+                    } finally {
+                        this.busy = false;
+                    }
+                },
+            };
+        }
+
         document.getElementById('cancel-order-btn')?.addEventListener('click', async () => {
             const { value, isConfirmed } = await Swal.fire({
                 title: 'Batalkan order?',

@@ -45,7 +45,7 @@
                             ]],
                             ['label' => 'Catalog', 'route' => 'products.index', 'perm' => 'products.view', 'icon' => 'products', 'children' => [
                                 ['label' => 'Products', 'route' => 'products.index', 'icon' => 'products'],
-                                ['label' => 'Categories', 'route' => 'categories.index', 'icon' => 'folder'],
+                                ['label' => 'Categories', 'route' => 'categories.index', 'perm' => 'products.manage', 'icon' => 'folder'],
                             ]],
                         ],
                         'Supply' => [

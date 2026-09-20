@@ -99,6 +99,39 @@ class ProductController extends Controller
         return redirect()->route('products.index')->with('success', 'Produk dihapus.');
     }
 
+    public function updateOptions(Request $request, Product $product): RedirectResponse
+    {
+        abort_unless(
+            $request->user()->hasPermission('products.options') || $request->user()->hasPermission('products.manage'),
+            403
+        );
+
+        $validator = validator($request->all(), [
+            'option_groups' => ['nullable', 'array'],
+            'option_groups.*.id' => ['nullable'],
+            'option_groups.*.name' => ['nullable', 'string', 'max:80'],
+            'option_groups.*.is_required' => ['nullable'],
+            'option_groups.*.min_select' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'option_groups.*.max_select' => ['nullable', 'integer', 'min:1', 'max:20'],
+            'option_groups.*.options' => ['nullable', 'array'],
+            'option_groups.*.options.*.id' => ['nullable'],
+            'option_groups.*.options.*.name' => ['nullable', 'string', 'max:80'],
+            'option_groups.*.options.*.price_adjustment' => ['nullable', 'numeric'],
+            'option_groups.*.options.*.is_active' => ['nullable'],
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()
+                ->route('products.index', ['modal' => 'options', 'product' => $product->id])
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        $this->syncOptionGroups($product, $request->input('option_groups', []));
+
+        return redirect()->route('products.index')->with('success', 'Opsi produk diperbarui.');
+    }
+
     protected function payload(Request $request, ?Product $product = null): array
     {
         $data = $this->validated($request, $product?->id);

@@ -64,8 +64,8 @@ class SettingController extends Controller
             'qz_printer' => ['nullable', 'string', 'max:120'],
             'kitchen_whatsapp' => ['nullable', 'string', 'max:20'],
         ], [
-            'tax_rate.required' => 'Tarif pajak wajib diisi.',
-            'tax_rate.max' => 'Tarif pajak maksimal 100%.',
+            'tax_rate.required' => 'Tarif charge wajib diisi.',
+            'tax_rate.max' => 'Tarif charge maksimal 100%.',
             'points_earn_per_amount.required' => 'Nominal poin wajib diisi.',
             'points_redeem_value.required' => 'Nilai tukar poin wajib diisi.',
         ]);

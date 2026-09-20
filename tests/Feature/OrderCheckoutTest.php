@@ -32,6 +32,30 @@ class OrderCheckoutTest extends TestCase
         $this->seedPosFixture();
     }
 
+    public function test_adding_same_product_twice_increments_quantity(): void
+    {
+        $this->actingAsAtOutlet($this->cashier);
+        $service = app(OrderService::class);
+
+        $order = $service->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+
+        $service->addItem($order, [
+            'product_id' => $this->sellableProduct->id,
+            'quantity' => 1,
+        ]);
+        $service->addItem($order->fresh(), [
+            'product_id' => $this->sellableProduct->id,
+            'quantity' => 1,
+        ]);
+
+        $order->refresh()->load('items');
+        $this->assertCount(1, $order->items);
+        $this->assertEquals(2, (float) $order->items->first()->quantity);
+    }
+
     public function test_order_number_is_mass_assignable(): void
     {
         $this->assertTrue((new Order)->isFillable('order_number'));

@@ -31,6 +31,7 @@
             'id' => old('_product_id', data_get($focusPayload, 'id')),
             'mode' => old('_form_mode', 'create'),
             'update_url' => data_get($focusPayload, 'update_url', ''),
+            'options_url' => data_get($focusPayload, 'options_url', ''),
             'delete_url' => data_get($focusPayload, 'delete_url', ''),
         ];
     @endphp
@@ -163,6 +164,10 @@
                                             <button type="button" class="table-action table-action-danger" title="Hapus" @click="confirmDelete({{ Js::from($row) }})">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M9 7V5h6v2m-7 0v12a1 1 0 001 1h6a1 1 0 001-1V7"/></svg>
                                             </button>
+                                        @elsecan('products.options')
+                                            <button type="button" class="table-action" title="Kelola opsi" @click="openOptions({{ Js::from($row) }})">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M4 12h10M4 17h16"/></svg>
+                                            </button>
                                         @endcan
                                     </div>
                                 </td>
@@ -268,9 +273,104 @@
                         <button type="button" class="btn-ghost" @click="confirmDelete(viewing)">Hapus</button>
                         <button type="button" class="btn-add" @click="openEdit(viewing)">Edit</button>
                     </div>
+                @elsecan('products.options')
+                    <div class="crud-modal-footer">
+                        <button type="button" class="btn-add" @click="openOptions(viewing)">Kelola opsi</button>
+                    </div>
                 @endcan
             </div>
         </div>
+
+        @can('products.options')
+            @cannot('products.manage')
+            <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="optionsOpen" x-cloak @click.self="optionsOpen = false">
+                <div class="crud-modal !max-w-[720px]">
+                    <form class="flex min-h-0 flex-1 flex-col" method="POST" :action="form.options_url">
+                        @csrf
+                        @method('PUT')
+                        <div class="crud-modal-body">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-heading">Kelola opsi</h3>
+                                    <p class="mt-1 text-[13px] text-muted">
+                                        <span x-text="form.name || ''"></span>
+                                        <span x-show="form.sku"> · SKU <span x-text="form.sku"></span></span>
+                                    </p>
+                                </div>
+                                <button type="button" class="modal-close" @click="optionsOpen = false">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 6l12 12M18 6L6 18"/></svg>
+                                </button>
+                            </div>
+
+                            <div class="mt-5">
+                                <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Opsi / Add-ons</p>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="applyDrinkPreset()">Preset minuman</button>
+                                        <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="applyFoodPreset()">Preset makanan</button>
+                                        <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="form.option_groups.push({ id: '', name: '', is_required: false, min_select: 0, max_select: 1, options: [{ id: '', name: '', price_adjustment: 0, is_active: true }] })">Tambah grup</button>
+                                    </div>
+                                </div>
+                                <div class="space-y-3">
+                                    <template x-for="(group, gIndex) in form.option_groups" :key="gIndex">
+                                        <div class="rounded-xl border border-line bg-[#fafafa] p-3">
+                                            <input type="hidden" :name="`option_groups[${gIndex}][id]`" x-model="group.id">
+                                            <div class="grid gap-2 sm:grid-cols-12">
+                                                <div class="sm:col-span-4">
+                                                    <input class="input" :name="`option_groups[${gIndex}][name]`" x-model="group.name" placeholder="Nama grup (Sugar / Level Pedas)">
+                                                </div>
+                                                <div class="sm:col-span-3">
+                                                    <label class="flex h-full items-center gap-2 rounded-lg border border-line bg-white px-3 text-xs">
+                                                        <input type="hidden" :name="`option_groups[${gIndex}][is_required]`" :value="group.is_required ? 1 : 0">
+                                                        <input type="checkbox" x-model="group.is_required" @change="if (group.is_required && Number(group.min_select) < 1) group.min_select = 1">
+                                                        Wajib pilih
+                                                    </label>
+                                                </div>
+                                                <div class="sm:col-span-2">
+                                                    <input class="input" type="number" min="0" max="20" :name="`option_groups[${gIndex}][min_select]`" x-model="group.min_select" placeholder="Min">
+                                                </div>
+                                                <div class="sm:col-span-2">
+                                                    <input class="input" type="number" min="1" max="20" :name="`option_groups[${gIndex}][max_select]`" x-model="group.max_select" placeholder="Max">
+                                                </div>
+                                                <button type="button" class="btn-ghost sm:col-span-1 !px-2" @click="form.option_groups.splice(gIndex, 1)">×</button>
+                                            </div>
+                                            <div class="mt-2 space-y-2">
+                                                <template x-for="(option, oIndex) in group.options" :key="oIndex">
+                                                    <div class="grid grid-cols-12 gap-2">
+                                                        <input type="hidden" :name="`option_groups[${gIndex}][options][${oIndex}][id]`" x-model="option.id">
+                                                        <div class="col-span-5">
+                                                            <input class="input" :name="`option_groups[${gIndex}][options][${oIndex}][name]`" x-model="option.name" placeholder="Nama opsi">
+                                                        </div>
+                                                        <div class="col-span-4">
+                                                            <input class="input" type="number" step="0.01" :name="`option_groups[${gIndex}][options][${oIndex}][price_adjustment]`" x-model="option.price_adjustment" placeholder="+ harga">
+                                                        </div>
+                                                        <div class="col-span-2">
+                                                            <label class="flex h-full items-center gap-1.5 rounded-lg border border-line bg-white px-2 text-[11px]">
+                                                                <input type="hidden" :name="`option_groups[${gIndex}][options][${oIndex}][is_active]`" :value="option.is_active ? 1 : 0">
+                                                                <input type="checkbox" x-model="option.is_active">
+                                                                Aktif
+                                                            </label>
+                                                        </div>
+                                                        <button type="button" class="btn-ghost col-span-1 !px-2" @click="group.options.splice(oIndex, 1)">×</button>
+                                                    </div>
+                                                </template>
+                                                <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="group.options.push({ id: '', name: '', price_adjustment: 0, is_active: true })">Tambah opsi</button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <p class="text-[12px] text-muted" x-show="!form.option_groups.length">Pakai preset minuman/makanan, atau buat grup sendiri. Produk tanpa opsi tetap bisa dijual.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="crud-modal-footer">
+                            <button type="button" class="btn-ghost" @click="optionsOpen = false">Batal</button>
+                            <button class="btn-add" type="submit">Simpan opsi</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            @endcannot
+        @endcan
 
         @can('products.manage')
             <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="formOpen" x-cloak @click.self="formOpen = false">
@@ -438,9 +538,13 @@
                                 </div>
 
                                 <div class="sm:col-span-2 mt-2 border-t border-line pt-4">
-                                    <div class="mb-3 flex items-center justify-between gap-3">
+                                    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
                                         <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Opsi / Add-ons</p>
-                                        <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="form.option_groups.push({ id: '', name: '', is_required: false, min_select: 0, max_select: 1, options: [{ id: '', name: '', price_adjustment: 0, is_active: true }] })">Tambah grup</button>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="applyDrinkPreset()">Preset minuman</button>
+                                            <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="applyFoodPreset()">Preset makanan</button>
+                                            <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="form.option_groups.push({ id: '', name: '', is_required: false, min_select: 0, max_select: 1, options: [{ id: '', name: '', price_adjustment: 0, is_active: true }] })">Tambah grup</button>
+                                        </div>
                                     </div>
                                     <div class="space-y-3">
                                         <template x-for="(group, gIndex) in form.option_groups" :key="gIndex">
@@ -448,7 +552,7 @@
                                                 <input type="hidden" :name="`option_groups[${gIndex}][id]`" x-model="group.id">
                                                 <div class="grid gap-2 sm:grid-cols-12">
                                                     <div class="sm:col-span-4">
-                                                        <input class="input" :name="`option_groups[${gIndex}][name]`" x-model="group.name" placeholder="Nama grup (Sugar / Add-ons)">
+                                                        <input class="input" :name="`option_groups[${gIndex}][name]`" x-model="group.name" placeholder="Nama grup (Sugar / Level Pedas)">
                                                     </div>
                                                     <div class="sm:col-span-3">
                                                         <label class="flex h-full items-center gap-2 rounded-lg border border-line bg-white px-3 text-xs">
@@ -489,7 +593,7 @@
                                                 </div>
                                             </div>
                                         </template>
-                                        <p class="text-[12px] text-muted" x-show="!form.option_groups.length">Contoh: grup Sugar (wajib, max 1) + Add-ons (opsional, max 3).</p>
+                                        <p class="text-[12px] text-muted" x-show="!form.option_groups.length">Pakai preset minuman/makanan, atau buat grup sendiri. Bisa diedit setelah ditambahkan.</p>
                                     </div>
                                 </div>
                             </div>
@@ -551,6 +655,7 @@
                 option_groups: [],
                 recipe: [],
                 update_url: '',
+                options_url: '',
                 delete_url: '',
             });
 
@@ -569,8 +674,9 @@
 
             return {
                 storeUrl: @json($storeUrl),
-                formOpen: formError || requestedModal === 'create' || (requestedModal === 'edit' && !!focus),
-                formMode: formError ? formOld.mode : (requestedModal === 'edit' ? 'edit' : 'create'),
+                formOpen: requestedModal !== 'options' && (formError || requestedModal === 'create' || (requestedModal === 'edit' && !!focus)),
+                optionsOpen: requestedModal === 'options' && (!!focus || formError),
+                formMode: formError && requestedModal !== 'options' ? formOld.mode : (requestedModal === 'edit' ? 'edit' : 'create'),
                 form,
                 viewOpen: !formError && requestedModal === 'view' && !!focus,
                 viewing: focus,
@@ -581,6 +687,7 @@
                     this.formMode = 'create';
                     this.form = emptyForm();
                     this.viewOpen = false;
+                    this.optionsOpen = false;
                     this.serverFormError = false;
                     this.formOpen = true;
                 },
@@ -590,13 +697,24 @@
                     this.form = { ...emptyForm(), ...row, variants: row.variants ? [...row.variants] : [], option_groups: row.option_groups ? JSON.parse(JSON.stringify(row.option_groups)) : [] };
                     this.viewOpen = false;
                     this.deleteOpen = false;
+                    this.optionsOpen = false;
                     this.serverFormError = false;
                     this.formOpen = true;
+                },
+                openOptions(row) {
+                    if (! row) return;
+                    this.form = { ...emptyForm(), ...row, option_groups: row.option_groups ? JSON.parse(JSON.stringify(row.option_groups)) : [] };
+                    this.formOpen = false;
+                    this.viewOpen = false;
+                    this.deleteOpen = false;
+                    this.serverFormError = false;
+                    this.optionsOpen = true;
                 },
                 openView(row) {
                     if (! row) return;
                     this.viewing = row;
                     this.formOpen = false;
+                    this.optionsOpen = false;
                     this.viewOpen = true;
                 },
                 confirmDelete(row) {
@@ -606,6 +724,7 @@
                 },
                 closeTop() {
                     if (this.deleteOpen) this.deleteOpen = false;
+                    else if (this.optionsOpen) this.optionsOpen = false;
                     else if (this.formOpen) this.formOpen = false;
                     else if (this.viewOpen) this.viewOpen = false;
                 },
@@ -613,6 +732,31 @@
                     const file = event.target.files[0];
                     if (! file) return;
                     this.form.image_url = URL.createObjectURL(file);
+                },
+                optionRow(name) {
+                    return { id: '', name, price_adjustment: 0, is_active: true };
+                },
+                optionGroup(name, options, required = true) {
+                    return {
+                        id: '',
+                        name,
+                        is_required: required,
+                        min_select: required ? 1 : 0,
+                        max_select: 1,
+                        options: options.map((n) => this.optionRow(n)),
+                    };
+                },
+                applyDrinkPreset() {
+                    this.form.option_groups.push(
+                        this.optionGroup('Serving', ['Ice', 'Hot']),
+                        this.optionGroup('Level Ice', ['Normal Ice', 'Less Ice'], false),
+                        this.optionGroup('Sugar', ['Normal Sugar', 'Less Sugar']),
+                    );
+                },
+                applyFoodPreset() {
+                    this.form.option_groups.push(
+                        this.optionGroup('Level Pedas', ['Pedas', 'Tidak Pedas']),
+                    );
                 },
             };
         }

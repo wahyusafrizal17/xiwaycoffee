@@ -9,7 +9,6 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Services\DiscountService;
 use App\Services\EscPosPrinter;
-use App\Services\InventoryService;
 use App\Services\OrderService;
 use App\Services\PrinterRoutingService;
 use App\Services\TableService;
@@ -32,7 +31,6 @@ class PosController extends Controller
         $outletId = current_outlet_id();
 
         $products = Product::query()->sellable()->with(['category', 'unit', 'variants', 'optionGroups.options'])->orderBy('name')->get();
-        $lowStock = app(InventoryService::class)->lowStock($outletId);
 
         return view('pos.index', [
             'categories' => Category::query()
@@ -59,7 +57,6 @@ class PosController extends Controller
                 ->get()
                 ->map(fn (Order $order) => $this->heldOrderPayload($order))
                 ->values(),
-            'lowStock' => $lowStock,
             'productImages' => $products->mapWithKeys(fn ($product) => [(string) $product->id => $product->imageUrl()]),
             'productCatalog' => $products->mapWithKeys(fn (Product $product) => [
                 (string) $product->id => [
@@ -81,8 +78,6 @@ class PosController extends Controller
                     ])->values(),
                 ],
             ]),
-            'lowStockNames' => $lowStock->take(3)->pluck('name')->join(', '),
-            'lowStockExtra' => max(0, $lowStock->count() - 3),
             'qzPrinter' => setting('qz_printer', ''),
         ]);
     }

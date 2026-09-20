@@ -5,9 +5,9 @@
     <div class="mb-5 grid gap-4 md:grid-cols-3">
         <div class="stat-card">
             <div>
-                <p class="stat-kicker">Tarif pajak</p>
+                <p class="stat-kicker">Tarif charge</p>
                 <p class="stat-value">{{ number_format($stats['tax_rate'], 2) }}%</p>
-                <p class="stat-hint">PPN / pajak penjualan</p>
+                <p class="stat-hint">Charge / biaya tambahan</p>
             </div>
             <span class="stat-icon bg-[#e8f1ff] text-[#3b82f6]">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-2.2 0-4 1.3-4 3s1.8 3 4 3 4 1.3 4 3-1.8 3-4 3m0-12V5m0 14v-2"/></svg>
@@ -48,10 +48,10 @@
 
         <div class="space-y-8 px-5 py-6">
             <section>
-                <h6 class="mb-4 text-sm font-semibold text-heading">Pajak & biaya layanan</h6>
+                <h6 class="mb-4 text-sm font-semibold text-heading">Charge & biaya layanan</h6>
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div>
-                        <label class="label">Tarif pajak (%)</label>
+                        <label class="label">Tarif charge (%)</label>
                         <input class="input" type="number" step="0.01" min="0" max="100" name="tax_rate" value="{{ $settings['tax_rate'] }}" required>
                         @error('tax_rate')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                     </div>

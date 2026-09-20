@@ -57,6 +57,7 @@ return [
         'loyalty.manage',
         'products.view',
         'products.manage',
+        'products.options',
         'inventory.view',
         'inventory.manage',
         'inventory.approve',
@@ -85,6 +86,7 @@ return [
             'tables.view', 'tables.manage', 'customers.view', 'customers.manage',
             'attendance.clock',
             'bop.manage',
+            'products.view', 'products.options',
         ],
         'karyawan' => [
             'attendance.clock',

@@ -141,7 +141,7 @@ class WaCloudService
         if ((float) $order->discount_amount > 0) {
             $lines[] = 'Diskon: -'.$fmt($order->discount_amount);
         }
-        $lines[] = 'Ppn ('.($taxPct ?: '0').'%): '.$fmt($order->tax_amount);
+        $lines[] = 'Charge ('.($taxPct ?: '0').'%): '.$fmt($order->tax_amount);
         $lines[] = '--------------------';
         $lines[] = '*Total: '.$fmt($order->grand_total).'*';
         $lines[] = '';

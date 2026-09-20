@@ -270,6 +270,7 @@ class MarketingController extends Controller
         ]);
 
         $data['code'] = filled($data['code'] ?? null) ? $data['code'] : null;
+        $data['minimum_transaction'] = (float) ($data['minimum_transaction'] ?? 0);
 
         return [
             collect($data)->except(['outlet_ids', 'product_ids', 'category_ids'])->all(),

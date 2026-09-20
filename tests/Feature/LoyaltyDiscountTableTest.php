@@ -113,6 +113,21 @@ class LoyaltyDiscountTableTest extends TestCase
         $this->assertSoftDeleted($this->weekdayPromo);
     }
 
+    public function test_discount_update_defaults_empty_minimum_transaction_to_zero(): void
+    {
+        $this->actingAsAtOutlet($this->admin);
+
+        $this->put(route('marketing.discounts.update', $this->weekdayPromo), [
+            'name' => 'Promo Weekday 10%',
+            'type' => 'percentage',
+            'scope' => 'order',
+            'value' => 10,
+            'minimum_transaction' => null,
+        ])->assertRedirect(route('marketing.discounts'));
+
+        $this->assertEquals(0, (float) $this->weekdayPromo->fresh()->minimum_transaction);
+    }
+
     public function test_cashier_cannot_update_or_delete_discount(): void
     {
         $this->actingAsAtOutlet($this->cashier);

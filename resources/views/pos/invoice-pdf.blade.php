@@ -126,7 +126,7 @@
             </div>
         @endif
         <div class="row">
-            <span class="label">Ppn ({{ $taxPct ?: '0' }}%)</span>
+            <span class="label">Charge ({{ $taxPct ?: '0' }}%)</span>
             <span class="value">{{ $fmt($order->tax_amount) }}</span>
         </div>
         <hr class="divider">

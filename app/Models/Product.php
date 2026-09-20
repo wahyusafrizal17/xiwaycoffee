@@ -190,6 +190,7 @@ class Product extends Model
                 ])->values()->all(),
             ])->values()->all(),
             'update_url' => route('products.update', $this),
+            'options_url' => route('products.options.update', $this),
             'delete_url' => route('products.destroy', $this),
         ];
     }

@@ -6,62 +6,61 @@
             <div class="flex items-center justify-between gap-3 border-b border-[#f0ece7] px-3 py-2 text-xs" x-show="!online" x-cloak>
                 <span class="font-medium text-[#d97706]">Mode offline — order akan dikirim saat koneksi kembali.</span>
             </div>
-            @if ($lowStock->isNotEmpty())
-                <div class="border-b border-brand-soft bg-brand-soft px-3 py-2 text-xs text-brand">
-                    Stok menipis: {{ $lowStockNames }}@if ($lowStockExtra > 0) +{{ $lowStockExtra }} lagi @endif
-                </div>
-            @endif
-            <div class="flex flex-col gap-3 border-b border-[#f0ece7] px-3 py-3 sm:flex-row sm:items-center">
-                <div class="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div class="flex flex-col gap-2.5 border-b border-[#f0ece7] px-3 py-2.5 sm:flex-row sm:items-center">
+                <div class="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     <button type="button" class="pos-chip" :class="!category ? 'pos-chip-active' : 'pos-chip-idle'" @click="category = null">Semua</button>
                     @foreach ($categories as $category)
                         <button type="button" class="pos-chip" :class="category == {{ $category->id }} ? 'pos-chip-active' : 'pos-chip-idle'" @click="category = {{ $category->id }}">{{ $category->name }}</button>
                     @endforeach
                 </div>
-                <div class="relative w-full shrink-0 sm:w-56">
-                    <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/></svg>
+                <div class="relative w-full shrink-0 sm:w-52">
+                    <svg class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/></svg>
                     <input class="input !rounded-xl !border-[#ebe7e2] !bg-[#faf9f7] !py-2 !pl-9 !text-[13px]" placeholder="Cari menu..." x-model="search">
                 </div>
             </div>
-            <div class="grid flex-1 auto-rows-min grid-cols-2 gap-2.5 overflow-y-auto p-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+            <div class="grid flex-1 auto-rows-min grid-cols-1 gap-2 overflow-y-auto p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 @foreach ($products as $product)
+                    @php
+                        $hasOptions = $product->optionGroups->contains(fn ($g) => $g->options->contains(fn ($o) => $o->is_active));
+                    @endphp
                     <article
                         class="menu-card"
                         x-show="(!category || category == {{ $product->category_id }}) && productMatch('{{ strtolower($product->name) }}')"
                         @click="beginAdd({{ $product->id }}, null, null)"
                     >
                         <div class="menu-card-visual">
-                            <span class="menu-card-badge">{{ $product->is_recommended ? '★ ' : '' }}{{ $product->category?->name }}</span>
                             <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}" class="menu-card-photo" loading="lazy">
                         </div>
                         <div class="menu-card-body">
-                            <div>
-                                <h3 class="line-clamp-2 text-[14px] font-semibold leading-snug text-heading">{{ $product->name }}</h3>
-                                <p class="mt-1.5 text-[14px] font-semibold tracking-tight text-heading">{{ money($product->price) }}</p>
-                                @if ($product->variants->count())
-                                    <div class="mt-2 flex flex-wrap gap-1" @click.stop>
-                                        @foreach ($product->variants as $variant)
-                                            <button type="button" class="rounded-full bg-[#f3f0ec] px-2 py-0.5 text-[11px] font-medium text-heading transition hover:bg-[#ebe7e2]" @click="beginAdd({{ $product->id }}, {{ $variant->id }}, null)">{{ $variant->name }}</button>
-                                        @endforeach
-                                    </div>
+                            <div class="menu-card-meta">
+                                <span class="menu-card-badge">{{ $product->is_recommended ? '★ ' : '' }}{{ $product->category?->name }}</span>
+                                @if ($hasOptions)
+                                    <span class="menu-card-opt">Opsi</span>
                                 @endif
                             </div>
-                            <button type="button" class="menu-card-add" @click.stop="beginAdd({{ $product->id }}, null, null)">Tambah</button>
+                            <h3 class="line-clamp-2 text-[14px] font-semibold leading-snug text-heading">{{ $product->name }}</h3>
+                            <p class="text-[14px] font-semibold tracking-tight text-heading">{{ money($product->price) }}</p>
+                            @if ($product->variants->count())
+                                <div class="mt-0.5 flex flex-wrap gap-1" @click.stop>
+                                    @foreach ($product->variants as $variant)
+                                        <button type="button" class="rounded-full bg-[#f3f0ec] px-2 py-0.5 text-[11px] font-medium text-heading transition hover:bg-[#ebe7e2]" @click="beginAdd({{ $product->id }}, {{ $variant->id }}, null)">{{ $variant->name }}</button>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
                     </article>
                 @endforeach
                 @foreach ($bundles as $bundle)
                     <article class="menu-card" x-show="!category || category == {{ $bundle->product?->category_id ?? 0 }}" @click="beginAdd({{ $bundle->product_id ?? $bundle->items->first()?->product_id }}, null, {{ $bundle->id }})">
                         <div class="menu-card-visual">
-                            <span class="menu-card-badge">Package</span>
                             <img src="{{ $bundle->product?->imageUrl() ?? asset('images/menu/placeholder.svg') }}" alt="{{ $bundle->name }}" class="menu-card-photo" loading="lazy">
                         </div>
                         <div class="menu-card-body">
-                            <div>
-                                <h3 class="line-clamp-2 text-[14px] font-semibold leading-snug text-heading">{{ $bundle->name }}</h3>
-                                <p class="mt-1.5 text-[14px] font-semibold tracking-tight text-heading">{{ money($bundle->price) }}</p>
+                            <div class="menu-card-meta">
+                                <span class="menu-card-badge">Package</span>
                             </div>
-                            <button type="button" class="menu-card-add" @click.stop="beginAdd({{ $bundle->product_id ?? $bundle->items->first()?->product_id }}, null, {{ $bundle->id }})">Tambah</button>
+                            <h3 class="line-clamp-2 text-[14px] font-semibold leading-snug text-heading">{{ $bundle->name }}</h3>
+                            <p class="text-[14px] font-semibold tracking-tight text-heading">{{ money($bundle->price) }}</p>
                         </div>
                     </article>
                 @endforeach
@@ -79,61 +78,61 @@
             class="order-panel pos-cart-sheet"
             :class="cartOpen ? 'flex' : 'hidden lg:flex'"
         >
-            <div class="flex items-center justify-between px-4 py-3 lg:px-5 lg:py-4">
-                <div class="min-w-0">
-                    <div class="mx-auto mb-2 h-1 w-10 rounded-full bg-[#e5e5e5] lg:hidden"></div>
-                    <p class="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">Current order</p>
-                    <p class="mt-1 truncate text-[15px] font-semibold text-heading" x-text="order?.order_number || 'Draft baru'"></p>
-                    <p class="mt-0.5 text-[11px] font-medium text-brand" x-show="order?.status === 'held'">Hold — siap dilanjutkan</p>
-                    <p class="mt-0.5 text-[11px] text-muted" x-show="order?.estimated_ready_at && order?.status !== 'held'" x-text="etaLabel()"></p>
+            <div class="border-b border-[#f0ece7] px-4 py-3 lg:px-4">
+                <div class="mx-auto mb-2.5 h-1 w-10 rounded-full bg-[#e5e5e5] lg:hidden"></div>
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Current order</p>
+                        <p class="mt-1 truncate text-[15px] font-semibold text-heading" x-text="order?.order_number || 'Draft baru'"></p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-1.5">
+                        <span class="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand" x-show="order?.status === 'held'" x-cloak>Hold</span>
+                        <span class="rounded-full bg-[#f3f0ec] px-2 py-0.5 text-[10px] font-medium text-muted" x-show="order?.estimated_ready_at && order?.status !== 'held'" x-text="etaLabel()" x-cloak></span>
+                        <button type="button" class="rounded-lg px-2 py-1 text-xs font-medium text-muted hover:bg-[#f3f0ec] lg:hidden" @click="cartOpen = false">Tutup</button>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <button type="button" class="rounded-lg border border-[#ebe7e2] px-3 py-1.5 text-xs font-medium text-heading transition hover:bg-[#faf9f7]" @click="hold()" x-show="order">Hold</button>
-                    <button type="button" class="rounded-lg border border-[#ebe7e2] px-2.5 py-1.5 text-xs font-medium text-muted lg:hidden" @click="cartOpen = false">Tutup</button>
+                <div class="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-[#f3f0ec] p-1">
+                    <button type="button" class="rounded-lg px-2 py-1.5 text-[12px] font-semibold transition" :class="order_type === 'pickup' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="order_type = 'pickup'">Pickup</button>
+                    <button type="button" class="rounded-lg px-2 py-1.5 text-[12px] font-semibold transition" :class="order_type === 'dine_in' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="order_type = 'dine_in'">Dine-in</button>
+                    <button type="button" class="rounded-lg px-2 py-1.5 text-[12px] font-semibold transition" :class="order_type === 'online' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="order_type = 'online'">Online</button>
                 </div>
             </div>
-            <div class="mx-4 space-y-2 border-t border-[#f0ece7] pt-3 lg:mx-5">
-                <p class="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">Tipe order</p>
-                <select class="input !min-w-0 !rounded-xl !border-[#ebe7e2] !bg-[#faf9f7] !py-2 !text-xs" x-model="order_type">
-                    <option value="pickup">Pickup</option>
-                    <option value="dine_in">Dine-in</option>
-                    <option value="online">Online</option>
-                </select>
-            </div>
-            <div class="mx-4 mt-3 border-t border-[#f0ece7] lg:mx-5"></div>
-            <div class="flex-1 space-y-2.5 overflow-y-auto px-4 py-3 lg:px-5 lg:py-4">
+
+            <div class="flex-1 space-y-1.5 overflow-y-auto px-3 py-3">
                 <template x-if="!order || !order.items?.length">
-                    <div class="flex h-full min-h-36 flex-col items-center justify-center rounded-2xl border border-dashed border-[#e8e4df] bg-[#faf9f7] px-4 text-center">
+                    <div class="flex h-full min-h-28 flex-col items-center justify-center rounded-xl border border-dashed border-[#e8e4df] bg-[#faf9f7] px-4 text-center">
                         <p class="text-sm font-medium text-heading">Belum ada item</p>
-                        <p class="mt-1 text-xs text-muted">Pilih menu, lalu tekan Tambah.</p>
+                        <p class="mt-1 text-xs text-muted">Ketuk menu untuk menambah.</p>
                     </div>
                 </template>
                 <template x-for="item in (order?.items || [])" :key="item.id">
                     <div class="order-item">
-                        <div class="flex items-start gap-3">
-                            <img :src="itemImage(item)" :alt="item.name" class="h-14 w-14 shrink-0 rounded-xl bg-white object-cover">
+                        <div class="flex items-start gap-2.5">
                             <div class="min-w-0 flex-1">
-                                <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-start justify-between gap-2">
                                     <div class="min-w-0">
-                                        <p class="truncate text-sm font-semibold text-heading" x-text="item.name"></p>
-                                        <p class="mt-0.5 text-xs text-muted" x-text="formatMoney(item.unit_price)"></p>
+                                        <p class="line-clamp-2 text-[13px] font-semibold leading-snug text-heading" x-text="item.name"></p>
+                                        <p class="mt-0.5 text-[12px] text-muted" x-text="formatMoney(item.unit_price)"></p>
                                     </div>
-                                    <button type="button" class="shrink-0 text-[11px] font-medium text-brand hover:underline" @click="removeItem(item.id)">Hapus</button>
+                                    <button type="button" class="shrink-0 rounded-md p-1 text-muted transition hover:bg-white hover:text-brand" @click="removeItem(item.id)" title="Hapus">
+                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 6l12 12M18 6L6 18"/></svg>
+                                    </button>
                                 </div>
-                                <div class="mt-2.5 flex items-center gap-2">
+                                <div class="mt-2 flex items-center gap-2">
                                     <div class="order-qty">
                                         <button type="button" @click="changeQty(item, -1)">−</button>
                                         <span x-text="Number(item.quantity)"></span>
                                         <button type="button" @click="changeQty(item, 1)">+</button>
                                     </div>
-                                    <input class="order-note" placeholder="Notes" x-model="item.notes" @change="updateItem(item)">
+                                    <input class="order-note" placeholder="Catatan" x-model="item.notes" @change="updateItem(item)">
                                 </div>
                             </div>
                         </div>
                     </div>
                 </template>
             </div>
-            <div class="space-y-3 border-t border-[#f0ece7] px-4 py-4 lg:px-5">
+
+            <div class="space-y-2.5 border-t border-[#f0ece7] px-4 py-3.5">
                 <div class="order-row text-muted">
                     <span>Subtotal</span>
                     <span class="font-medium text-heading" x-text="formatMoney(order?.subtotal || 0)"></span>
@@ -152,18 +151,25 @@
                     <p class="text-[11px] text-[#c2410c]" x-show="discountHint()" x-text="discountHint()" x-cloak></p>
                 </div>
                 <div class="order-row text-muted">
-                    <span>Tax</span>
+                    <span>Charge</span>
                     <span class="font-medium text-heading" x-text="formatMoney(order?.tax_amount || 0)"></span>
                 </div>
-                <div class="flex items-center justify-between rounded-2xl bg-heading px-3.5 py-3.5 text-white">
+                <div class="flex items-center justify-between rounded-xl bg-heading px-3.5 py-3 text-white">
                     <span class="text-sm font-medium">Total</span>
-                    <span class="text-lg font-semibold tracking-tight" x-text="formatMoney(order?.grand_total || 0)"></span>
+                    <span class="text-[17px] font-semibold tracking-tight" x-text="formatMoney(order?.grand_total || 0)"></span>
                 </div>
                 <p class="text-xs font-medium text-brand" x-show="notice" x-text="notice" x-cloak></p>
                 <div class="grid grid-cols-2 gap-2">
-                    <button type="button" class="inline-flex items-center justify-center gap-2 rounded-xl border border-[#ebe7e2] bg-white px-4 py-2.5 text-sm font-medium text-heading transition hover:bg-[#faf9f7]" @click="openHeldList()">
+                    <button type="button" class="inline-flex items-center justify-center gap-2 rounded-xl border border-[#ebe7e2] bg-white px-4 py-2.5 text-sm font-medium text-heading transition hover:bg-[#faf9f7] disabled:cursor-not-allowed disabled:opacity-40" @click="hold()" :disabled="!order?.items?.length">
                         Hold
-                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-heading px-1.5 text-[10px] font-bold leading-none text-white" x-show="heldCount() > 0" x-text="heldCount()" x-cloak></span>
+                        <span
+                            class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-heading px-1.5 text-[10px] font-bold leading-none text-white"
+                            x-show="heldCount() > 0"
+                            x-text="heldCount()"
+                            x-cloak
+                            @click.stop="openHeldList()"
+                            title="Lihat order hold"
+                        ></span>
                     </button>
                     <button type="button" class="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40" @click="openPay()" :disabled="!canPay()">Bayar</button>
                 </div>
@@ -182,37 +188,42 @@
                     <p class="shrink-0 text-[18px] font-semibold text-white" x-text="formatMoney(optionPreviewTotal())"></p>
                 </div>
             </div>
-            <div class="max-h-[55vh] space-y-4 overflow-y-auto px-6 py-5">
+            <div class="max-h-[55vh] space-y-5 overflow-y-auto px-6 py-5">
                 <template x-for="group in (optionProduct?.option_groups || [])" :key="group.id">
                     <div>
-                        <div class="mb-2 flex items-center justify-between gap-2">
+                        <div class="mb-2.5 flex items-center justify-between gap-2">
                             <p class="text-[12px] font-semibold text-heading" x-text="group.name"></p>
-                            <span class="text-[11px] text-muted" x-text="group.is_required ? 'Wajib' : 'Opsional'"></span>
+                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide" :class="group.is_required ? 'bg-brand-soft text-brand' : 'bg-[#f3f0ec] text-muted'" x-text="group.is_required ? 'Wajib' : 'Opsional'"></span>
                         </div>
-                        <div class="space-y-1.5">
+                        <div class="flex flex-wrap gap-2">
                             <template x-for="opt in (group.options || []).filter(o => o.is_active)" :key="opt.id">
-                                <label class="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-[#ebe7e2] bg-[#faf9f7] px-3 py-2.5 text-sm">
-                                    <span class="flex min-w-0 items-center gap-2.5">
-                                        <input
-                                            :type="Number(group.max_select) <= 1 ? 'radio' : 'checkbox'"
-                                            :name="'opt-group-' + group.id"
-                                            :value="opt.id"
-                                            :checked="optionSelected.includes(Number(opt.id))"
-                                            @change="toggleOption(group, opt.id)"
-                                        >
-                                        <span class="truncate font-medium text-heading" x-text="opt.name"></span>
-                                    </span>
-                                    <span class="shrink-0 text-xs text-muted" x-text="Number(opt.price_adjustment) > 0 ? ('+ ' + formatMoney(opt.price_adjustment)) : '—'"></span>
-                                </label>
+                                <button
+                                    type="button"
+                                    class="pos-opt-chip min-w-[calc(50%-0.25rem)]"
+                                    :class="optionSelected.includes(Number(opt.id)) ? 'pos-opt-chip-active' : 'pos-opt-chip-idle'"
+                                    @click="toggleOption(group, opt.id)"
+                                >
+                                    <span class="truncate" x-text="opt.name"></span>
+                                    <span class="shrink-0 text-[11px] opacity-70" x-text="Number(opt.price_adjustment) > 0 ? ('+ ' + formatMoney(opt.price_adjustment)) : ''"></span>
+                                </button>
                             </template>
                         </div>
                     </div>
                 </template>
+
+                <div class="flex items-center justify-between gap-3 rounded-xl border border-[#ebe7e2] bg-[#faf9f7] px-3 py-2.5">
+                    <p class="text-[12px] font-semibold text-heading">Jumlah</p>
+                    <div class="order-qty">
+                        <button type="button" @click="optionQty = Math.max(1, Number(optionQty) - 1)">−</button>
+                        <span x-text="optionQty"></span>
+                        <button type="button" @click="optionQty = Number(optionQty) + 1">+</button>
+                    </div>
+                </div>
                 <p class="text-xs font-medium text-brand" x-show="optionNotice" x-text="optionNotice"></p>
             </div>
             <div class="grid grid-cols-2 gap-2 border-t border-[#f0ece7] px-6 py-4">
                 <button type="button" class="btn-ghost !rounded-xl" @click="optionOpen = false">Batal</button>
-                <button type="button" class="btn-brand !rounded-xl" @click="confirmOptions()" :disabled="busy">Tambah</button>
+                <button type="button" class="btn-brand !rounded-xl" @click="confirmOptions()" :disabled="busy">Tambah ke order</button>
             </div>
         </div>
     </div>
@@ -348,6 +359,7 @@ function posApp() {
         optionVariantId: null,
         optionBundleId: null,
         optionSelected: [],
+        optionQty: 1,
         optionNotice: '',
         invoiceOpen: false, invoiceOrder: null, invoicePhone: '', invoiceBusy: false, invoiceNotice: '',
         paymentMethods: [
@@ -490,7 +502,7 @@ function posApp() {
             localStorage.removeItem('pos_offline_queue');
             for (const action of items) {
                 if (action.type === 'add') {
-                    await this.addProduct(action.product_id, action.variant_id, action.bundle_id, true, action.option_ids || []);
+                    await this.addProduct(action.product_id, action.variant_id, action.bundle_id, true, action.option_ids || [], action.quantity || 1);
                 }
             }
         },
@@ -532,6 +544,7 @@ function posApp() {
             this.optionVariantId = variantId;
             this.optionBundleId = null;
             this.optionSelected = [];
+            this.optionQty = 1;
             this.optionNotice = '';
             this.optionOpen = true;
         },
@@ -542,6 +555,7 @@ function posApp() {
                 const groupIds = (group.options || []).map((o) => Number(o.id));
                 this.optionSelected = this.optionSelected.filter((x) => !groupIds.includes(Number(x)));
                 this.optionSelected.push(id);
+                this.optionNotice = '';
                 return;
             }
             if (this.optionSelected.includes(id)) {
@@ -559,15 +573,15 @@ function posApp() {
         },
         optionPreviewTotal() {
             if (!this.optionProduct) return 0;
-            let total = Number(this.optionProduct.price || 0);
+            let unit = Number(this.optionProduct.price || 0);
             (this.optionProduct.option_groups || []).forEach((group) => {
                 (group.options || []).forEach((opt) => {
                     if (this.optionSelected.includes(Number(opt.id))) {
-                        total += Number(opt.price_adjustment || 0);
+                        unit += Number(opt.price_adjustment || 0);
                     }
                 });
             });
-            return total;
+            return unit * Math.max(1, Number(this.optionQty) || 1);
         },
         confirmOptions() {
             const groups = this.optionProduct?.option_groups || [];
@@ -583,18 +597,19 @@ function posApp() {
             const productId = this.optionProduct.id;
             const variantId = this.optionVariantId;
             const optionIds = [...this.optionSelected];
+            const quantity = Math.max(1, Number(this.optionQty) || 1);
             this.optionOpen = false;
-            this.addProduct(productId, variantId, null, false, optionIds);
+            this.addProduct(productId, variantId, null, false, optionIds, quantity);
         },
-        async addProduct(productId, variantId, bundleId, fromQueue = false, optionIds = []) {
+        async addProduct(productId, variantId, bundleId, fromQueue = false, optionIds = [], quantity = 1) {
             try {
                 await this.ensureOrder();
                 this.order = await this.request(`/pos/${this.order.id}/items`, { method: 'POST', headers: await this.csrf(), body: JSON.stringify({
-                    product_id: productId, product_variant_id: variantId, bundle_id: bundleId, quantity: 1, option_ids: optionIds || []
+                    product_id: productId, product_variant_id: variantId, bundle_id: bundleId, quantity: quantity || 1, option_ids: optionIds || []
                 })});
                 this.persistDraft();
             } catch (e) {
-                if (!fromQueue) this.queue({ type: 'add', product_id: productId, variant_id: variantId, bundle_id: bundleId, option_ids: optionIds || [] });
+                if (!fromQueue) this.queue({ type: 'add', product_id: productId, variant_id: variantId, bundle_id: bundleId, option_ids: optionIds || [], quantity: quantity || 1 });
                 this.notice = e.message || 'Gagal menambah item.';
             }
         },

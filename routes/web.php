@@ -111,6 +111,7 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
     Route::post('/tables/reserve', [TableController::class, 'reserve'])->name('tables.reserve');
 
     Route::resource('products', ProductController::class)->except('show');
+    Route::put('/products/{product}/options', [ProductController::class, 'updateOptions'])->name('products.options.update');
     Route::resource('categories', CategoryController::class)->except('show');
     Route::get('/customers/template', [CustomerController::class, 'template'])->name('customers.template');
     Route::post('/customers/import', [CustomerController::class, 'import'])->name('customers.import');
