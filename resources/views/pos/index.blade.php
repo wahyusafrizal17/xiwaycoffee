@@ -228,8 +228,8 @@
         </div>
     </div>
 
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" x-show="payOpen" x-cloak @click.self="payOpen = false">
-        <div class="pay-modal">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" x-show="payOpen" x-cloak @click.self="!busy && (payOpen = false)">
+        <div class="pay-modal relative">
             <div class="pay-modal-hero">
                 <div class="flex items-center justify-between gap-4">
                     <div class="min-w-0">
@@ -246,7 +246,7 @@
                 <p class="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">Metode bayar</p>
                 <div class="mt-2.5 grid grid-cols-2 gap-2">
                     <template x-for="m in paymentMethods" :key="m.id">
-                        <button type="button" class="pay-method" :class="method === m.id ? 'pay-method-active' : ''" @click="setMethod(m.id)">
+                        <button type="button" class="pay-method" :class="method === m.id ? 'pay-method-active' : ''" @click="!busy && setMethod(m.id)" :disabled="busy">
                             <span class="block text-[13px] font-semibold" x-text="m.label"></span>
                             <span class="mt-0.5 block text-[11px] opacity-60" x-text="m.hint"></span>
                         </button>
@@ -256,10 +256,10 @@
                 <div class="mt-5 space-y-3" x-show="method === 'cash'">
                     <div>
                         <label class="label">Uang diterima</label>
-                        <input class="input !text-lg !font-semibold" type="text" inputmode="numeric" autocomplete="off" :value="formatRupiah(tendered)" @input="onTenderedInput($event)" placeholder="Rp 0">
+                        <input class="input !text-lg !font-semibold" type="text" inputmode="numeric" autocomplete="off" :value="formatRupiah(tendered)" @input="onTenderedInput($event)" placeholder="Rp 0" :disabled="busy">
                         <div class="mt-2 flex flex-wrap gap-1.5">
                             <template x-for="preset in cashPresets()" :key="preset">
-                                <button type="button" class="rounded-full border border-[#e8e8e8] bg-[#fafafa] px-2.5 py-1 text-[11px] font-medium text-heading transition hover:border-heading hover:bg-white" @click="tendered = preset" x-text="preset === grandTotal() ? 'Pas' : formatMoney(preset)"></button>
+                                <button type="button" class="rounded-full border border-[#e8e8e8] bg-[#fafafa] px-2.5 py-1 text-[11px] font-medium text-heading transition hover:border-heading hover:bg-white disabled:opacity-50" @click="tendered = preset" :disabled="busy" x-text="preset === grandTotal() ? 'Pas' : formatMoney(preset)"></button>
                             </template>
                         </div>
                     </div>
@@ -274,9 +274,23 @@
                 <p class="mt-3 text-xs font-medium text-brand" x-show="notice" x-text="notice"></p>
 
                 <div class="mt-6 grid grid-cols-2 gap-2">
-                    <button type="button" class="btn-ghost !rounded-xl" @click="payOpen = false">Batal</button>
-                    <button type="button" class="btn-brand !rounded-xl" @click="checkout()" :disabled="!canCompletePay()">Selesaikan</button>
+                    <button type="button" class="btn-ghost !rounded-xl" @click="payOpen = false" :disabled="busy">Batal</button>
+                    <button type="button" class="btn-brand !rounded-xl inline-flex items-center justify-center gap-2" @click="checkout()" :disabled="!canCompletePay() || busy">
+                        <svg x-show="busy" x-cloak class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                            <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"></path>
+                        </svg>
+                        <span x-text="busy ? 'Memproses…' : 'Selesaikan'"></span>
+                    </button>
                 </div>
+            </div>
+
+            <div class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/80 backdrop-blur-[2px]" x-show="busy" x-cloak>
+                <svg class="h-8 w-8 animate-spin text-brand" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                    <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"></path>
+                </svg>
+                <p class="text-sm font-medium text-heading">Memproses pembayaran…</p>
             </div>
         </div>
     </div>
