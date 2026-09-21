@@ -18,11 +18,14 @@ class DashboardController extends Controller
             session(['current_outlet_id' => $outletId]);
         }
 
+        $period = $request->string('period')->toString() === 'month' ? 'month' : 'today';
+
         return view('dashboard.index', [
-            'metrics' => $dashboard->metrics($outletId),
-            'charts' => $dashboard->charts($outletId),
+            'metrics' => $dashboard->metrics($outletId, $period),
+            'charts' => $dashboard->charts($outletId, $period),
             'outlets' => Outlet::query()->where('is_active', true)->orderBy('name')->get(),
             'outletId' => $outletId,
+            'period' => $period,
         ]);
     }
 }

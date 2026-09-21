@@ -56,11 +56,6 @@
                                 ['label' => 'Waste', 'route' => 'wastes.index', 'icon' => 'trash'],
                                 ['label' => 'Transfers', 'route' => 'transfers.index', 'icon' => 'swap'],
                             ]],
-                            ['label' => 'Production', 'route' => 'production.index', 'perm' => 'production.view', 'icon' => 'production', 'children' => [
-                                ['label' => 'Orders', 'route' => 'production.index', 'icon' => 'clipboard'],
-                                ['label' => 'BOM', 'route' => 'boms.index', 'icon' => 'list'],
-                                ['label' => 'Batches', 'route' => 'batches.index', 'icon' => 'layers'],
-                            ]],
                         ],
                         'System' => [
                             ['label' => 'Reports', 'route' => 'reports.sales', 'perm' => 'reports.view', 'icon' => 'reports', 'children' => [
@@ -74,7 +69,6 @@
                                 ['label' => 'Investor', 'route' => 'investors.index', 'icon' => 'user'],
                                 ['label' => 'Undangan', 'route' => 'invites.index', 'icon' => 'megaphone'],
                             ]],
-                            ['label' => 'Printers', 'route' => 'printers.index', 'perm' => 'printers.view', 'icon' => 'printers'],
                             ['label' => 'Settings', 'route' => 'settings.index', 'perm' => 'settings.manage', 'icon' => 'settings', 'children' => [
                                 ['label' => 'General', 'route' => 'settings.index', 'icon' => 'settings'],
                                 ['label' => 'Outlets', 'route' => 'outlets.index', 'icon' => 'building'],
