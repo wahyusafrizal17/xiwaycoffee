@@ -37,6 +37,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('login'));
 Route::get('/display', MenuDisplayController::class)->name('menu.display');
+Route::get('/display/focus', [MenuDisplayController::class, 'focus'])->name('menu.display.focus');
 Route::get('/invite/{slug}', [InviteController::class, 'show'])->name('invites.show');
 Route::get('/pos/{order}/invoice.pdf', [PosController::class, 'invoicePdf'])
     ->middleware('signed')
@@ -66,6 +67,7 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
 
     Route::prefix('pos')->name('pos.')->group(function () {
         Route::get('/', [PosController::class, 'index'])->name('index');
+        Route::post('/display-focus', [MenuDisplayController::class, 'setFocus'])->name('display.focus');
         Route::get('/held', [PosController::class, 'held'])->name('held');
         Route::post('/draft', [PosController::class, 'draft'])->name('draft');
         Route::post('/{order}/items', [PosController::class, 'addItem'])->name('items.store');

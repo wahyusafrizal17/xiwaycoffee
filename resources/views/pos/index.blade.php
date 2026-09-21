@@ -13,9 +13,16 @@
                         <button type="button" class="pos-chip" :class="category == {{ $category->id }} ? 'pos-chip-active' : 'pos-chip-idle'" @click="category = {{ $category->id }}">{{ $category->name }}</button>
                     @endforeach
                 </div>
-                <div class="relative w-full shrink-0 sm:w-52">
-                    <svg class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/></svg>
-                    <input class="input !rounded-xl !border-[#ebe7e2] !bg-[#faf9f7] !py-2 !pl-9 !text-[13px]" placeholder="Cari menu..." x-model="search">
+                <div class="flex shrink-0 items-center gap-2">
+                    <div class="flex items-center gap-1 rounded-xl bg-[#f3f0ec] p-1" title="Kontrol layar menu TV">
+                        <button type="button" class="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition" :class="displayFocus === 'drinks' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setDisplayFocus('drinks')">Minuman</button>
+                        <button type="button" class="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition" :class="displayFocus === 'food' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setDisplayFocus('food')">Makanan</button>
+                        <button type="button" class="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition" :class="displayFocus === 'auto' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setDisplayFocus('auto')">Auto</button>
+                    </div>
+                    <div class="relative w-full sm:w-44">
+                        <svg class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/></svg>
+                        <input class="input !rounded-xl !border-[#ebe7e2] !bg-[#faf9f7] !py-2 !pl-9 !text-[13px]" placeholder="Cari menu..." x-model="search">
+                    </div>
                 </div>
             </div>
             <div class="grid flex-1 auto-rows-min grid-cols-1 gap-2 overflow-y-auto p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -368,6 +375,7 @@ function posApp() {
         order: null, search: '', category: null, order_type: 'pickup', table_id: '',
         discount_id: '', method: 'cash', tendered: 0, payOpen: false, openHeld: false, busy: false, notice: '',
         cartOpen: false,
+        displayFocus: 'auto',
         optionOpen: false,
         optionProduct: null,
         optionVariantId: null,
@@ -485,6 +493,18 @@ function posApp() {
             this.method = id;
             this.notice = '';
             if (id !== 'cash') this.tendered = this.grandTotal();
+        },
+        async setDisplayFocus(mode) {
+            this.displayFocus = mode;
+            try {
+                await this.request('{{ route('pos.display.focus', absolute: false) }}', {
+                    method: 'POST',
+                    headers: await this.csrf(),
+                    body: JSON.stringify({ mode }),
+                });
+            } catch (e) {
+                this.notice = e.message || 'Gagal update layar menu.';
+            }
         },
         persistDraft() {
             const payload = {
