@@ -44,7 +44,7 @@
             encoding: 'ISO-8859-1',
             rasterize: false,
             altPrinting: true,
-            jobName: 'Rasa POS ESC/POS'
+            jobName: 'Xiway Pos ESC/POS'
         });
     }
 

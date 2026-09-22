@@ -138,6 +138,63 @@ class ProfitShareTest extends TestCase
             ->assertSee('Ayam Pecak');
     }
 
+    public function test_admin_can_settle_outstanding_food_setoran(): void
+    {
+        $food = Product::query()->create([
+            'sku' => 'PRD-FOOD-SETTLE',
+            'name' => 'Ayam Pecak Settle',
+            'category_id' => $this->foodCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 15000,
+            'cost' => 0,
+            'consignment_commission' => 2000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+            'station' => PrinterStation::Kitchen->value,
+        ]);
+
+        $this->actingAsAtOutlet($this->cashier);
+        $orders = app(OrderService::class);
+        $order = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($order, ['product_id' => $food->id, 'quantity' => 1]);
+        $orders->checkout($order->fresh(), [
+            'method' => PaymentMethod::Cash->value,
+            'tendered' => 100000,
+        ]);
+
+        $this->actingAsAtOutlet($this->cashier)
+            ->post(route('reports.setoran.store'), [
+                'settled_on' => now()->toDateString(),
+                'notes' => 'Kasir tidak boleh',
+            ])
+            ->assertForbidden();
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('reports.setoran'))
+            ->assertOk()
+            ->assertSee('Belum disetor')
+            ->assertSee(money(13000));
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('reports.setoran.store'), [
+                'settled_on' => now()->toDateString(),
+                'notes' => 'Setoran minggu ini',
+            ])
+            ->assertRedirect(route('reports.setoran'));
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('reports.setoran'))
+            ->assertOk()
+            ->assertSee('Belum disetor')
+            ->assertSee(money(0))
+            ->assertSee('Setoran minggu ini');
+    }
+
     public function test_catalog_seeder_marks_food_as_consignment(): void
     {
         $this->seed(\Database\Seeders\CatalogSeeder::class);

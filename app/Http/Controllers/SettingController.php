@@ -26,7 +26,7 @@ class SettingController extends Controller
         'service_charge' => 0,
         'points_earn_per_amount' => 10000,
         'points_redeem_value' => 100,
-        'company_name' => 'Rasa',
+        'company_name' => 'Xiway',
         'receipt_footer' => 'Terima kasih',
         'qz_printer' => '',
         'kitchen_whatsapp' => '',

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\PaymentStatus;
 use App\Models\Customer;
+use App\Models\FoodSettlement;
 use App\Models\Inventory;
 use App\Models\InventoryMovement;
 use App\Models\Order;
@@ -14,6 +15,7 @@ use App\Models\StockOpname;
 use App\Models\StockTransfer;
 use App\Models\Waste;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class ReportService
 {
@@ -312,6 +314,48 @@ class ReportService
             'commission' => $commission,
             'setoran' => round($sales - $commission, 2),
         ];
+    }
+
+    /**
+     * @return array{accrued: float, settled: float, outstanding: float, settlements: \Illuminate\Support\Collection}
+     */
+    public function foodSetoranBalance(?int $outletId = null): array
+    {
+        $accrued = (float) $this->foodSetoran(['outlet_id' => $outletId])['setoran'];
+        $settlements = FoodSettlement::query()
+            ->with('user')
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
+            ->orderByDesc('settled_on')
+            ->orderByDesc('id')
+            ->get();
+        $settled = (float) $settlements->sum('amount');
+        $outstanding = round(max(0, $accrued - $settled), 2);
+
+        return [
+            'accrued' => $accrued,
+            'settled' => round($settled, 2),
+            'outstanding' => $outstanding,
+            'settlements' => $settlements,
+        ];
+    }
+
+    public function settleFoodSetoran(int $outletId, int $userId, string $settledOn, ?string $notes = null): FoodSettlement
+    {
+        $outstanding = $this->foodSetoranBalance($outletId)['outstanding'];
+
+        if ($outstanding <= 0) {
+            throw ValidationException::withMessages([
+                'amount' => 'Tidak ada setoran yang belum dibayar.',
+            ]);
+        }
+
+        return FoodSettlement::query()->create([
+            'outlet_id' => $outletId,
+            'user_id' => $userId,
+            'settled_on' => $settledOn,
+            'amount' => $outstanding,
+            'notes' => $notes,
+        ]);
     }
 
     protected function productSalesBase(array $filters, bool $withColumnFilters = true)

@@ -1,4 +1,4 @@
-# Rasa POS
+# Xiway Pos
 
 Custom POS & Outlet Management System — Laravel 13 + MySQL.
 

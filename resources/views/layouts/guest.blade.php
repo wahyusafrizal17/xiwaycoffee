@@ -11,7 +11,7 @@
     <div class="login-backdrop" style="background-image: url('{{ asset('images/login-bg.png') }}')"></div>
     <div class="login-card">
         <aside class="login-visual">
-            <img src="{{ asset('images/login-visual.png') }}" alt="Rasa POS" class="login-visual-image">
+            <img src="{{ asset('images/login-visual.png') }}" alt="Xiway Pos" class="login-visual-image">
         </aside>
         <section class="login-panel">
             @yield('content')

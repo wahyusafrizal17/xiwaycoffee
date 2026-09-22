@@ -193,6 +193,7 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
     Route::post('/reports/expenses', [ProfitShareController::class, 'store'])->name('reports.expenses.store');
     Route::get('/reports/profit', [ProfitShareController::class, 'profit'])->name('reports.profit');
     Route::get('/reports/setoran', [ProfitShareController::class, 'setoran'])->name('reports.setoran');
+    Route::post('/reports/setoran', [ProfitShareController::class, 'storeSetoran'])->name('reports.setoran.store');
 
     Route::get('/investors', [InvestorController::class, 'index'])->name('investors.index');
     Route::post('/investors', [InvestorController::class, 'store'])->name('investors.store');

@@ -2,7 +2,7 @@
 @section('title', 'Masuk')
 @section('content')
 <div class="login-form" x-data="{ showPassword: false }">
-    <img src="{{ asset('images/logo/logo.png') }}" alt="Rasa POS" class="login-form-logo">
+    <img src="{{ asset('images/logo/logo.png') }}" alt="Xiway Pos" class="login-form-logo">
 
     @if (session('status'))
         <div class="mb-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{{ session('status') }}</div>
@@ -38,6 +38,6 @@
         <button type="submit" class="login-submit">Masuk</button>
     </form>
 
-    <p class="login-copy">© {{ date('Y') }} Rasa POS. All rights reserved.</p>
+    <p class="login-copy">© {{ date('Y') }} Xiway Pos. All rights reserved.</p>
 </div>
 @endsection

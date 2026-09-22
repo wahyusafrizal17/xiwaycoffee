@@ -85,7 +85,27 @@ class ProfitShareController extends Controller
             'filters' => $filters,
             'outlets' => Outlet::query()->orderBy('name')->get(),
             ...$this->reports->foodSetoran($filters),
+            ...$this->reports->foodSetoranBalance($filters['outlet_id'] ? (int) $filters['outlet_id'] : null),
         ]);
+    }
+
+    public function storeSetoran(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->hasPermission('reports.view'), 403);
+
+        $data = $request->validate([
+            'settled_on' => ['required', 'date'],
+            'notes' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $this->reports->settleFoodSetoran(
+            (int) current_outlet_id(),
+            (int) $request->user()->id,
+            $data['settled_on'],
+            $data['notes'] ?? null,
+        );
+
+        return redirect()->route('reports.setoran')->with('success', 'Setoran tercatat.');
     }
 
     protected function canManageBop(Request $request): bool

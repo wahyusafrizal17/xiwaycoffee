@@ -2,7 +2,7 @@
 @section('title', 'Lupa Password')
 @section('content')
 <div class="login-form">
-    <img src="{{ asset('images/logo/logo.png') }}" alt="Rasa POS" class="login-form-logo">
+    <img src="{{ asset('images/logo/logo.png') }}" alt="Xiway Pos" class="login-form-logo">
     <h2 class="mt-6 text-xl font-semibold text-heading">Reset password</h2>
     <p class="mt-2 text-sm text-muted">Masukkan email akun Anda. Link reset akan dikirim jika email terdaftar.</p>
     @if (session('status'))
@@ -20,6 +20,6 @@
         <button type="submit" class="login-submit">Kirim link reset</button>
         <a href="{{ route('login') }}" class="block text-center text-sm text-muted">Kembali ke login</a>
     </form>
-    <p class="login-copy">© {{ date('Y') }} Rasa POS. All rights reserved.</p>
+    <p class="login-copy">© {{ date('Y') }} Xiway Pos. All rights reserved.</p>
 </div>
 @endsection

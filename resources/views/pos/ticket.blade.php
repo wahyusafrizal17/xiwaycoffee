@@ -354,7 +354,7 @@
 
     <article class="sheet">
         <header class="hero">
-            <img src="{{ asset('images/logo/logo.png') }}" alt="Rasa POS">
+            <img src="{{ asset('images/logo/logo.png') }}" alt="Xiway Pos">
             <div class="hero-copy">
                 <p class="hero-kicker">{{ $stationKicker }}</p>
                 <h1 class="hero-title">{{ $stationLabel }}</h1>

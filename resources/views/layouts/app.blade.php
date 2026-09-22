@@ -20,8 +20,8 @@
                }">
             <div class="flex h-[92px] items-center justify-between gap-2 px-3">
                 <a href="{{ route('dashboard') }}" class="flex min-w-0 flex-1 items-center">
-                    <img src="{{ asset('images/logo/logo-white.png') }}" alt="Rasa POS" class="h-[76px] w-auto max-w-full object-contain object-left" x-show="!collapsed">
-                    <img src="{{ asset('images/logo/logo-white.png') }}" alt="Rasa POS" class="h-10 w-10 object-contain" x-show="collapsed" x-cloak>
+                    <img src="{{ asset('images/logo/logo-white.png') }}" alt="Xiway Pos" class="h-[76px] w-auto max-w-full object-contain object-left" x-show="!collapsed">
+                    <img src="{{ asset('images/logo/logo-white.png') }}" alt="Xiway Pos" class="h-10 w-10 object-contain" x-show="collapsed" x-cloak>
                 </a>
                 <button class="hidden rounded-md p-1 text-[#8a8d9f] hover:bg-white/5 lg:inline-flex" @click="collapsed = !collapsed">
                     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 12h10M4 18h16"/></svg>
