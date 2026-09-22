@@ -14,7 +14,7 @@
             <span class="login-field-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
             </span>
-            <input type="email" name="email" value="{{ old('email', 'admin@example.com') }}" required autofocus placeholder="nama@email.com">
+            <input type="email" name="email" value="{{ old('email') }}" required autofocus placeholder="nama@email.com" autocomplete="username">
         </div>
         @error('email') <p class="-mt-2 text-xs text-brand">{{ $message }}</p> @enderror
 

@@ -32,10 +32,13 @@ use App\Http\Controllers\StockOpnameController;
 use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\TableController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\Site\HomeController;
+use App\Http\Controllers\Site\MenuController;
 use App\Http\Controllers\WasteController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => redirect()->route('login'));
+Route::get('/', HomeController::class)->name('home');
+Route::get('/menu', MenuController::class)->name('site.menu');
 Route::get('/display', MenuDisplayController::class)->name('menu.display');
 Route::get('/display/focus', [MenuDisplayController::class, 'focus'])->name('menu.display.focus');
 Route::get('/invite/{slug}', [InviteController::class, 'show'])->name('invites.show');
@@ -43,7 +46,10 @@ Route::get('/pos/{order}/invoice.pdf', [PosController::class, 'invoicePdf'])
     ->middleware('signed')
     ->name('pos.invoice.pdf');
 
-Route::middleware('guest')->group(function () {
+Route::redirect('/login', '/management/login');
+Route::redirect('/forgot-password', '/management/forgot-password');
+
+Route::prefix('management')->middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:8,1');
     Route::get('/forgot-password', [ForgotPasswordController::class, 'create'])->name('password.request');

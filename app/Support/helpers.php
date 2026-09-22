@@ -102,3 +102,17 @@ function points_redeem_value(): int
 {
     return (int) setting('points_redeem_value', 100);
 }
+
+function public_menu_description(?string $description): ?string
+{
+    if ($description === null || trim($description) === '') {
+        return null;
+    }
+
+    $lower = strtolower($description);
+    if (str_contains($lower, 'menu mitra') || str_contains($lower, 'komisi cafe')) {
+        return null;
+    }
+
+    return $description;
+}

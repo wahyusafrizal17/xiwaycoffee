@@ -271,7 +271,7 @@ class CatalogSeeder extends Seeder
             'consignment_commission' => $commission,
             'station' => PrinterStation::Kitchen->value,
             'prep_minutes' => 12,
-            'description' => 'Menu mitra. Komisi cafe '.$commission.' per porsi.',
+            'description' => null,
             'is_sellable' => true,
             'is_stockable' => false,
             'is_active' => true,

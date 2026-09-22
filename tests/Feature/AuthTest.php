@@ -21,7 +21,7 @@ class AuthTest extends TestCase
 
     public function test_user_can_login_with_valid_credentials(): void
     {
-        $response = $this->post('/login', [
+        $response = $this->post('/management/login', [
             'email' => 'admin@example.com',
             'password' => 'password',
         ]);
@@ -33,12 +33,12 @@ class AuthTest extends TestCase
 
     public function test_login_fails_with_invalid_password(): void
     {
-        $response = $this->from('/login')->post('/login', [
+        $response = $this->from('/management/login')->post('/management/login', [
             'email' => 'admin@example.com',
             'password' => 'wrong-password',
         ]);
 
-        $response->assertRedirect('/login');
+        $response->assertRedirect('/management/login');
         $response->assertSessionHasErrors('email');
         $this->assertGuest();
     }
@@ -53,12 +53,12 @@ class AuthTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
-        $response = $this->from('/login')->post('/login', [
+        $response = $this->from('/management/login')->post('/management/login', [
             'email' => $inactive->email,
             'password' => 'password',
         ]);
 
-        $response->assertRedirect('/login');
+        $response->assertRedirect('/management/login');
         $response->assertSessionHasErrors('email');
         $this->assertGuest();
     }
@@ -67,5 +67,10 @@ class AuthTest extends TestCase
     {
         $this->get(route('dashboard'))
             ->assertRedirect(route('login'));
+    }
+
+    public function test_legacy_login_path_redirects_to_management(): void
+    {
+        $this->get('/login')->assertRedirect('/management/login');
     }
 }
