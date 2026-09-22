@@ -233,7 +233,7 @@ class PosController extends Controller
         abort_unless($request->user()->hasPermission('orders.checkout'), 403);
 
         $data = $request->validate([
-            'method' => ['required', 'in:cash,card,qris,transfer,points'],
+            'method' => ['required', 'in:cash,qris'],
             'amount' => ['nullable', 'numeric', 'min:0'],
             'tendered' => ['nullable', 'numeric', 'min:0'],
             'reference' => ['nullable', 'string', 'max:100'],

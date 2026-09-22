@@ -93,7 +93,7 @@ class OperationsGapTest extends TestCase
         $orders->addItem($order, ['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
 
         $this->postJson(route('pos.checkout', $order), [
-            'method' => 'card',
+            'method' => 'qris',
             'tendered' => 50000,
         ])->assertOk()
             ->assertJsonPath('order.status', 'new')

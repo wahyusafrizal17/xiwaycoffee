@@ -4,6 +4,10 @@ namespace Tests\Feature;
 
 use App\Enums\OrderType;
 use App\Enums\PaymentMethod;
+use App\Enums\PrinterStation;
+use App\Enums\ProductType;
+use App\Models\Category;
+use App\Models\Product;
 use App\Services\OrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\SeedsPosFixture;
@@ -20,15 +24,52 @@ class DashboardTest extends TestCase
         $this->seedPosFixture();
     }
 
-    public function test_dashboard_shows_revenue_expense_and_net(): void
+    public function test_dashboard_shows_finance_breakdown_and_profit_share(): void
     {
+        $drinkCategory = Category::query()->create([
+            'name' => 'Coffee',
+            'slug' => 'coffee-dash',
+            'station' => PrinterStation::Bar->value,
+            'sort_order' => 2,
+            'is_active' => true,
+        ]);
+
+        $drink = Product::query()->create([
+            'sku' => 'PRD-DRINK-DASH',
+            'name' => 'Sanger Classic',
+            'category_id' => $drinkCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 18000,
+            'cost' => 5000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+            'station' => PrinterStation::Bar->value,
+        ]);
+
+        $food = Product::query()->create([
+            'sku' => 'PRD-FOOD-DASH',
+            'name' => 'Ayam Pecak',
+            'category_id' => $this->foodCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 15000,
+            'cost' => 0,
+            'consignment_commission' => 2000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+        ]);
+
         $this->actingAsAtOutlet($this->cashier);
         $orders = app(OrderService::class);
         $order = $orders->createDraft([
             'outlet_id' => $this->outlet->id,
             'order_type' => OrderType::Pickup->value,
         ]);
-        $orders->addItem($order, ['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
+        $orders->addItem($order, ['product_id' => $drink->id, 'quantity' => 1]);
+        $orders->addItem($order->fresh(), ['product_id' => $food->id, 'quantity' => 1]);
         $order = $orders->checkout($order->fresh(), [
             'method' => PaymentMethod::Cash->value,
             'tendered' => 100000,
@@ -38,24 +79,39 @@ class DashboardTest extends TestCase
             ->post(route('reports.expenses.store'), [
                 'spent_on' => now()->toDateString(),
                 'category' => 'sewa',
-                'amount' => 10000,
-                'notes' => 'Sewa hari ini',
+                'amount' => 5000,
+                'notes' => 'Sewa dashboard',
             ])
             ->assertRedirect();
-
-        $gross = (float) $order->grand_total;
-        $net = $gross - 10000;
 
         $this->actingAsAtOutlet($this->admin)
             ->get(route('dashboard', ['period' => 'today']))
             ->assertOk()
-            ->assertSee('Pendapatan')
-            ->assertSee('Pengeluaran')
-            ->assertSee('Omzet bersih')
-            ->assertSee('Produk terlaris')
-            ->assertSee($this->sellableProduct->name)
-            ->assertSee(money($gross))
-            ->assertSee(money(10000))
-            ->assertSee(money($net));
+            ->assertSee('Pendapatan minuman')
+            ->assertSee('Pendapatan makanan')
+            ->assertSee('Pendapatan cafe dari makanan')
+            ->assertSee('Setoran makanan')
+            ->assertSee('Bagi hasil')
+            ->assertSee('Pendapatan bersih')
+            ->assertSee(money(18000))
+            ->assertSee(money(15000))
+            ->assertSee(money(2000))
+            ->assertSee(money(13000))
+            ->assertSee(money(5000))
+            ->assertSee('Wahyu');
+    }
+
+    public function test_cashier_dashboard_hides_profit_share(): void
+    {
+        $this->actingAsAtOutlet($this->cashier)
+            ->get(route('dashboard', ['period' => 'today']))
+            ->assertOk()
+            ->assertSee('Ringkasan operasional')
+            ->assertSee('Pendapatan kotor')
+            ->assertSee('Pesanan berjalan')
+            ->assertDontSee('Bagi hasil')
+            ->assertDontSee('Pendapatan bersih')
+            ->assertDontSee('Breakdown penjualan')
+            ->assertDontSee('Wahyu');
     }
 }

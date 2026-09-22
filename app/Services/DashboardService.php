@@ -9,45 +9,27 @@ use App\Models\DiningTable;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
     public function __construct(
-        protected InventoryService $inventory,
         protected ProfitShareService $shares,
+        protected ReportService $reports,
     ) {}
 
-    /**
-     * @return array{
-     *     period: string,
-     *     from: string,
-     *     to: string,
-     *     gross: float,
-     *     food_setoran: float,
-     *     sales: float,
-     *     bop: float,
-     *     net: float,
-     *     orders: int,
-     *     aov: float,
-     *     pending_kitchen: int,
-     *     pending_pickup: int,
-     *     low_stock: int,
-     *     out_of_stock: int,
-     *     low_stock_items: Collection,
-     *     occupied_tables: int,
-     *     available_tables: int,
-     * }
-     */
     public function metrics(?int $outletId = null, string $period = 'today'): array
     {
         $range = $this->periodRange($period);
-        $summary = $this->shares->summarize([
+        $filters = [
             'outlet_id' => $outletId,
             'from' => $range['from'],
             'to' => $range['to'],
-        ]);
+        ];
+
+        $summary = $this->shares->summarize($filters);
+        $food = $this->reports->foodSetoran($filters);
+        $drinks = $this->drinkSales($filters);
 
         $orderCount = (int) Order::query()
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
@@ -71,24 +53,23 @@ class DashboardService
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
             ->where('is_active', true);
 
-        $lowStock = $this->inventory->lowStock($outletId);
-
         return [
             'period' => $period,
             'from' => $range['from'],
             'to' => $range['to'],
             'gross' => (float) $summary['gross'],
-            'food_setoran' => (float) $summary['food_setoran'],
+            'drinks' => $drinks,
+            'food_sales' => (float) $food['sales'],
+            'food_cafe' => (float) $food['commission'],
+            'food_setoran' => (float) $food['setoran'],
             'sales' => (float) $summary['sales'],
             'bop' => (float) $summary['bop'],
             'net' => (float) $summary['remainder'],
+            'shares' => $summary['shares'],
             'orders' => $orderCount,
             'aov' => $orderCount > 0 ? (float) $summary['gross'] / $orderCount : 0,
             'pending_kitchen' => $pendingKitchen,
             'pending_pickup' => $pendingPickup,
-            'low_stock' => $lowStock->count(),
-            'out_of_stock' => $this->inventory->outOfStock($outletId)->count(),
-            'low_stock_items' => $lowStock->take(6),
             'occupied_tables' => (clone $tables)->where('status', TableStatus::Occupied->value)->count(),
             'available_tables' => (clone $tables)->where('status', TableStatus::Available->value)->count(),
         ];
@@ -149,6 +130,20 @@ class DashboardService
             'by_category' => $byCategory,
             'payments' => $payments,
         ];
+    }
+
+    protected function drinkSales(array $filters): float
+    {
+        return (float) OrderItem::query()
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('products', 'products.id', '=', 'order_items.product_id')
+            ->join('categories', 'categories.id', '=', 'products.category_id')
+            ->where('orders.payment_status', PaymentStatus::Paid->value)
+            ->whereIn('categories.name', drink_category_names())
+            ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
+            ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '>=', $filters['from']))
+            ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '<=', $filters['to']))
+            ->sum('order_items.total');
     }
 
     /**

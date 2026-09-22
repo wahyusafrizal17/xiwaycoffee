@@ -386,9 +386,7 @@ function posApp() {
         invoiceOpen: false, invoiceOrder: null, invoicePhone: '', invoiceBusy: false, invoiceNotice: '',
         paymentMethods: [
             { id: 'cash', label: 'Tunai', hint: 'Hitung kembalian' },
-            { id: 'card', label: 'Kartu', hint: 'Debit / kredit' },
             { id: 'qris', label: 'QRIS', hint: 'Scan QR' },
-            { id: 'transfer', label: 'Transfer', hint: 'Bank transfer' },
         ],
         heldOrders: @json($heldOrders),
         online: navigator.onLine,
