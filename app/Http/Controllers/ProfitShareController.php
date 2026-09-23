@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\ExpenseCategory;
 use App\Enums\BankMovementType;
+use App\Enums\ExpenseCategory;
+use App\Enums\ExpensePaymentMethod;
 use App\Models\OperatingExpense;
 use App\Models\Outlet;
 use App\Services\BankAccountService;
@@ -26,19 +27,53 @@ class ProfitShareController extends Controller
         abort_unless($this->canManageBop($request), 403);
 
         $outletId = current_outlet_id();
+        $from = $request->string('from')->toString() ?: null;
+        $to = $request->string('to')->toString() ?: null;
+        $category = $request->string('category')->toString() ?: null;
+        $search = $request->string('q')->toString() ?: null;
+
+        $query = OperatingExpense::query()
+            ->with('user')
+            ->when($outletId, fn ($q, $id) => $q->where('outlet_id', $id))
+            ->when($from, fn ($q) => $q->whereDate('spent_on', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('spent_on', '<=', $to))
+            ->when($category, fn ($q) => $q->where('category', $category))
+            ->when($search, fn ($q) => $q->where('notes', 'like', '%'.$search.'%'));
+
+        $filteredTotal = (float) (clone $query)->sum('amount');
+        $byCategory = (clone $query)
+            ->selectRaw('category, SUM(amount) as total')
+            ->groupBy('category')
+            ->orderByDesc('total')
+            ->get()
+            ->map(function ($row) {
+                $category = $row->category instanceof ExpenseCategory
+                    ? $row->category
+                    : ExpenseCategory::tryFrom((string) $row->category);
+
+                return [
+                    'category' => $category,
+                    'total' => (float) $row->total,
+                ];
+            });
 
         return view('reports.expenses', [
-            'expenses' => OperatingExpense::query()
-                ->with('user')
-                ->when($outletId, fn ($q, $id) => $q->where('outlet_id', $id))
-                ->orderByDesc('spent_on')
-                ->orderByDesc('id')
-                ->paginate(20),
-            'categories' => ExpenseCategory::cases(),
-            'total' => (float) OperatingExpense::query()
+            'expenses' => $query->orderByDesc('spent_on')->orderByDesc('id')->paginate(20)->withQueryString(),
+            'categories' => ExpenseCategory::selectable(),
+            'filterCategories' => ExpenseCategory::cases(),
+            'paymentMethods' => ExpensePaymentMethod::cases(),
+            'total' => $filteredTotal,
+            'allTotal' => (float) OperatingExpense::query()
                 ->when($outletId, fn ($q, $id) => $q->where('outlet_id', $id))
                 ->sum('amount'),
+            'byCategory' => $byCategory,
             'bopMonthly' => monthly_bop(),
+            'filters' => [
+                'from' => $from,
+                'to' => $to,
+                'category' => $category,
+                'q' => $search,
+            ],
         ]);
     }
 
@@ -46,15 +81,21 @@ class ProfitShareController extends Controller
     {
         abort_unless($this->canManageBop($request), 403);
 
+        if ($request->input('payment_method') === '') {
+            $request->merge(['payment_method' => null]);
+        }
+
         $data = $request->validate([
             'spent_on' => ['required', 'date'],
             'category' => ['required', Rule::enum(ExpenseCategory::class)],
-            'amount' => ['required', 'numeric', 'min:0.01'],
+            'amount' => ['required', 'numeric', 'min:1'],
+            'payment_method' => ['nullable', Rule::enum(ExpensePaymentMethod::class)],
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
 
         $expense = OperatingExpense::query()->create([
             ...$data,
+            'payment_method' => $data['payment_method'] ?? null,
             'outlet_id' => current_outlet_id(),
             'user_id' => $request->user()->id,
         ]);
@@ -64,7 +105,7 @@ class ProfitShareController extends Controller
             (float) $expense->amount,
             BankMovementType::Bop,
             $expense,
-            $expense->notes ?: 'BOP '.$expense->category?->value,
+            $expense->notes ?: 'BOP '.$expense->category?->label(),
             $expense->spent_on?->toDateString(),
         );
 

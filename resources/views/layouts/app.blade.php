@@ -31,48 +31,43 @@
             <nav class="flex-1 space-y-0.5 overflow-y-auto px-3 pb-8">
                 @php
                     $groups = [
-                        'Operations' => [
+                        'Operasional' => [
                             ['label' => 'Dashboard', 'route' => 'dashboard', 'perm' => 'dashboard.view', 'icon' => 'home'],
                             ['label' => 'POS', 'route' => 'pos.index', 'perm' => 'pos.access', 'icon' => 'pos'],
                             ['label' => 'Orders', 'route' => 'orders.index', 'perm' => 'orders.view', 'icon' => 'orders'],
                             ['label' => 'Absensi', 'route' => 'attendance.index', 'perm' => 'attendance.clock', 'icon' => 'clipboard'],
-                            ['label' => 'BOP', 'route' => 'reports.expenses', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
-                            ['label' => 'Setoran kas', 'route' => 'bank.deposits.create', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
                         ],
-                        'Commerce' => [
-                            ['label' => 'Marketing', 'route' => 'marketing.discounts', 'perm' => 'marketing.view', 'icon' => 'marketing', 'children' => [
-                                ['label' => 'Discounts', 'route' => 'marketing.discounts', 'icon' => 'tag'],
-                                ['label' => 'Bundles', 'route' => 'marketing.bundles', 'icon' => 'gift'],
-                            ]],
-                            ['label' => 'Catalog', 'route' => 'products.index', 'perm' => 'products.view', 'icon' => 'products', 'children' => [
-                                ['label' => 'Products', 'route' => 'products.index', 'icon' => 'products'],
-                                ['label' => 'Categories', 'route' => 'categories.index', 'perm' => 'products.manage', 'icon' => 'folder'],
-                            ]],
-                        ],
-                        'Supply' => [
+                        'Produk & Inventory' => [
+                            ['label' => 'Products', 'route' => 'products.index', 'perm' => 'products.view', 'icon' => 'products'],
+                            ['label' => 'Categories', 'route' => 'categories.index', 'perm' => 'products.manage', 'icon' => 'folder'],
                             ['label' => 'Inventory', 'route' => 'inventory.index', 'perm' => 'inventory.view', 'icon' => 'inventory', 'children' => [
                                 ['label' => 'Stock', 'route' => 'inventory.index', 'icon' => 'inventory'],
                                 ['label' => 'Movements', 'route' => 'inventory.movements', 'icon' => 'arrows'],
                                 ['label' => 'Stock Opname', 'route' => 'opnames.index', 'icon' => 'clipboard-check'],
                                 ['label' => 'Waste', 'route' => 'wastes.index', 'icon' => 'trash'],
-                                ['label' => 'Transfers', 'route' => 'transfers.index', 'icon' => 'swap'],
                             ]],
+                            ['label' => 'Production', 'route' => 'production.index', 'perm' => 'production.view', 'icon' => 'clipboard'],
+                        ],
+                        'Marketing' => [
+                            ['label' => 'Marketing', 'route' => 'marketing.discounts', 'perm' => 'marketing.view', 'icon' => 'marketing', 'children' => [
+                                ['label' => 'Discounts', 'route' => 'marketing.discounts', 'icon' => 'tag'],
+                                ['label' => 'Bundles', 'route' => 'marketing.bundles', 'icon' => 'gift'],
+                            ]],
+                            ['label' => 'Promo', 'route' => 'reports.promo', 'perm' => 'reports.view', 'icon' => 'megaphone'],
                         ],
                         'Keuangan' => [
                             ['label' => 'Rekening', 'route' => 'bank.index', 'perm' => 'reports.view', 'icon' => 'chart'],
+                            ['label' => 'Setoran Kas', 'route' => 'bank.deposits.create', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
+                            ['label' => 'BOP', 'route' => 'reports.expenses', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
+                            ['label' => 'Laba Rugi', 'route' => 'reports.laba-rugi', 'perm' => 'reports.view', 'icon' => 'chart'],
                         ],
-                        'System' => [
-                            ['label' => 'Reports', 'route' => 'reports.sales', 'perm' => 'reports.view', 'icon' => 'reports', 'children' => [
-                                ['label' => 'Sales', 'route' => 'reports.sales', 'icon' => 'chart'],
-                                ['label' => 'Products', 'route' => 'reports.products', 'icon' => 'products'],
-                                ['label' => 'Categories', 'route' => 'reports.categories', 'icon' => 'folder'],
-                                ['label' => 'Promo', 'route' => 'reports.promo', 'icon' => 'megaphone'],
-                                ['label' => 'BOP', 'route' => 'reports.expenses', 'icon' => 'clipboard'],
-                                ['label' => 'Setoran makanan', 'route' => 'reports.setoran', 'icon' => 'clipboard'],
-                                ['label' => 'Bagi hasil', 'route' => 'reports.profit', 'icon' => 'chart'],
-                                ['label' => 'Investor', 'route' => 'investors.index', 'icon' => 'user'],
-                                ['label' => 'Undangan', 'route' => 'invites.index', 'icon' => 'megaphone'],
-                            ]],
+                        'Laporan' => [
+                            ['label' => 'Sales', 'route' => 'reports.sales', 'perm' => 'reports.view', 'icon' => 'chart'],
+                            ['label' => 'Products', 'route' => 'reports.products', 'perm' => 'reports.view', 'icon' => 'products'],
+                            ['label' => 'Inventory', 'route' => 'reports.inventory', 'perm' => 'reports.view', 'icon' => 'inventory'],
+                            ['label' => 'Setoran Makanan', 'route' => 'reports.setoran', 'perm' => 'reports.view', 'icon' => 'clipboard'],
+                        ],
+                        'Sistem' => [
                             ['label' => 'Settings', 'route' => 'settings.index', 'perm' => 'settings.manage', 'icon' => 'settings', 'children' => [
                                 ['label' => 'General', 'route' => 'settings.index', 'icon' => 'settings'],
                                 ['label' => 'Outlets', 'route' => 'outlets.index', 'icon' => 'building'],

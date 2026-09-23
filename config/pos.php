@@ -26,7 +26,7 @@ return [
         'items' => [
             ['name' => 'Sewa Ruko', 'category' => 'sewa', 'amount' => 45_000_000, 'period' => 'year'],
             ['name' => 'Listrik', 'category' => 'listrik', 'amount' => 1_000_000, 'period' => 'month'],
-            ['name' => 'Wifi', 'category' => 'wifi', 'amount' => 325_000, 'period' => 'month'],
+            ['name' => 'Wifi / Internet', 'category' => 'wifi', 'amount' => 325_000, 'period' => 'month'],
             ['name' => 'Gaji Karyawan', 'category' => 'gaji', 'amount' => 8_900_000, 'period' => 'month'],
             ['name' => 'Iuran', 'category' => 'iuran', 'amount' => 125_000, 'period' => 'month'],
         ],

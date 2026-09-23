@@ -7,6 +7,8 @@ use App\Models\Outlet;
 use App\Services\ReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -15,7 +17,7 @@ class ReportController extends Controller
 {
     public function __construct(protected ReportService $reports) {}
 
-    public function sales(Request $request): View|BinaryFileResponse|\Illuminate\Http\Response
+    public function sales(Request $request): View|BinaryFileResponse|Response
     {
         abort_unless($request->user()->hasPermission('reports.view'), 403);
         $filters = $request->all() + $this->reports->range($request->from, $request->to, $request->period);
@@ -35,7 +37,7 @@ class ReportController extends Controller
         ]);
     }
 
-    public function products(Request $request): View|BinaryFileResponse|\Illuminate\Http\Response
+    public function products(Request $request): View|BinaryFileResponse|Response
     {
         abort_unless($request->user()->hasPermission('reports.view'), 403);
         $filters = $request->all() + $this->reports->range($request->from, $request->to, $request->period);
@@ -48,7 +50,7 @@ class ReportController extends Controller
         ]);
     }
 
-    public function inventory(Request $request): View|BinaryFileResponse|\Illuminate\Http\Response
+    public function inventory(Request $request): View|BinaryFileResponse|Response
     {
         abort_unless($request->user()->hasPermission('reports.view'), 403);
         $filters = $request->all();
@@ -65,7 +67,7 @@ class ReportController extends Controller
         ], 'inventory');
     }
 
-    public function movements(Request $request): View|BinaryFileResponse|\Illuminate\Http\Response
+    public function movements(Request $request): View|BinaryFileResponse|Response
     {
         $filters = $request->all() + $this->reports->range($request->from, $request->to, $request->period);
         $rows = $this->reports->movements($filters);
@@ -75,7 +77,7 @@ class ReportController extends Controller
         ], fn ($row) => [$row->reference_number, $row->product?->name, $row->type?->value, $row->quantity, $row->before_stock, $row->after_stock], 'movements');
     }
 
-    public function production(Request $request): View|BinaryFileResponse|\Illuminate\Http\Response
+    public function production(Request $request): View|BinaryFileResponse|Response
     {
         $filters = $request->all() + $this->reports->range($request->from, $request->to, $request->period);
         $rows = $this->reports->production($filters);
@@ -85,7 +87,7 @@ class ReportController extends Controller
         ], fn ($row) => [$row->number, $row->product?->name, $row->quantity_planned, $row->quantity_produced, $row->yield_percentage], 'production');
     }
 
-    public function customers(Request $request): View|BinaryFileResponse|\Illuminate\Http\Response
+    public function customers(Request $request): View|BinaryFileResponse|Response
     {
         $filters = $request->all();
         $rows = $this->reports->customers($filters);
@@ -95,7 +97,7 @@ class ReportController extends Controller
         ], fn ($row) => [$row->name, $row->phone, $row->membership_level?->value, $row->points, $row->total_transaction], 'customers');
     }
 
-    public function categories(Request $request): View|BinaryFileResponse|\Illuminate\Http\Response
+    public function categories(Request $request): View|BinaryFileResponse|Response
     {
         abort_unless($request->user()->hasPermission('reports.view'), 403);
         $filters = $request->all() + $this->reports->range($request->from, $request->to, $request->period);
@@ -108,7 +110,7 @@ class ReportController extends Controller
         ]);
     }
 
-    public function promo(Request $request): View|BinaryFileResponse|\Illuminate\Http\Response
+    public function promo(Request $request): View|BinaryFileResponse|Response
     {
         abort_unless($request->user()->hasPermission('reports.view'), 403);
         $filters = $request->all() + $this->reports->range($request->from, $request->to, $request->period);
@@ -137,7 +139,7 @@ class ReportController extends Controller
         return view('reports.promo', $payload);
     }
 
-    public function waste(Request $request): View|BinaryFileResponse|\Illuminate\Http\Response
+    public function waste(Request $request): View|BinaryFileResponse|Response
     {
         $filters = $request->all() + $this->reports->range($request->from, $request->to, $request->period);
         $rows = $this->reports->waste($filters);
@@ -145,6 +147,46 @@ class ReportController extends Controller
         return $this->respond('reports.waste', $request, $filters, $rows, [
             ['No', 'Produk', 'Qty', 'Alasan'],
         ], fn ($row) => [$row->number, $row->product?->name, $row->quantity, $row->reason?->value], 'waste');
+    }
+
+    public function labaRugi(Request $request): View
+    {
+        abort_unless($request->user()->hasPermission('reports.view'), 403);
+
+        $month = $request->string('month')->toString() ?: now()->format('Y-m');
+        try {
+            $start = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        } catch (\Throwable) {
+            $start = now()->startOfMonth();
+            $month = $start->format('Y-m');
+        }
+        $end = (clone $start)->endOfMonth();
+        if ($end->isFuture()) {
+            $end = now()->startOfDay();
+        }
+
+        $outletId = $request->integer('outlet_id') ?: current_outlet_id();
+        if ($request->filled('outlet_id') && $request->user()->canAccessOutlet($outletId)) {
+            session(['current_outlet_id' => $outletId]);
+        }
+
+        $filters = [
+            'outlet_id' => $outletId,
+            'from' => $start->toDateString(),
+            'to' => $end->toDateString(),
+            'month' => $month,
+        ];
+
+        $summary = $this->reports->profitLoss($filters);
+        $summary['label'] = $start->locale('id')->translatedFormat('F Y');
+
+        return view('reports.laba-rugi', [
+            'summary' => $summary,
+            'filters' => $filters,
+            'outlets' => Outlet::query()->where('is_active', true)->orderBy('name')->get(),
+            'outletId' => $outletId,
+            'canSwitchOutlet' => $request->user()->canSwitchOutlet(),
+        ]);
     }
 
     protected function respond(string $view, Request $request, array $filters, $rows, array $headings, callable $map, string $name, array $extra = [])

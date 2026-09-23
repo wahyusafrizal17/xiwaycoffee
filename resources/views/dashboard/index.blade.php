@@ -8,6 +8,7 @@
         $periodLabel = $range['label'] ?? $metrics['label'] ?? '';
         $filterPeriod = $period;
     @endphp
+
     <form
         method="GET"
         action="{{ route('dashboard') }}"

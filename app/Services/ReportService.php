@@ -2,12 +2,14 @@
 
 namespace App\Services;
 
-use App\Enums\PaymentStatus;
 use App\Enums\BankMovementType;
+use App\Enums\ExpenseCategory;
+use App\Enums\PaymentStatus;
 use App\Models\Customer;
 use App\Models\FoodSettlement;
 use App\Models\Inventory;
 use App\Models\InventoryMovement;
+use App\Models\OperatingExpense;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductionBatch;
@@ -16,6 +18,7 @@ use App\Models\StockOpname;
 use App\Models\StockTransfer;
 use App\Models\Waste;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class ReportService
@@ -42,6 +45,95 @@ class ReportService
             'count' => $count,
             'total' => $total,
             'average' => $count > 0 ? $total / $count : 0,
+        ];
+    }
+
+    /**
+     * Laba rugi sederhana dari data existing (sales, product cost, BOP).
+     *
+     * @return array{
+     *   sales: float,
+     *   hpp: float,
+     *   hpp_available: bool,
+     *   gross: float,
+     *   bop: float,
+     *   net: float,
+     *   gross_margin: float,
+     *   net_margin: float,
+     *   status: string,
+     *   bop_rows: list<array{category: ?ExpenseCategory, label: string, total: float}>,
+     *   from: string,
+     *   to: string,
+     *   label: string
+     * }
+     */
+    public function profitLoss(array $filters): array
+    {
+        $sales = (float) $this->salesStats($filters)['total'];
+
+        $hpp = (float) OrderItem::query()
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
+            ->where('orders.payment_status', PaymentStatus::Paid->value)
+            ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
+            ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '>=', $filters['from']))
+            ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '<=', $filters['to']))
+            ->selectRaw('COALESCE(SUM(order_items.quantity * COALESCE(products.cost, 0)), 0) as total')
+            ->value('total');
+
+        $bopQuery = OperatingExpense::query()
+            ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('outlet_id', $filters['outlet_id']))
+            ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('spent_on', '>=', $filters['from']))
+            ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('spent_on', '<=', $filters['to']));
+
+        $bop = (float) (clone $bopQuery)->sum('amount');
+        $bopRows = (clone $bopQuery)
+            ->selectRaw('category, SUM(amount) as total')
+            ->groupBy('category')
+            ->orderByDesc('total')
+            ->get()
+            ->map(function ($row) {
+                $category = $row->category instanceof ExpenseCategory
+                    ? $row->category
+                    : ExpenseCategory::tryFrom((string) $row->category);
+
+                return [
+                    'category' => $category,
+                    'label' => $category?->label() ?? (string) $row->category,
+                    'total' => (float) $row->total,
+                ];
+            })
+            ->all();
+
+        $gross = round($sales - $hpp, 2);
+        $net = round($gross - $bop, 2);
+        $grossMargin = $sales > 0 ? round($gross / $sales * 100, 1) : 0.0;
+        $netMargin = $sales > 0 ? round($net / $sales * 100, 1) : 0.0;
+        $status = $net > 0 ? 'Laba' : ($net < 0 ? 'Rugi' : 'Impas');
+
+        $from = $filters['from'] ?? now()->startOfMonth()->toDateString();
+        $to = $filters['to'] ?? now()->toDateString();
+        $label = Carbon::parse($from)->locale('id')->translatedFormat('F Y');
+        if ($from !== Carbon::parse($from)->startOfMonth()->toDateString()
+            || $to !== min(Carbon::parse($from)->endOfMonth()->toDateString(), now()->toDateString())) {
+            $label = Carbon::parse($from)->locale('id')->translatedFormat('d M Y')
+                .' – '.Carbon::parse($to)->locale('id')->translatedFormat('d M Y');
+        }
+
+        return [
+            'sales' => $sales,
+            'hpp' => $hpp,
+            'hpp_available' => true,
+            'gross' => $gross,
+            'bop' => $bop,
+            'net' => $net,
+            'gross_margin' => $grossMargin,
+            'net_margin' => $netMargin,
+            'status' => $status,
+            'bop_rows' => $bopRows,
+            'from' => $from,
+            'to' => $to,
+            'label' => $label,
         ];
     }
 
@@ -318,7 +410,7 @@ class ReportService
     }
 
     /**
-     * @return array{accrued: float, settled: float, outstanding: float, settlements: \Illuminate\Support\Collection}
+     * @return array{accrued: float, settled: float, outstanding: float, settlements: Collection}
      */
     public function foodSetoranBalance(?int $outletId = null): array
     {

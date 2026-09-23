@@ -11,7 +11,6 @@
         $chipOn = 'bg-brand text-white';
         $chipOff = 'bg-[#f5f5f5] text-muted hover:bg-[#ececec]';
     @endphp
-    @include('reports._nav')
 
     <div class="mb-5 grid gap-4 md:grid-cols-3">
         <div class="stat-card">
