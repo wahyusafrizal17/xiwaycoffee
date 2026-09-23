@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\TableStatus;
 use App\Models\DiningTable;
+use App\Models\MonthlyTarget;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Support\Carbon;
@@ -18,9 +19,28 @@ class DashboardService
         protected ReportService $reports,
     ) {}
 
-    public function metrics(?int $outletId = null, string $period = 'today'): array
+    /**
+     * @param  array{period?: string, date?: string, month?: string, year?: string, from?: string, to?: string}  $params
+     */
+    public function resolveRange(array $params): array
     {
-        $range = $this->periodRange($period);
+        $period = $params['period'] ?? 'day';
+        if ($period === 'today') {
+            $period = 'day';
+        }
+
+        $today = Carbon::now();
+
+        return match ($period) {
+            'month' => $this->monthRange($params['month'] ?? $today->format('Y-m')),
+            'year' => $this->yearRange($params['year'] ?? $today->format('Y')),
+            'range' => $this->customRange($params['from'] ?? null, $params['to'] ?? null),
+            default => $this->dayRange($params['date'] ?? $today->toDateString()),
+        };
+    }
+
+    public function metrics(?int $outletId, array $range): array
+    {
         $filters = [
             'outlet_id' => $outletId,
             'from' => $range['from'],
@@ -53,10 +73,13 @@ class DashboardService
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
             ->where('is_active', true);
 
+        $target = $this->drinkTarget($outletId, $range);
+
         return [
-            'period' => $period,
+            'period' => $range['period'],
             'from' => $range['from'],
             'to' => $range['to'],
+            'label' => $range['label'],
             'gross' => (float) $summary['gross'],
             'drinks' => $drinks,
             'food_sales' => (float) $food['sales'],
@@ -66,6 +89,7 @@ class DashboardService
             'bop' => (float) $summary['bop'],
             'net' => (float) $summary['remainder'],
             'shares' => $summary['shares'],
+            'target' => $target,
             'orders' => $orderCount,
             'aov' => $orderCount > 0 ? (float) $summary['gross'] / $orderCount : 0,
             'pending_kitchen' => $pendingKitchen,
@@ -75,9 +99,8 @@ class DashboardService
         ];
     }
 
-    public function charts(?int $outletId = null, string $period = 'today'): array
+    public function charts(?int $outletId, array $range): array
     {
-        $range = $this->periodRange($period);
         $trendFrom = now()->subDays(13)->startOfDay();
 
         $salesTrend = Order::query()
@@ -147,21 +170,119 @@ class DashboardService
     }
 
     /**
-     * @return array{from: string, to: string}
+     * Target omzet minuman vs realisasi bulan (sama konsep BOP / investors).
+     *
+     * @return array{amount: float, actual: float, progress: float, label: string, year: int, month: int}
      */
-    protected function periodRange(string $period): array
+    protected function drinkTarget(?int $outletId, array $range): array
     {
-        $today = Carbon::now()->toDateString();
+        $anchor = Carbon::parse($range['month'] ?? $range['to'] ?? now()->toDateString());
+        $year = (int) $anchor->year;
+        $month = (int) $anchor->month;
 
-        return match ($period) {
-            'month' => [
-                'from' => Carbon::now()->startOfMonth()->toDateString(),
-                'to' => $today,
-            ],
-            default => [
-                'from' => $today,
-                'to' => $today,
-            ],
-        };
+        $stored = MonthlyTarget::query()
+            ->where('outlet_id', $outletId)
+            ->where('year', $year)
+            ->where('month', $month)
+            ->value('amount');
+
+        $amount = (float) ($stored ?? monthly_bop());
+        $from = $anchor->copy()->startOfMonth()->toDateString();
+        $to = $anchor->copy()->endOfMonth();
+        if ($to->isFuture()) {
+            $to = Carbon::now()->startOfDay();
+        }
+
+        $actual = $this->drinkSales([
+            'outlet_id' => $outletId,
+            'from' => $from,
+            'to' => $to->toDateString(),
+        ]);
+        $progress = $amount > 0 ? min(100, round($actual / $amount * 100, 1)) : 0.0;
+
+        return [
+            'amount' => $amount,
+            'actual' => $actual,
+            'progress' => $progress,
+            'label' => $anchor->copy()->startOfMonth()->locale('id')->translatedFormat('F Y'),
+            'year' => $year,
+            'month' => $month,
+        ];
+    }
+
+    /**
+     * @return array{period: string, from: string, to: string, label: string, date?: string, month?: string, year?: string}
+     */
+    protected function dayRange(string $date): array
+    {
+        $day = Carbon::parse($date)->startOfDay();
+
+        return [
+            'period' => 'day',
+            'from' => $day->toDateString(),
+            'to' => $day->toDateString(),
+            'date' => $day->toDateString(),
+            'label' => $day->locale('id')->translatedFormat('d F Y'),
+        ];
+    }
+
+    /**
+     * @return array{period: string, from: string, to: string, label: string, month: string}
+     */
+    protected function monthRange(string $month): array
+    {
+        $start = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        $end = (clone $start)->endOfMonth();
+        if ($end->isFuture()) {
+            $end = Carbon::now()->startOfDay();
+        }
+
+        return [
+            'period' => 'month',
+            'from' => $start->toDateString(),
+            'to' => $end->toDateString(),
+            'month' => $start->format('Y-m'),
+            'label' => $start->locale('id')->translatedFormat('F Y'),
+        ];
+    }
+
+    /**
+     * @return array{period: string, from: string, to: string, label: string, year: string}
+     */
+    protected function yearRange(string $year): array
+    {
+        $y = (int) $year;
+        $start = Carbon::create($y, 1, 1)->startOfDay();
+        $end = Carbon::create($y, 12, 31)->startOfDay();
+        if ($end->isFuture()) {
+            $end = Carbon::now()->startOfDay();
+        }
+
+        return [
+            'period' => 'year',
+            'from' => $start->toDateString(),
+            'to' => $end->toDateString(),
+            'year' => (string) $y,
+            'label' => 'Tahun '.$y,
+        ];
+    }
+
+    /**
+     * @return array{period: string, from: string, to: string, label: string}
+     */
+    protected function customRange(?string $from, ?string $to): array
+    {
+        $fromDate = Carbon::parse($from ?: now()->startOfMonth()->toDateString())->startOfDay();
+        $toDate = Carbon::parse($to ?: now()->toDateString())->startOfDay();
+        if ($toDate->lt($fromDate)) {
+            [$fromDate, $toDate] = [$toDate, $fromDate];
+        }
+
+        return [
+            'period' => 'range',
+            'from' => $fromDate->toDateString(),
+            'to' => $toDate->toDateString(),
+            'label' => $fromDate->locale('id')->translatedFormat('d M Y').' – '.$toDate->locale('id')->translatedFormat('d M Y'),
+        ];
     }
 }

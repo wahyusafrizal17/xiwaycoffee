@@ -3,38 +3,99 @@
 @section('breadcrumb', 'Dashboard')
 @section('content')
     @php
-        $chip = 'inline-flex items-center rounded-full px-3.5 py-1.5 text-[12px] font-medium transition';
-        $chipOn = 'bg-heading text-white';
-        $chipOff = 'bg-white text-muted ring-1 ring-[#e8e4de] hover:text-heading';
-        $periodKeep = array_filter(['outlet_id' => $outletId ?: null]);
-        $periodLabel = $period === 'month' ? 'Bulan ini' : 'Hari ini';
         $outletName = current_outlet()?->name ?? 'Semua outlet';
         $showFinance = auth()->user()->hasPermission('reports.view');
+        $periodLabel = $range['label'] ?? $metrics['label'] ?? '';
+        $filterPeriod = $period;
     @endphp
+    <form
+        method="GET"
+        action="{{ route('dashboard') }}"
+        class="mb-5 flex flex-wrap items-end gap-3"
+        x-data="dashboardFilter(@js([
+            'period' => $filterPeriod,
+            'date' => $range['date'] ?? now()->toDateString(),
+            'month' => $range['month'] ?? now()->format('Y-m'),
+            'year' => $range['year'] ?? now()->format('Y'),
+            'from' => $range['from'] ?? now()->startOfMonth()->toDateString(),
+            'to' => $range['to'] ?? now()->toDateString(),
+            'outlet_id' => $outletId,
+        ]))"
+    >
+        @if ($outletId)
+            <input type="hidden" name="outlet_id" :value="outlet_id">
+        @endif
 
-    <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">{{ $showFinance ? 'Ringkasan keuangan' : 'Ringkasan operasional' }}</p>
-            <h1 class="mt-1 font-serif text-[1.85rem] font-semibold leading-none text-heading">Dashboard</h1>
-            <p class="mt-2 text-[13px] text-muted">{{ $outletName }} · {{ $periodLabel }}</p>
+            <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Filter</label>
+            <div class="relative min-w-[160px]">
+                <button type="button" class="input flex !h-10 w-full items-center justify-between gap-2 !rounded-xl !pr-3 text-left text-[13px] font-medium" @click="open = !open" @click.outside="open = false">
+                    <span x-text="typeLabel"></span>
+                    <svg class="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="absolute left-0 z-20 mt-1 w-full overflow-hidden rounded-xl bg-[#3a3a3a] py-1 text-[13px] text-white shadow-lg" x-show="open" x-cloak>
+                    <template x-for="opt in options" :key="opt.value">
+                        <button type="button" class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-white/10" @click="period = opt.value; open = false">
+                            <span class="w-4 text-center" x-text="period === opt.value ? '✓' : ''"></span>
+                            <span x-text="opt.label"></span>
+                        </button>
+                    </template>
+                </div>
+                <input type="hidden" name="period" :value="period">
+            </div>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-            <a href="{{ route('dashboard', $periodKeep + ['period' => 'today']) }}" class="{{ $chip }} {{ $period === 'today' ? $chipOn : $chipOff }}">Hari ini</a>
-            <a href="{{ route('dashboard', $periodKeep + ['period' => 'month']) }}" class="{{ $chip }} {{ $period === 'month' ? $chipOn : $chipOff }}">Bulan ini</a>
-            @if (auth()->user()->canSwitchOutlet())
-                <form method="GET" class="ml-1">
-                    <input type="hidden" name="period" value="{{ $period }}">
-                    <select name="outlet_id" class="input !h-9 !min-w-[160px] !rounded-full !py-1.5 text-[12px]" onchange="this.form.submit()">
-                        <option value="">Outlet aktif</option>
-                        @foreach ($outlets as $outlet)
-                            <option value="{{ $outlet->id }}" @selected((int) $outletId === $outlet->id)>{{ $outlet->name }}</option>
-                        @endforeach
-                    </select>
-                </form>
-            @endif
-            <a href="{{ route('pos.index') }}" class="btn-primary !rounded-full !px-4 !py-2 text-[12px]">Buka POS</a>
+
+        <div class="min-w-[200px] flex-1 sm:flex-none">
+            <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">&nbsp;</label>
+            <div class="relative" x-show="period === 'day'">
+                <input class="input !h-10 !rounded-xl !pr-10 text-[13px]" type="date" name="date" x-model="date" :disabled="period !== 'day'">
+                <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-heading">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </span>
+            </div>
+            <div class="relative" x-show="period === 'month'" x-cloak>
+                <input class="input !h-10 !rounded-xl !pr-10 text-[13px]" type="month" name="month" x-model="month" :disabled="period !== 'month'">
+                <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-heading">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </span>
+            </div>
+            <div class="relative" x-show="period === 'year'" x-cloak>
+                <input class="input !h-10 !rounded-xl !pr-10 text-[13px]" type="number" name="year" min="2020" max="2100" x-model="year" :disabled="period !== 'year'">
+                <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-heading">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3M5 11h14M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </span>
+            </div>
+            <div class="flex flex-wrap gap-2" x-show="period === 'range'" x-cloak>
+                <input class="input !h-10 !min-w-[140px] !rounded-xl text-[13px]" type="date" name="from" x-model="from" :disabled="period !== 'range'">
+                <input class="input !h-10 !min-w-[140px] !rounded-xl text-[13px]" type="date" name="to" x-model="to" :disabled="period !== 'range'">
+            </div>
         </div>
-    </div>
+
+        <div>
+            <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">&nbsp;</label>
+            <button type="submit" class="btn-primary !h-10 !rounded-xl !px-5 text-[13px]">Terapkan</button>
+        </div>
+    </form>
+
+    @if ($showFinance)
+        @php $target = $metrics['target']; @endphp
+        <div class="mb-5 card overflow-hidden p-5">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Target omzet minuman</p>
+                    <h2 class="mt-1 font-serif text-xl font-semibold text-heading">{{ $target['label'] }}</h2>
+                    <p class="mt-1 text-[13px] text-muted">Minimal menutupi BOP {{ money($target['amount']) }}/bulan</p>
+                </div>
+                <div class="text-right">
+                    <p class="font-serif text-3xl font-semibold tabular-nums text-heading">{{ number_format($target['progress'], 1, ',', '.') }}%</p>
+                    <p class="mt-1 text-[12px] text-muted">{{ money($target['actual']) }} / {{ money($target['amount']) }}</p>
+                </div>
+            </div>
+            <div class="mt-4 h-2.5 overflow-hidden rounded-full bg-[#f0ebe4]">
+                <div class="h-full rounded-full bg-brand transition-all" style="width: {{ $target['progress'] }}%"></div>
+            </div>
+        </div>
+    @endif
 
     <div class="mb-5 grid gap-4 sm:grid-cols-2 {{ $showFinance ? 'xl:grid-cols-4' : 'xl:grid-cols-3' }}">
         <div class="stat-card !items-start">
@@ -232,6 +293,28 @@
 
 @push('scripts')
 <script>
+    function dashboardFilter(initial = {}) {
+        return {
+            open: false,
+            period: initial.period || 'day',
+            date: initial.date,
+            month: initial.month,
+            year: initial.year,
+            from: initial.from,
+            to: initial.to,
+            outlet_id: initial.outlet_id || '',
+            options: [
+                { value: 'day', label: 'Harian' },
+                { value: 'month', label: 'Bulanan' },
+                { value: 'year', label: 'Tahunan' },
+                { value: 'range', label: 'Range tanggal' },
+            ],
+            get typeLabel() {
+                return this.options.find((o) => o.value === this.period)?.label || 'Harian';
+            },
+        };
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         const palette = ['#6f1715', '#1f2937', '#c2410c', '#166534', '#2563eb', '#78716c', '#a16207', '#0f766e'];
         const soft = 'rgba(111,23,21,.10)';

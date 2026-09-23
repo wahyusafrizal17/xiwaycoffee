@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Outlet;
 use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -18,14 +17,29 @@ class DashboardController extends Controller
             session(['current_outlet_id' => $outletId]);
         }
 
-        $period = $request->string('period')->toString() === 'month' ? 'month' : 'today';
+        $period = $request->string('period')->toString();
+        if ($period === 'today') {
+            $period = 'day';
+        }
+        if (! in_array($period, ['day', 'month', 'year', 'range'], true)) {
+            $period = 'day';
+        }
+
+        $range = $dashboard->resolveRange([
+            'period' => $period,
+            'date' => $request->string('date')->toString() ?: null,
+            'month' => $request->string('month')->toString() ?: null,
+            'year' => $request->string('year')->toString() ?: null,
+            'from' => $request->string('from')->toString() ?: null,
+            'to' => $request->string('to')->toString() ?: null,
+        ]);
 
         return view('dashboard.index', [
-            'metrics' => $dashboard->metrics($outletId, $period),
-            'charts' => $dashboard->charts($outletId, $period),
-            'outlets' => Outlet::query()->where('is_active', true)->orderBy('name')->get(),
+            'metrics' => $dashboard->metrics($outletId, $range),
+            'charts' => $dashboard->charts($outletId, $range),
             'outletId' => $outletId,
-            'period' => $period,
+            'period' => $range['period'],
+            'range' => $range,
         ]);
     }
 }

@@ -87,6 +87,11 @@ class DashboardTest extends TestCase
         $this->actingAsAtOutlet($this->admin)
             ->get(route('dashboard', ['period' => 'today']))
             ->assertOk()
+            ->assertSee('Harian')
+            ->assertSee('Bulanan')
+            ->assertSee('Tahunan')
+            ->assertSee('Range tanggal')
+            ->assertSee('Terapkan')
             ->assertSee('Pendapatan minuman')
             ->assertSee('Pendapatan makanan')
             ->assertSee('Pendapatan cafe dari makanan')
@@ -99,6 +104,13 @@ class DashboardTest extends TestCase
             ->assertSee(money(13000))
             ->assertSee(money(5000))
             ->assertSee('Wahyu');
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('dashboard', ['period' => 'month', 'month' => now()->format('Y-m')]))
+            ->assertOk()
+            ->assertSee(now()->locale('id')->translatedFormat('F Y'))
+            ->assertSee('Target omzet minuman')
+            ->assertSee('%');
     }
 
     public function test_cashier_dashboard_hides_profit_share(): void
