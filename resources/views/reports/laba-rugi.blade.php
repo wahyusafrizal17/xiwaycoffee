@@ -6,14 +6,6 @@
         $s = $summary;
     @endphp
 
-    <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Keuangan</p>
-            <h1 class="mt-1 font-serif text-[1.75rem] font-semibold leading-none text-heading">Laba Rugi</h1>
-            <p class="mt-2 max-w-xl text-[13px] text-muted">Ringkasan kinerja keuangan outlet · {{ $s['label'] }}</p>
-        </div>
-    </div>
-
     <form method="GET" action="{{ route('reports.laba-rugi') }}" class="mb-5 flex flex-wrap items-end gap-3">
         <div>
             <label class="label">Bulan</label>
