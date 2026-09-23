@@ -3,6 +3,7 @@
 use App\Http\Controllers\AlertController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\CheckerController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
@@ -194,6 +195,11 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
     Route::get('/reports/profit', [ProfitShareController::class, 'profit'])->name('reports.profit');
     Route::get('/reports/setoran', [ProfitShareController::class, 'setoran'])->name('reports.setoran');
     Route::post('/reports/setoran', [ProfitShareController::class, 'storeSetoran'])->name('reports.setoran.store');
+
+    Route::get('/keuangan/rekening', [BankAccountController::class, 'index'])->name('bank.index');
+    Route::get('/keuangan/setoran-kas', [BankAccountController::class, 'createDeposit'])->name('bank.deposits.create');
+    Route::post('/keuangan/setoran-kas', [BankAccountController::class, 'storeDeposit'])->name('bank.deposits.store');
+    Route::post('/keuangan/rekening/koreksi', [BankAccountController::class, 'storeAdjustment'])->name('bank.adjustments.store');
 
     Route::get('/investors', [InvestorController::class, 'index'])->name('investors.index');
     Route::post('/investors', [InvestorController::class, 'store'])->name('investors.store');

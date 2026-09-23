@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\PaymentStatus;
+use App\Enums\BankMovementType;
 use App\Models\Customer;
 use App\Models\FoodSettlement;
 use App\Models\Inventory;
@@ -349,13 +350,25 @@ class ReportService
             ]);
         }
 
-        return FoodSettlement::query()->create([
+        $settlement = FoodSettlement::query()->create([
             'outlet_id' => $outletId,
             'user_id' => $userId,
             'settled_on' => $settledOn,
             'amount' => $outstanding,
             'notes' => $notes,
         ]);
+
+        app(BankAccountService::class)->debit(
+            $outletId,
+            $outstanding,
+            BankMovementType::FoodSettlement,
+            $settlement,
+            $notes ?: 'Setoran makanan mitra',
+            $settledOn,
+            $userId,
+        );
+
+        return $settlement;
     }
 
     protected function productSalesBase(array $filters, bool $withColumnFilters = true)

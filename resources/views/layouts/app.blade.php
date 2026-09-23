@@ -37,6 +37,7 @@
                             ['label' => 'Orders', 'route' => 'orders.index', 'perm' => 'orders.view', 'icon' => 'orders'],
                             ['label' => 'Absensi', 'route' => 'attendance.index', 'perm' => 'attendance.clock', 'icon' => 'clipboard'],
                             ['label' => 'BOP', 'route' => 'reports.expenses', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
+                            ['label' => 'Setoran kas', 'route' => 'bank.deposits.create', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
                         ],
                         'Commerce' => [
                             ['label' => 'Marketing', 'route' => 'marketing.discounts', 'perm' => 'marketing.view', 'icon' => 'marketing', 'children' => [
@@ -56,6 +57,9 @@
                                 ['label' => 'Waste', 'route' => 'wastes.index', 'icon' => 'trash'],
                                 ['label' => 'Transfers', 'route' => 'transfers.index', 'icon' => 'swap'],
                             ]],
+                        ],
+                        'Keuangan' => [
+                            ['label' => 'Rekening', 'route' => 'bank.index', 'perm' => 'reports.view', 'icon' => 'chart'],
                         ],
                         'System' => [
                             ['label' => 'Reports', 'route' => 'reports.sales', 'perm' => 'reports.view', 'icon' => 'reports', 'children' => [

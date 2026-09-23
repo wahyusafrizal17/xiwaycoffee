@@ -7,6 +7,7 @@ use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Enums\BankMovementType;
 use App\Enums\StockMovementType;
 use App\Enums\TableStatus;
 use App\Models\Bundle;
@@ -375,7 +376,7 @@ class OrderService
             $tendered = (float) ($payment['tendered'] ?? $amount);
             $method = PaymentMethod::from($payment['method'] ?? 'cash');
 
-            Payment::query()->create([
+            $paymentRow = Payment::query()->create([
                 'order_id' => $order->id,
                 'user_id' => Auth::id(),
                 'method' => $method,
@@ -391,6 +392,16 @@ class OrderService
                 ? PaymentStatus::Paid
                 : ($paid > 0 ? PaymentStatus::Partial : PaymentStatus::Unpaid);
             $order->save();
+
+            if ($method === PaymentMethod::Qris) {
+                app(BankAccountService::class)->credit(
+                    (int) $order->outlet_id,
+                    (float) $paymentRow->amount,
+                    BankMovementType::Qris,
+                    $paymentRow,
+                    'Pembayaran QRIS '.$order->order_number,
+                );
+            }
 
             return $order->fresh(['items', 'payments', 'customer', 'table']);
         });

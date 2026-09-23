@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ExpenseCategory;
+use App\Enums\BankMovementType;
 use App\Models\OperatingExpense;
 use App\Models\Outlet;
+use App\Services\BankAccountService;
 use App\Services\ProfitShareService;
 use App\Services\ReportService;
 use Illuminate\Http\RedirectResponse;
@@ -51,11 +53,20 @@ class ProfitShareController extends Controller
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
 
-        OperatingExpense::query()->create([
+        $expense = OperatingExpense::query()->create([
             ...$data,
             'outlet_id' => current_outlet_id(),
             'user_id' => $request->user()->id,
         ]);
+
+        app(BankAccountService::class)->debit(
+            (int) $expense->outlet_id,
+            (float) $expense->amount,
+            BankMovementType::Bop,
+            $expense,
+            $expense->notes ?: 'BOP '.$expense->category?->value,
+            $expense->spent_on?->toDateString(),
+        );
 
         return redirect()->route('reports.expenses')->with('success', 'BOP tercatat.');
     }
