@@ -199,6 +199,69 @@ class OperationsGapTest extends TestCase
             ->assertJsonPath('status', 'held');
     }
 
+    public function test_pos_held_list_includes_drafts_with_items(): void
+    {
+        $this->actingAsAtOutlet($this->cashier);
+        $orders = app(OrderService::class);
+
+        $draft = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($draft, ['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
+
+        $empty = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+
+        $this->getJson(route('pos.held'))
+            ->assertOk()
+            ->assertJsonFragment(['id' => $draft->id, 'status' => 'draft'])
+            ->assertJsonMissing(['id' => $empty->id]);
+
+        $this->getJson(route('pos.recall', $draft))
+            ->assertOk()
+            ->assertJsonPath('id', $draft->id)
+            ->assertJsonPath('status', 'draft');
+    }
+
+    public function test_orders_index_hides_draft_and_held_by_default(): void
+    {
+        $this->actingAsAtOutlet($this->admin);
+        $orders = app(OrderService::class);
+
+        $draft = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($draft, ['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
+
+        $held = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($held, ['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
+        $orders->hold($held);
+
+        $submitted = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($submitted, ['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
+        $orders->submit($submitted);
+
+        $this->get(route('orders.index'))
+            ->assertOk()
+            ->assertDontSee($draft->order_number)
+            ->assertDontSee($held->order_number)
+            ->assertSee($submitted->order_number);
+
+        $this->get(route('orders.index', ['status' => 'draft']))
+            ->assertOk()
+            ->assertSee($draft->order_number);
+    }
+
     public function test_merge_moves_items_and_frees_source_table(): void
     {
         $this->actingAsAtOutlet($this->cashier);

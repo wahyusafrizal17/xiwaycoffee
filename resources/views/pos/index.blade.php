@@ -339,8 +339,8 @@
         <div class="card w-full max-w-lg p-6">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <h3 class="text-lg font-semibold">Order Hold</h3>
-                    <p class="mt-1 text-sm text-muted">Pilih order untuk dilanjutkan ke keranjang.</p>
+                    <h3 class="text-lg font-semibold">Order tertunda</h3>
+                    <p class="mt-1 text-sm text-muted">Draft &amp; hold — pilih untuk dilanjutkan ke keranjang.</p>
                 </div>
                 <span class="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand" x-text="heldCount()"></span>
             </div>
@@ -357,7 +357,7 @@
                         </span>
                     </button>
                 </template>
-                <p class="py-8 text-center text-sm text-muted" x-show="heldCount() === 0">Tidak ada order yang sedang di-hold.</p>
+                <p class="py-8 text-center text-sm text-muted" x-show="heldCount() === 0">Tidak ada order tertunda.</p>
             </div>
             <div class="mt-4 flex justify-end">
                 <button class="btn-ghost" @click="openHeld = false">Tutup</button>
@@ -407,7 +407,8 @@ function posApp() {
             return this.visibleHeld().length;
         },
         heldMeta(held) {
-            const parts = [held.order_type_label || held.order_type, held.table ? `Meja ${held.table}` : null, held.customer, `${held.items_count || 0} item`].filter(Boolean);
+            const status = held.status === 'draft' ? 'Draft' : 'Hold';
+            const parts = [status, held.order_type_label || held.order_type, held.table ? `Meja ${held.table}` : null, held.customer, `${held.items_count || 0} item`].filter(Boolean);
             return parts.join(' · ');
         },
         async openHeldList() {

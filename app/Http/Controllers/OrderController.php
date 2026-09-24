@@ -17,20 +17,28 @@ class OrderController extends Controller
     {
         abort_unless($request->user()->hasPermission('orders.view'), 403);
 
+        $pending = [OrderStatus::Draft->value, OrderStatus::Held->value];
+
         $orders = Order::query()
             ->with(['outlet', 'customer', 'table', 'user'])
+            ->when(
+                filled($request->status),
+                fn ($q) => $q->where('status', $request->status),
+                fn ($q) => $q->whereNotIn('status', $pending),
+            )
             ->when($request->order_number, fn ($q, $s) => $q->where('order_number', 'like', "%{$s}%"))
             ->when($request->date, fn ($q, $d) => $q->whereDate('created_at', $d))
             ->when($request->outlet_id, fn ($q, $id) => $q->where('outlet_id', $id))
             ->when($request->customer, fn ($q, $s) => $q->whereHas('customer', fn ($c) => $c->where('name', 'like', "%{$s}%")))
             ->when($request->table, fn ($q, $s) => $q->whereHas('table', fn ($t) => $t->where('code', 'like', "%{$s}%")))
             ->when($request->order_type, fn ($q, $t) => $q->where('order_type', $t))
-            ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->payment_status, fn ($q, $s) => $q->where('payment_status', $s))
             ->when($request->cashier, fn ($q, $s) => $q->whereHas('user', fn ($u) => $u->where('name', 'like', "%{$s}%")))
             ->latest()
             ->paginate(20)
             ->withQueryString();
+
+        $counted = Order::query()->whereNotIn('status', $pending);
 
         return view('orders.index', [
             'orders' => $orders,
@@ -40,8 +48,8 @@ class OrderController extends Controller
                 'order_type', 'status', 'payment_status', 'cashier',
             ]),
             'stats' => [
-                'total' => Order::query()->count(),
-                'today' => Order::query()->whereDate('created_at', today())->count(),
+                'total' => (clone $counted)->count(),
+                'today' => (clone $counted)->whereDate('created_at', today())->count(),
                 'kitchen' => Order::query()->whereIn('status', [
                     OrderStatus::New->value,
                     OrderStatus::Processing->value,

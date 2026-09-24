@@ -359,10 +359,10 @@ class PosController extends Controller
     {
         return Order::query()
             ->where('outlet_id', $outletId)
-            ->where('status', OrderStatus::Held)
+            ->whereIn('status', [OrderStatus::Held, OrderStatus::Draft])
+            ->whereHas('items')
             ->with(['table', 'customer', 'items'])
-            ->latest('held_at')
-            ->latest();
+            ->latest('updated_at');
     }
 
     protected function heldOrderPayload(Order $order): array
