@@ -60,6 +60,7 @@
                             ['label' => 'Setoran Kas', 'route' => 'bank.deposits.create', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
                             ['label' => 'BOP', 'route' => 'reports.expenses', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
                             ['label' => 'Laba Rugi', 'route' => 'reports.laba-rugi', 'perm' => 'reports.view', 'icon' => 'chart'],
+                            ['label' => 'Investor', 'route' => 'investors.index', 'perm' => 'reports.view', 'icon' => 'user'],
                         ],
                         'Laporan' => [
                             ['label' => 'Sales', 'route' => 'reports.sales', 'perm' => 'reports.view', 'icon' => 'chart'],
