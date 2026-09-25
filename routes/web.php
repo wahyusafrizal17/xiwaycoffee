@@ -13,6 +13,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CheckerController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EventDisplayController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InvestorController;
 use App\Http\Controllers\InviteController;
@@ -42,6 +43,7 @@ Route::get('/', HomeController::class)->name('home');
 Route::get('/menu', MenuController::class)->name('site.menu');
 Route::get('/display', MenuDisplayController::class)->name('menu.display');
 Route::get('/display/focus', [MenuDisplayController::class, 'focus'])->name('menu.display.focus');
+Route::get('/display-event', [EventDisplayController::class, 'show'])->name('event-display.show');
 Route::get('/invite/{slug}', [InviteController::class, 'show'])->name('invites.show');
 Route::get('/pos/{order}/invoice.pdf', [PosController::class, 'invoicePdf'])
     ->middleware('signed')
@@ -219,6 +221,9 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
 
     Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
     Route::put('/settings', [SettingController::class, 'update'])->name('settings.update');
+
+    Route::get('/event-display', [EventDisplayController::class, 'edit'])->name('event-display.edit');
+    Route::post('/event-display', [EventDisplayController::class, 'update'])->name('event-display.update');
 
     Route::get('/audit', [AuditLogController::class, 'index'])->name('audit.index');
 });

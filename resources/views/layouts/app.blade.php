@@ -69,6 +69,7 @@
                             ['label' => 'Setoran Makanan', 'route' => 'reports.setoran', 'perm' => 'reports.view', 'icon' => 'clipboard'],
                         ],
                         'Sistem' => [
+                            ['label' => 'Event Display', 'route' => 'event-display.edit', 'perm' => 'settings.manage', 'icon' => 'megaphone'],
                             ['label' => 'Settings', 'route' => 'settings.index', 'perm' => 'settings.manage', 'icon' => 'settings', 'children' => [
                                 ['label' => 'General', 'route' => 'settings.index', 'icon' => 'settings'],
                                 ['label' => 'Outlets', 'route' => 'outlets.index', 'icon' => 'building'],
