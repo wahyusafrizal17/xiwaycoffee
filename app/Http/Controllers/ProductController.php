@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Bom;
 use App\Models\Category;
 use App\Models\Product;
-use App\Models\Bom;
 use App\Models\Unit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -138,10 +140,44 @@ class ProductController extends Controller
         unset($data['image_file'], $data['variants'], $data['option_groups']);
 
         if ($request->hasFile('image_file')) {
-            $data['image'] = $request->file('image_file')->store('products', 'public');
+            $this->deleteProductImage($product?->image);
+            $data['image'] = $this->storeProductImage($request->file('image_file'));
         }
 
         return $data;
+    }
+
+    protected function storeProductImage(UploadedFile $file): string
+    {
+        $directory = public_path('images/products');
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $name = $file->hashName();
+        $file->move($directory, $name);
+
+        return 'images/products/'.$name;
+    }
+
+    protected function deleteProductImage(?string $path): void
+    {
+        if (! filled($path) || str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return;
+        }
+
+        if (str_starts_with($path, 'images/')) {
+            $full = public_path($path);
+            if (is_file($full)) {
+                @unlink($full);
+            }
+
+            return;
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
     }
 
     protected function syncVariants(Product $product, array $variants): void

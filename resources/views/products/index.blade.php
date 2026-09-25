@@ -485,7 +485,7 @@
                                 </div>
                                 <div class="sm:col-span-2">
                                     <label class="label">Gambar menu</label>
-                                    <img x-show="form.image_url" :src="form.image_url" alt="" class="mb-3 h-20 w-28 rounded-lg object-cover" x-cloak>
+                                    <img x-show="form.image_url" :src="form.image_url" alt="" class="mb-3 h-20 w-28 rounded-lg object-cover" x-cloak x-on:error="form.image_url = ''">
                                     <input class="input" type="file" name="image_file" accept="image/*" @change="onImage($event)">
                                     <input class="input mt-2" name="image" x-model="form.image" placeholder="Atau tempel URL gambar">
                                 </div>

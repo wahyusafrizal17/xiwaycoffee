@@ -3,13 +3,13 @@
 namespace App\Models;
 
 use App\Enums\ProductType;
+use App\Models\Concerns\AppliesFillableAttribute;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Concerns\AppliesFillableAttribute;
 
 #[Fillable([
     'sku', 'name', 'category_id', 'unit_id', 'type', 'bom_level', 'description', 'image',
@@ -96,15 +96,21 @@ class Product extends Model
 
     public function imageUrl(): string
     {
-        if ($this->image) {
-            if (str_starts_with($this->image, 'http://') || str_starts_with($this->image, 'https://')) {
-                return $this->image;
-            }
-
-            return asset('storage/'.$this->image);
+        if (! $this->image) {
+            return asset('images/menu/placeholder.svg');
         }
 
-        return asset('images/menu/placeholder.svg');
+        if (str_starts_with($this->image, 'http://') || str_starts_with($this->image, 'https://')) {
+            return $this->image;
+        }
+
+        // Uploads saved under public/images/products/...
+        if (str_starts_with($this->image, 'images/')) {
+            return asset($this->image);
+        }
+
+        // Legacy public-disk paths (products/xxx.webp → /storage/products/xxx.webp)
+        return asset('storage/'.$this->image);
     }
 
     public function menuDescription(): string
