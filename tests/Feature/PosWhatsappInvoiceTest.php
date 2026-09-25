@@ -4,10 +4,10 @@ namespace Tests\Feature;
 
 use App\Enums\PaymentStatus;
 use App\Enums\PrinterStation;
-use App\Enums\ProductType;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Setting;
+use App\Services\WaCloudService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
@@ -71,8 +71,83 @@ class PosWhatsappInvoiceTest extends TestCase
         Http::assertSent(function ($request) {
             return str_contains($request->url(), '/devices/device-1/messages')
                 && $request['to'] === '6281234567890'
-                && str_contains($request['message'], 'PESANAN DAPUR');
+                && str_contains($request['message'], 'PESANAN DAPUR')
+                && str_contains($request['message'], 'TAKE AWAY');
         });
+    }
+
+    public function test_kitchen_whatsapp_message_for_pickup_includes_table_delivery(): void
+    {
+        $service = app(WaCloudService::class);
+
+        $order = Order::query()->create([
+            'order_number' => 'ORD-20260925-0073',
+            'outlet_id' => $this->outlet->id,
+            'user_id' => $this->cashier->id,
+            'table_id' => $this->tableA->id,
+            'channel' => 'pickup',
+            'order_type' => 'pickup',
+            'status' => 'new',
+            'payment_status' => PaymentStatus::Unpaid,
+            'subtotal' => 20000,
+            'discount_amount' => 0,
+            'tax_amount' => 0,
+            'service_charge' => 0,
+            'grand_total' => 20000,
+        ]);
+
+        $item = OrderItem::query()->create([
+            'order_id' => $order->id,
+            'product_id' => $this->sellableProduct->id,
+            'name' => 'Nasi Ayam Pecak',
+            'quantity' => 2,
+            'unit_price' => 10000,
+            'total' => 20000,
+        ]);
+
+        $message = $service->kitchenMessage($order->fresh(['table', 'outlet', 'user']), collect([$item]));
+
+        $this->assertStringContainsString('TAKE AWAY', $message);
+        $this->assertStringContainsString('MEJA 01', $message);
+        $this->assertStringContainsString('PACKING — ANTAR KE: MEJA 01', $message);
+    }
+
+    public function test_kitchen_whatsapp_message_for_dine_in_includes_table(): void
+    {
+        $service = app(WaCloudService::class);
+
+        $order = Order::query()->create([
+            'order_number' => 'ORD-20260925-0072',
+            'outlet_id' => $this->outlet->id,
+            'user_id' => $this->cashier->id,
+            'table_id' => $this->tableA->id,
+            'channel' => 'pos',
+            'order_type' => 'dine_in',
+            'status' => 'new',
+            'payment_status' => PaymentStatus::Unpaid,
+            'subtotal' => 20000,
+            'discount_amount' => 0,
+            'tax_amount' => 0,
+            'service_charge' => 0,
+            'grand_total' => 20000,
+        ]);
+
+        $item = OrderItem::query()->create([
+            'order_id' => $order->id,
+            'product_id' => $this->sellableProduct->id,
+            'name' => 'Mie Aceh Spesial',
+            'quantity' => 1,
+            'unit_price' => 20000,
+            'total' => 20000,
+            'notes' => 'Tumis',
+        ]);
+
+        $message = $service->kitchenMessage($order->fresh(['table', 'outlet', 'user']), collect([$item]));
+
+        $this->assertStringContainsString('DINE IN', $message);
+        $this->assertStringContainsString('MEJA 01', $message); // tableA code is T-01 - wait!
+        $this->assertStringContainsString('ANTAR KE:', $message);
+        $this->assertStringContainsString('└ Catatan: *Tumis*', $message);
     }
 
     public function test_admin_can_send_customer_invoice_whatsapp(): void
@@ -116,7 +191,9 @@ class PosWhatsappInvoiceTest extends TestCase
             return $request['to'] === '6281298765432'
                 && $request['message_type'] === 'text'
                 && str_contains($request['message'], 'ORD-WA-1')
-                && str_contains($request['message'], 'Total:');
+                && str_contains($request['message'], '*TOTAL')
+                && str_contains($request['message'], 'TAKE AWAY')
+                && str_contains($request['message'], 'Good Coffee. Better People.');
         });
     }
 

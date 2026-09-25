@@ -17,24 +17,28 @@ class PublicSiteTest extends TestCase
         $this->seedPosFixture();
     }
 
-    public function test_homepage_is_public_and_shows_brand(): void
+    public function test_homepage_is_single_landing_with_menu_location_vip_contact(): void
     {
+        config(['site.whatsapp' => '6281234567890']);
+
         $this->get(route('home'))
             ->assertOk()
-            ->assertSee('XIWAY COFFEE')
-            ->assertSee('Lebih dari')
-            ->assertSee('Specialty Arabika Gayo')
-            ->assertSee('Temukan XIWAY')
-            ->assertSee('Explore Menu');
-    }
-
-    public function test_public_menu_lists_products_without_kitchen_notes(): void
-    {
-        $this->get(route('site.menu'))
-            ->assertOk()
-            ->assertSee('What’s brewing')
+            ->assertSee('XIWAY')
+            ->assertSee('COFFEE')
+            ->assertSee('id="menu"', false)
+            ->assertSee('id="lokasi"', false)
+            ->assertSee('id="vip"', false)
+            ->assertSee('id="kontak"', false)
             ->assertSee($this->sellableProduct->name)
+            ->assertSee('Reservasi ruang privat')
+            ->assertSee('Chat admin XIWAY')
             ->assertDontSee('Menu mitra')
             ->assertDontSee('Komisi cafe');
+    }
+
+    public function test_public_menu_redirects_to_home_anchor(): void
+    {
+        $this->get(route('site.menu'))
+            ->assertRedirect(route('home').'#menu');
     }
 }

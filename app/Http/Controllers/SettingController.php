@@ -22,7 +22,7 @@ class SettingController extends Controller
     ];
 
     protected array $defaults = [
-        'tax_rate' => 11,
+        'tax_rate' => 10,
         'service_charge' => 0,
         'points_earn_per_amount' => 10000,
         'points_redeem_value' => 100,
@@ -64,8 +64,8 @@ class SettingController extends Controller
             'qz_printer' => ['nullable', 'string', 'max:120'],
             'kitchen_whatsapp' => ['nullable', 'string', 'max:20'],
         ], [
-            'tax_rate.required' => 'Tarif charge wajib diisi.',
-            'tax_rate.max' => 'Tarif charge maksimal 100%.',
+            'tax_rate.required' => 'Tarif biaya layanan wajib diisi.',
+            'tax_rate.max' => 'Tarif biaya layanan maksimal 100%.',
             'points_earn_per_amount.required' => 'Nominal poin wajib diisi.',
             'points_redeem_value.required' => 'Nilai tukar poin wajib diisi.',
         ]);

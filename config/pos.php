@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'tax_rate' => 11,
+    'tax_rate' => 10,
     'service_charge' => 0,
     'points_earn_per_amount' => 10000,
     'points_per_rupiah' => 1,

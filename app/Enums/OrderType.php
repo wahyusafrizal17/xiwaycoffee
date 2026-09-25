@@ -11,8 +11,8 @@ enum OrderType: string
     public function label(): string
     {
         return match ($this) {
-            self::DineIn => 'Dine-in',
-            self::Pickup => 'Pickup',
+            self::DineIn => 'Makan Disini',
+            self::Pickup => 'Bawa Pulang',
             self::Online => 'Online',
         };
     }

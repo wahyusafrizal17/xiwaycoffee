@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Outlet;
+use App\Services\DashboardService;
 use App\Services\OrderService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,9 +14,26 @@ use Illuminate\View\View;
 
 class OrderController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, DashboardService $dashboard): View
     {
         abort_unless($request->user()->hasPermission('orders.view'), 403);
+
+        $period = $request->string('period')->toString();
+        if ($period === 'today') {
+            $period = 'day';
+        }
+        if (! in_array($period, ['day', 'month', 'year', 'range'], true)) {
+            $period = 'day';
+        }
+
+        $range = $dashboard->resolveRange([
+            'period' => $period,
+            'date' => $request->string('date')->toString() ?: null,
+            'month' => $request->string('month')->toString() ?: null,
+            'year' => $request->string('year')->toString() ?: null,
+            'from' => $request->string('from')->toString() ?: null,
+            'to' => $request->string('to')->toString() ?: null,
+        ]);
 
         $pending = [OrderStatus::Draft->value, OrderStatus::Held->value];
 
@@ -26,8 +44,9 @@ class OrderController extends Controller
                 fn ($q) => $q->where('status', $request->status),
                 fn ($q) => $q->whereNotIn('status', $pending),
             )
+            ->whereDate('created_at', '>=', $range['from'])
+            ->whereDate('created_at', '<=', $range['to'])
             ->when($request->order_number, fn ($q, $s) => $q->where('order_number', 'like', "%{$s}%"))
-            ->when($request->date, fn ($q, $d) => $q->whereDate('created_at', $d))
             ->when($request->outlet_id, fn ($q, $id) => $q->where('outlet_id', $id))
             ->when($request->customer, fn ($q, $s) => $q->whereHas('customer', fn ($c) => $c->where('name', 'like', "%{$s}%")))
             ->when($request->table, fn ($q, $s) => $q->whereHas('table', fn ($t) => $t->where('code', 'like', "%{$s}%")))
@@ -38,18 +57,24 @@ class OrderController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        $counted = Order::query()->whereNotIn('status', $pending);
+        $counted = Order::query()
+            ->whereNotIn('status', $pending)
+            ->whereDate('created_at', '>=', $range['from'])
+            ->whereDate('created_at', '<=', $range['to']);
 
         return view('orders.index', [
             'orders' => $orders,
             'outlets' => Outlet::query()->orderBy('name')->get(),
+            'period' => $range['period'],
+            'range' => $range,
             'filters' => $request->only([
-                'order_number', 'date', 'outlet_id', 'customer', 'table',
+                'order_number', 'outlet_id', 'customer', 'table',
                 'order_type', 'status', 'payment_status', 'cashier',
+                'period', 'date', 'month', 'year', 'from', 'to',
             ]),
             'stats' => [
                 'total' => (clone $counted)->count(),
-                'today' => (clone $counted)->whereDate('created_at', today())->count(),
+                'today' => Order::query()->whereNotIn('status', $pending)->whereDate('created_at', today())->count(),
                 'kitchen' => Order::query()->whereIn('status', [
                     OrderStatus::New->value,
                     OrderStatus::Processing->value,

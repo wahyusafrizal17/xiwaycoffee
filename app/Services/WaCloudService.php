@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\OrderType;
 use App\Enums\PrinterStation;
 use App\Models\Order;
 use Illuminate\Support\Facades\Http;
@@ -94,10 +95,9 @@ class WaCloudService
         $order->loadMissing(['outlet']);
 
         return implode("\n", array_filter([
-            '*'.($order->outlet?->name ?: config('app.name')).'*',
-            'Invoice '.$order->order_number,
-            'Total: '.money($order->grand_total),
-            (string) setting('receipt_footer', 'Terima kasih'),
+            '☕ *'.mb_strtoupper((string) ($order->outlet?->name ?: config('app.name'))).'*',
+            '🧾 *'.$order->order_number.'*',
+            '*TOTAL '.number_format((float) $order->grand_total, 0, ',', '.').'*',
         ]));
     }
 
@@ -106,73 +106,134 @@ class WaCloudService
         $order->loadMissing(['items', 'payments', 'outlet', 'customer', 'table', 'user']);
 
         $fmt = fn ($n) => number_format((float) $n, 0, ',', '.');
-        $itemCount = $order->items->count();
-        $taxPct = rtrim(rtrim(number_format((float) ($order->tax_rate ?? 0), 2, '.', ''), '0'), '.');
+        $isDineIn = $order->order_type === OrderType::DineIn;
+        $tableLabel = $this->kitchenTableLabel($order->table?->code);
 
-        $status = match ($order->status?->value) {
-            'completed' => 'Lunas',
-            'cancelled' => 'Dibatalkan',
-            'new' => 'Menunggu Konfirmasi',
-            'processing', 'preparing' => 'Sedang Diproses',
-            'ready' => 'Siap Diambil',
-            default => $order->status?->label() ?? '-',
+        $status = match (true) {
+            $order->status?->value === 'cancelled' => 'Dibatalkan',
+            $order->payment_status?->value === 'paid' => 'Lunas',
+            default => 'Menunggu Konfirmasi',
         };
 
         $lines = [
-            '*'.($order->outlet?->name ?: config('app.name')).'*',
-            $order->order_number,
+            '☕ *'.mb_strtoupper((string) ($order->outlet?->name ?: config('app.name'))).'*',
+            '━━━━━━━━━━━━━━━━━━━━',
+            '🧾 *'.$order->order_number.'*',
             '',
-            'Nama: '.($order->customer?->name ?: ($order->user?->name ?: '-')),
-            'Meja: '.($order->table?->code ? 'Meja '.$order->table->code : ($order->order_type?->label() ?: '-')),
-            'Waktu Pesan: '.($order->created_at?->translatedFormat('d M Y H:i') ?? '-'),
-            'Status: '.$status,
+            '👤 Kasir: '.($order->user?->name ?? '-'),
+            '🕐 '.($order->created_at?->translatedFormat('d M Y H:i') ?? '-'),
             '',
         ];
 
+        if ($isDineIn) {
+            $lines[] = '📍 *DINE IN*';
+            if ($tableLabel) {
+                $lines[] = '🪑 *'.$tableLabel.'*';
+            }
+        } else {
+            $lines[] = '🥡 *TAKE AWAY*';
+            if ($tableLabel) {
+                $lines[] = '🪑 *'.$tableLabel.'*';
+            }
+        }
+
+        $lines[] = '━━━━━━━━━━━━━━━━━━━━';
+        $lines[] = '';
+        $lines[] = '*PESANAN*';
+        $lines[] = '';
+
         foreach ($order->items as $item) {
-            $lines[] = $this->qty((float) $item->quantity).'× '.$item->name.' — '.$fmt($item->total);
-            if ($item->notes) {
-                $lines[] = '  '.$item->notes;
+            $left = $this->qty((float) $item->quantity).' × '.$item->name;
+            $lines[] = $this->invoicePad($left, $fmt($item->total));
+            if (filled($item->notes)) {
+                $lines[] = '  └ Catatan: *'.$item->notes.'*';
             }
         }
 
         $lines[] = '';
-        $lines[] = 'Subtotal ('.$itemCount.' Item): '.$fmt($order->subtotal);
+        $lines[] = '━━━━━━━━━━━━━━━━━━━━';
+        $lines[] = $this->invoicePad('Subtotal', $fmt($order->subtotal));
         if ((float) $order->discount_amount > 0) {
-            $lines[] = 'Diskon: -'.$fmt($order->discount_amount);
+            $lines[] = $this->invoicePad('Diskon', '-'.$fmt($order->discount_amount));
         }
-        $lines[] = 'Charge ('.($taxPct ?: '0').'%): '.$fmt($order->tax_amount);
-        $lines[] = '--------------------';
-        $lines[] = '*Total: '.$fmt($order->grand_total).'*';
+        if ((float) $order->tax_amount > 0) {
+            $lines[] = $this->invoicePad('Biaya Layanan', $fmt($order->tax_amount));
+        }
+        $lines[] = '━━━━━━━━━━━━━━━━━━━━';
+        $lines[] = $this->invoicePad('*TOTAL', $fmt($order->grand_total).'*');
         $lines[] = '';
-        $lines[] = (string) setting('receipt_footer', 'Terima kasih');
+        $lines[] = '💳 *Status: '.$status.'*';
+        $lines[] = '';
+        $lines[] = 'Terima kasih sudah memilih';
+        $lines[] = '*XIWAY COFFEE* 🤎';
+        $lines[] = '';
+        $lines[] = '_Good Coffee. Better People._';
 
         return implode("\n", $lines);
+    }
+
+    protected function invoicePad(string $left, string $right, int $width = 34): string
+    {
+        $gap = $width - mb_strlen(strip_tags(str_replace(['*', '_'], '', $left))) - mb_strlen(strip_tags(str_replace(['*', '_'], '', $right)));
+
+        return $left.str_repeat(' ', max(2, $gap)).$right;
     }
 
     public function kitchenMessage(Order $order, iterable $items): string
     {
         $order->loadMissing(['table', 'outlet', 'user']);
 
+        $isDineIn = $order->order_type === OrderType::DineIn;
+        $tableLabel = $this->kitchenTableLabel($order->table?->code);
+
         $lines = [
-            '*PESANAN DAPUR*',
-            ($order->outlet?->name ?: config('app.name')),
-            $order->order_number,
-            $order->created_at?->format('d/m/Y H:i') ?? '',
+            '🍽️ *PESANAN DAPUR*',
+            '━━━━━━━━━━━━━━━━━━',
+            '*'.mb_strtoupper((string) ($order->outlet?->name ?: config('app.name'))).'*',
+            '',
+            '🧾 *'.$order->order_number.'*',
+            '🕐 '.($order->created_at?->format('d/m/Y H:i') ?? ''),
+            '👤 Kasir: '.($order->user?->name ?? '-'),
+            '',
+            '━━━━━━━━━━━━━━━━━━',
         ];
 
-        if ($order->table?->code) {
-            $lines[] = 'Meja: '.$order->table->code;
+        if ($isDineIn) {
+            $lines[] = '📍 *DINE IN*';
+            if ($tableLabel) {
+                $lines[] = '🪑 *'.$tableLabel.'*';
+            }
+        } else {
+            $lines[] = '🥡 *TAKE AWAY*';
+            if ($tableLabel) {
+                $lines[] = '🪑 *'.$tableLabel.'*';
+            }
         }
-        $lines[] = 'Kasir: '.($order->user?->name ?? '-');
+
+        $lines[] = '━━━━━━━━━━━━━━━━━━';
+        $lines[] = '';
+        $lines[] = '*PESANAN:*';
         $lines[] = '';
 
         foreach ($items as $item) {
-            $lines[] = '• '.$this->qty((float) $item->quantity).' x '.$item->name;
-            if ($item->notes) {
-                $lines[] = '  Catatan: '.$item->notes;
+            $lines[] = '• '.$this->qty((float) $item->quantity).' × '.$item->name;
+            if (filled($item->notes)) {
+                $lines[] = '  └ Catatan: *'.$item->notes.'*';
             }
+            $lines[] = '';
         }
+
+        $lines[] = '━━━━━━━━━━━━━━━━━━';
+        if ($isDineIn && $tableLabel) {
+            $lines[] = '📌 *ANTAR KE: '.$tableLabel.'*';
+        } elseif ($tableLabel) {
+            $lines[] = '📌 *PACKING — ANTAR KE: '.$tableLabel.'*';
+        } else {
+            $lines[] = '📌 *PACKING — TAKE AWAY*';
+        }
+        $lines[] = '━━━━━━━━━━━━━━━━━━';
+        $lines[] = '';
+        $lines[] = '_Terima Kasih_';
 
         return implode("\n", $lines);
     }
@@ -197,6 +258,23 @@ class WaCloudService
         $printers->markPrinted($order, PrinterStation::Kitchen->value);
 
         return true;
+    }
+
+    protected function kitchenTableLabel(?string $code): ?string
+    {
+        if (! filled($code)) {
+            return null;
+        }
+
+        if (ctype_digit($code)) {
+            return 'MEJA '.str_pad($code, 2, '0', STR_PAD_LEFT);
+        }
+
+        if (preg_match('/(\d+)/', $code, $matches)) {
+            return 'MEJA '.str_pad($matches[1], 2, '0', STR_PAD_LEFT);
+        }
+
+        return 'MEJA '.$code;
     }
 
     protected function qty(float $value): string

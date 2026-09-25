@@ -154,6 +154,29 @@
         </div>
     </div>
 
+    <div class="mb-5 grid gap-4 sm:grid-cols-2">
+        <div class="stat-card !items-start">
+            <div class="min-w-0 flex-1">
+                <p class="stat-kicker">Cash</p>
+                <p class="stat-value">{{ money($metrics['cash']) }}</p>
+                <p class="stat-hint">Pembayaran tunai {{ strtolower($periodLabel) }}</p>
+            </div>
+            <span class="stat-icon bg-[#eef6f0] text-[#166534]">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            </span>
+        </div>
+        <div class="stat-card !items-start">
+            <div class="min-w-0 flex-1">
+                <p class="stat-kicker">QRIS</p>
+                <p class="stat-value">{{ money($metrics['qris']) }}</p>
+                <p class="stat-hint">Pembayaran QRIS {{ strtolower($periodLabel) }}</p>
+            </div>
+            <span class="stat-icon bg-[#e8f1ff] text-[#2563eb]">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 3h2v3h-2v-3zm4-3h2v2h-2v-2zm-4 0h2v2h-2v-2zm4 3h2v3h-2v-3z"/></svg>
+            </span>
+        </div>
+    </div>
+
     @if ($showFinance)
     <div class="mb-5 grid gap-4 lg:grid-cols-2">
         <div class="card overflow-hidden">
@@ -227,67 +250,48 @@
     </div>
     @endif
 
-    <div class="mb-5 grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-        <div class="card overflow-hidden p-5">
-            <div class="mb-4 flex items-start justify-between gap-3">
-                <div>
-                    <h2 class="font-serif text-xl font-semibold text-heading">Tren penjualan</h2>
-                    <p class="mt-1 text-[12px] text-muted">14 hari terakhir</p>
-                </div>
+    <div class="mb-5 card overflow-hidden p-5">
+        <div class="mb-4 flex items-start justify-between gap-3">
+            <div>
+                <h2 class="font-serif text-xl font-semibold text-heading">Tren penjualan</h2>
+                <p class="mt-1 text-[12px] text-muted">14 hari terakhir</p>
             </div>
-            <div class="h-72"><canvas id="salesTrend"></canvas></div>
         </div>
-        <div class="card overflow-hidden p-5">
-            <div class="mb-4">
-                <h2 class="font-serif text-xl font-semibold text-heading">Kategori</h2>
-                <p class="mt-1 text-[12px] text-muted">Omzet {{ strtolower($periodLabel) }}</p>
-            </div>
-            <div class="h-72"><canvas id="salesCategory"></canvas></div>
-        </div>
+        <div class="h-72"><canvas id="salesTrend"></canvas></div>
     </div>
 
-    <div class="mb-5 grid gap-4 xl:grid-cols-[1.1fr_1fr]">
-        <div class="card overflow-hidden">
-            <div class="card-header">
-                <div>
-                    <h5 class="card-header-title">Produk terlaris</h5>
-                    <p class="card-header-subtitle">Berdasarkan qty terjual {{ strtolower($periodLabel) }}.</p>
-                </div>
-            </div>
-            <div class="table-wrap">
-                <table class="list-table">
-                    <thead>
-                        <tr>
-                            <th class="w-10">#</th>
-                            <th>Produk</th>
-                            <th class="text-right">Qty</th>
-                            <th class="text-right">Omzet</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($charts['top_products'] as $i => $row)
-                            <tr>
-                                <td class="text-muted">{{ $i + 1 }}</td>
-                                <td class="font-medium text-heading">{{ $row->name }}</td>
-                                <td class="text-right tabular-nums">{{ number_format((float) $row->qty) }}</td>
-                                <td class="text-right tabular-nums">{{ money($row->total) }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="py-14 text-center text-sm text-muted">Belum ada penjualan di periode ini.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+    <div class="mb-5 card overflow-hidden">
+        <div class="card-header">
+            <div>
+                <h5 class="card-header-title">Produk terlaris</h5>
+                <p class="card-header-subtitle">Berdasarkan qty terjual {{ strtolower($periodLabel) }}.</p>
             </div>
         </div>
-
-        <div class="card overflow-hidden p-5">
-            <div class="mb-4">
-                <h2 class="font-serif text-xl font-semibold text-heading">Metode bayar</h2>
-                <p class="mt-1 text-[12px] text-muted">{{ $periodLabel }}</p>
-            </div>
-            <div class="h-56"><canvas id="payments"></canvas></div>
+        <div class="table-wrap">
+            <table class="list-table">
+                <thead>
+                    <tr>
+                        <th class="w-10">#</th>
+                        <th>Produk</th>
+                        <th class="text-right">Qty</th>
+                        <th class="text-right">Omzet</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($charts['top_products'] as $i => $row)
+                        <tr>
+                            <td class="text-muted">{{ $i + 1 }}</td>
+                            <td class="font-medium text-heading">{{ $row->name }}</td>
+                            <td class="text-right tabular-nums">{{ number_format((float) $row->qty) }}</td>
+                            <td class="text-right tabular-nums">{{ money($row->total) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="py-14 text-center text-sm text-muted">Belum ada penjualan di periode ini.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 @endsection
@@ -317,54 +321,37 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        const palette = ['#6f1715', '#1f2937', '#c2410c', '#166534', '#2563eb', '#78716c', '#a16207', '#0f766e'];
-        const soft = 'rgba(111,23,21,.10)';
-        const make = (id, type, labels, data, extra = {}) => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            new window.Chart(el, {
-                type,
-                data: {
-                    labels,
-                    datasets: [{
-                        data,
-                        backgroundColor: type === 'line' ? soft : palette,
-                        borderColor: '#6f1715',
-                        fill: type === 'line',
-                        tension: .35,
-                        borderWidth: type === 'line' ? 2.5 : 0,
-                        borderRadius: 6,
-                        pointBackgroundColor: '#6f1715',
-                        pointRadius: type === 'line' ? 3 : 0,
-                        pointHoverRadius: 5,
-                    }]
-                },
-                options: {
-                    plugins: {
-                        legend: {
-                            display: type === 'doughnut',
-                            position: 'bottom',
-                            labels: { boxWidth: 8, usePointStyle: true, padding: 16, font: { size: 11 } },
-                        },
-                        tooltip: {
-                            backgroundColor: '#171717',
-                            padding: 10,
-                            cornerRadius: 8,
-                        },
-                    },
-                    maintainAspectRatio: false,
-                    scales: type === 'doughnut' ? {} : {
-                        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-                        y: { grid: { color: 'rgba(0,0,0,.04)' }, ticks: { font: { size: 11 } }, beginAtZero: true },
-                    },
-                    ...extra,
-                },
-            });
-        };
+        const el = document.getElementById('salesTrend');
+        if (!el || !window.Chart) return;
 
-        make('salesTrend', 'line', @json($charts['sales_trend']->pluck('d')), @json($charts['sales_trend']->pluck('total')->map(fn ($v) => (float) $v)));
-        make('salesCategory', 'doughnut', @json($charts['by_category']->pluck('name')), @json($charts['by_category']->pluck('total')->map(fn ($v) => (float) $v)));
-        make('payments', 'doughnut', @json($charts['payments']->pluck('method')), @json($charts['payments']->pluck('total')->map(fn ($v) => (float) $v)));
+        new window.Chart(el, {
+            type: 'line',
+            data: {
+                labels: @json($charts['sales_trend']->pluck('d')),
+                datasets: [{
+                    data: @json($charts['sales_trend']->pluck('total')->map(fn ($v) => (float) $v)),
+                    backgroundColor: 'rgba(111,23,21,.10)',
+                    borderColor: '#6f1715',
+                    fill: true,
+                    tension: .35,
+                    borderWidth: 2.5,
+                    pointBackgroundColor: '#6f1715',
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                }],
+            },
+            options: {
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { backgroundColor: '#171717', padding: 10, cornerRadius: 8 },
+                },
+                maintainAspectRatio: false,
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                    y: { grid: { color: 'rgba(0,0,0,.04)' }, ticks: { font: { size: 11 } }, beginAtZero: true },
+                },
+            },
+        });
     });
 </script>
 @endpush

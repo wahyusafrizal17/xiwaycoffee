@@ -80,7 +80,7 @@
     <hr>
     <div class="row"><span>Subtotal</span><span>{{ money($order->subtotal) }}</span></div>
     <div class="row"><span>Diskon</span><span>{{ money($order->discount_amount) }}</span></div>
-    <div class="row"><span>Charge</span><span>{{ money($order->tax_amount) }}</span></div>
+    <div class="row"><span>Biaya Layanan</span><span>{{ money($order->tax_amount) }}</span></div>
     <div class="row total"><span>Total</span><span>{{ money($order->grand_total) }}</span></div>
     @foreach ($order->payments as $payment)
         <div class="row"><span>{{ $payment->method->label() }}</span><span>{{ money($payment->amount) }}</span></div>

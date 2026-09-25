@@ -144,4 +144,23 @@ class BankAccountTest extends TestCase
             ->assertSee('Rekening')
             ->assertSee('Saldo');
     }
+
+    public function test_setoran_kas_page_lists_deposits_and_modal_form(): void
+    {
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('bank.deposits.store'), [
+                '_form' => 'setoran',
+                'occurred_on' => now()->toDateString(),
+                'amount' => 25000,
+                'notes' => 'Setor pagi',
+            ])
+            ->assertRedirect(route('bank.deposits.create'));
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('bank.deposits.create'))
+            ->assertOk()
+            ->assertSee('Riwayat setoran kas')
+            ->assertSee('Catat setoran')
+            ->assertSee('Setor pagi');
+    }
 }

@@ -2,17 +2,14 @@
 
 namespace App\Services;
 
+use App\Enums\BankMovementType;
 use App\Enums\OrderChannel;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
-use App\Enums\BankMovementType;
 use App\Enums\StockMovementType;
-use App\Enums\TableStatus;
 use App\Models\Bundle;
-use App\Models\DiningTable;
-use App\Models\Discount;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
@@ -20,7 +17,6 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductOption;
 use App\Models\ProductVariant;
-use App\Models\TableSession;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -295,11 +291,19 @@ class OrderService
         return $order->fresh(['items.product', 'customer', 'table', 'payments', 'discount']);
     }
 
-    public function hold(Order $order): Order
+    public function hold(Order $order, string $name): Order
     {
         $this->assertMutable($order);
 
-        return $this->transition($order, OrderStatus::Held, 'Order ditahan');
+        $name = trim($name);
+        if ($name === '') {
+            throw ValidationException::withMessages(['name' => 'Nama wajib diisi untuk hold.']);
+        }
+
+        $order->notes = $name;
+        $order->save();
+
+        return $this->transition($order, OrderStatus::Held, 'Order ditahan: '.$name);
     }
 
     public function submit(Order $order, array $data = []): Order

@@ -12,26 +12,28 @@
 </head>
 <body class="h-screen overflow-hidden bg-[#f5f2ee] text-ink">
     <div class="flex h-screen flex-col">
-        <header class="flex h-14 shrink-0 items-center justify-between border-b border-[#ebe7e2] bg-white/90 px-4 backdrop-blur">
-            <div class="flex items-center gap-3">
-                <img src="{{ asset('images/logo/logo.png') }}" alt="Xiway Pos" class="h-12 w-auto max-w-[160px] object-contain">
+        <header class="relative z-40 flex h-14 shrink-0 items-center justify-between gap-3 overflow-visible border-b border-[#ebe7e2] bg-white/90 px-4 backdrop-blur">
+            <div class="flex shrink-0 items-center gap-3">
+                <img src="{{ asset('images/logo/logo.png') }}" alt="Xiway Pos" class="h-12 w-auto max-w-[140px] object-contain">
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:gap-2">
                 @if (auth()->user()->canSwitchOutlet())
-                    <form method="GET" action="{{ url()->current() }}">
+                    <form method="GET" action="{{ url()->current() }}" class="min-w-0 max-w-[42vw] sm:max-w-none">
                         @foreach (request()->except('switch_outlet') as $k => $v)
                             @if (!is_array($v)) <input type="hidden" name="{{ $k }}" value="{{ $v }}"> @endif
                         @endforeach
-                        <select name="switch_outlet" onchange="this.form.submit()" class="input !w-auto !rounded-xl !border-[#ebe7e2] !bg-[#faf9f7] !py-1.5 !text-[13px]">
+                        <select name="switch_outlet" onchange="this.form.submit()" class="input !w-full !max-w-[180px] !rounded-xl !border-[#ebe7e2] !bg-[#faf9f7] !py-1.5 !text-[13px] sm:!w-auto">
                             @foreach (\App\Models\Outlet::query()->where('is_active', true)->get() as $outlet)
                                 <option value="{{ $outlet->id }}" @selected(current_outlet_id() === $outlet->id)>{{ $outlet->name }}</option>
                             @endforeach
                         </select>
                     </form>
                 @endif
-                <a href="{{ route('dashboard') }}" class="btn-ghost !rounded-xl !px-3 !py-2 text-xs">Dashboard</a>
-                <a href="{{ route('orders.index') }}" class="btn-ghost !rounded-xl !px-3 !py-2 text-xs">Orders</a>
-                @include('layouts.partials.user-menu')
+                <a href="{{ route('dashboard') }}" class="btn-ghost !hidden !rounded-xl !px-3 !py-2 text-xs sm:!inline-flex">Dashboard</a>
+                <a href="{{ route('orders.index') }}" class="btn-ghost !hidden !rounded-xl !px-3 !py-2 text-xs sm:!inline-flex">Orders</a>
+                <div class="shrink-0">
+                    @include('layouts.partials.user-menu')
+                </div>
             </div>
         </header>
 

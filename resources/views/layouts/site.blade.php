@@ -27,20 +27,17 @@
 
     @stack('head')
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=instrument-serif:400,400i|manrope:400,500,600,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.bunny.net/css?family=cormorant-garamond:400,400i,500,600|source-sans-3:400,500,600,700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="site-body" x-data="{ navOpen: false, scrolled: false }" @scroll.window="scrolled = (window.pageYOffset || document.documentElement.scrollTop) > 40">
+<body class="site-body">
     @yield('content')
 
     <nav class="site-mobile-cta lg:hidden" aria-label="Quick actions">
-        <a href="{{ route('site.menu') }}">Menu</a>
-        <a href="{{ $mapsUrl }}" target="_blank" rel="noopener noreferrer">Maps</a>
-        @if (! empty($site['whatsapp']))
-            <a href="https://wa.me/{{ preg_replace('/\D+/', '', $site['whatsapp']) }}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
-        @else
-            <a href="{{ $site['instagram'] }}" target="_blank" rel="noopener noreferrer">IG</a>
-        @endif
+        <a href="#menu">Menu</a>
+        <a href="#lokasi">Maps</a>
+        <a href="#vip">VIP</a>
     </nav>
+    @stack('scripts')
 </body>
 </html>

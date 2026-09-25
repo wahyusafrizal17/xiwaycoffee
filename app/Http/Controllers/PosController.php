@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Enums\OrderStatus;
+use App\Enums\TableStatus;
 use App\Models\Bundle;
 use App\Models\Category;
+use App\Models\DiningTable;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\DiscountService;
@@ -18,6 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
 use RuntimeException;
@@ -79,7 +82,46 @@ class PosController extends Controller
                 ],
             ]),
             'qzPrinter' => setting('qz_printer', ''),
+            'tables' => $this->ensureDiningTables((int) $outletId)
+                ->map(fn (DiningTable $table) => [
+                    'id' => $table->id,
+                    'code' => $table->code,
+                    'name' => $table->name,
+                ])
+                ->values(),
         ]);
+    }
+
+    /**
+     * @return Collection<int, DiningTable>
+     */
+    protected function ensureDiningTables(int $outletId)
+    {
+        $codes = collect(range(1, 20))->map(fn ($n) => (string) $n)->all();
+
+        $existing = DiningTable::query()
+            ->where('outlet_id', $outletId)
+            ->whereIn('code', $codes)
+            ->get()
+            ->keyBy(fn (DiningTable $table) => (string) $table->code);
+
+        for ($n = 1; $n <= 20; $n++) {
+            $code = (string) $n;
+            if ($existing->has($code)) {
+                continue;
+            }
+
+            $existing[$code] = DiningTable::query()->create([
+                'outlet_id' => $outletId,
+                'code' => $code,
+                'name' => 'Meja '.$code,
+                'capacity' => 4,
+                'status' => TableStatus::Available,
+                'is_active' => true,
+            ]);
+        }
+
+        return $existing->sortBy(fn (DiningTable $table) => (int) $table->code)->values();
     }
 
     public function draft(Request $request, OrderService $orders): JsonResponse
@@ -160,11 +202,15 @@ class PosController extends Controller
         );
     }
 
-    public function hold(Order $order, OrderService $orders): JsonResponse
+    public function hold(Request $request, Order $order, OrderService $orders): JsonResponse
     {
         abort_unless((int) $order->outlet_id === (int) current_outlet_id(), 403);
 
-        return response()->json($this->heldOrderPayload($orders->hold($order)));
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+        ]);
+
+        return response()->json($this->heldOrderPayload($orders->hold($order, $data['name'])));
     }
 
     public function recall(Order $order): JsonResponse
@@ -265,7 +311,7 @@ class PosController extends Controller
         $order->load(['items', 'payments', 'outlet', 'customer', 'table', 'user']);
 
         $via = 'text';
-        $notice = null;
+        $notice = 'Invoice berhasil terkirim ke WhatsApp '.$data['phone'];
 
         try {
             if ($this->invoicePdfIsPubliclyReachable()) {
@@ -279,14 +325,12 @@ class PosController extends Controller
                 $via = 'pdf';
             } else {
                 $wa->sendText($data['phone'], $wa->invoiceMessage($order));
-                $notice = 'Invoice dikirim sebagai teks (APP_URL lokal tidak bisa diambil WACloud untuk PDF).';
             }
         } catch (RuntimeException $e) {
             // Document quota / API failure → text receipt so checkout isn't blocked.
             try {
                 $wa->sendText($data['phone'], $wa->invoiceMessage($order));
                 $via = 'text';
-                $notice = $e->getMessage().' Invoice dikirim sebagai teks.';
             } catch (RuntimeException $textError) {
                 return response()->json(['message' => $textError->getMessage()], 422);
             }
@@ -376,7 +420,7 @@ class PosController extends Controller
             'order_type' => $order->order_type?->value,
             'order_type_label' => $order->order_type?->label(),
             'table' => $order->table?->code,
-            'customer' => $order->customer?->name,
+            'customer' => $order->notes ?: $order->customer?->name,
             'items_count' => $order->items->count(),
             'held_at' => $order->held_at?->toIso8601String(),
             'status' => $order->status?->value,

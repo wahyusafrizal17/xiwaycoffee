@@ -52,9 +52,11 @@ class BankAccountController extends Controller
             $data['occurred_on'],
         );
 
-        $redirect = $request->user()->hasPermission('reports.view')
-            ? route('bank.index')
-            : route('bank.deposits.create');
+        $redirect = $request->input('_form') === 'setoran'
+            ? route('bank.deposits.create')
+            : ($request->user()->hasPermission('reports.view')
+                ? route('bank.index')
+                : route('bank.deposits.create'));
 
         return redirect($redirect)->with('success', 'Setoran kas tercatat.');
     }
@@ -66,8 +68,32 @@ class BankAccountController extends Controller
             403
         );
 
+        $outletId = (int) current_outlet_id();
+        $this->bank->accountFor($outletId);
+
+        $date = $request->string('date')->toString() ?: null;
+        $search = $request->string('q')->toString() ?: null;
+        $user = $request->string('user')->toString() ?: null;
+
+        $filters = [
+            'date' => $date,
+            'q' => $search,
+            'user' => $user,
+        ];
+
+        $depositsQuery = BankMovement::query()
+            ->with('user')
+            ->where('outlet_id', $outletId)
+            ->where('type', BankMovementType::CashDeposit)
+            ->when($date, fn ($q) => $q->whereDate('occurred_on', $date))
+            ->when($search, fn ($q) => $q->where('notes', 'like', '%'.$search.'%'))
+            ->when($user, fn ($q) => $q->whereHas('user', fn ($u) => $u->where('name', 'like', '%'.$user.'%')))
+            ->orderByDesc('id');
+
         return view('bank.deposit', [
-            'balance' => $this->bank->balance((int) current_outlet_id()),
+            'deposits' => $depositsQuery->paginate(30)->withQueryString(),
+            'filters' => $filters,
+            'hasFilters' => collect($filters)->contains(fn ($v) => filled($v)),
         ]);
     }
 

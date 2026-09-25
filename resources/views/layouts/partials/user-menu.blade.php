@@ -1,8 +1,8 @@
-<div class="relative" x-data="{ userMenu: false }" @keydown.escape.window="userMenu = false" @click.outside="userMenu = false">
+<div class="relative z-50" x-data="{ userMenu: false }" @keydown.escape.window="userMenu = false" @click.outside="userMenu = false">
     <button type="button" class="user-menu-trigger" @click="userMenu = !userMenu" :aria-expanded="userMenu.toString()">
-        <span class="hidden min-w-0 text-left sm:block">
-            <span class="block max-w-[160px] truncate text-[12px] font-semibold uppercase tracking-wide text-heading">{{ auth()->user()->name }}</span>
-            <span class="block max-w-[160px] truncate text-[11px] text-muted">{{ auth()->user()->email }}</span>
+        <span class="hidden min-w-0 text-left md:block">
+            <span class="block max-w-[140px] truncate text-[12px] font-semibold uppercase tracking-wide text-heading">{{ auth()->user()->name }}</span>
+            <span class="block max-w-[140px] truncate text-[11px] text-muted">{{ auth()->user()->email }}</span>
         </span>
         @if (auth()->user()->avatarUrl())
             <img src="{{ auth()->user()->avatarUrl() }}" alt="{{ auth()->user()->name }}" class="user-menu-avatar">

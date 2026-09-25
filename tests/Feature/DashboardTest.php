@@ -103,7 +103,11 @@ class DashboardTest extends TestCase
             ->assertSee(money(2000))
             ->assertSee(money(13000))
             ->assertSee(money(5000))
-            ->assertSee('Wahyu');
+            ->assertSee('Wahyu')
+            ->assertSee('Cash')
+            ->assertSee('QRIS')
+            ->assertDontSee('Metode bayar')
+            ->assertDontSee('>Kategori</h2>', false);
 
         $this->actingAsAtOutlet($this->admin)
             ->get(route('dashboard', ['period' => 'month', 'month' => now()->format('Y-m')]))
@@ -118,9 +122,10 @@ class DashboardTest extends TestCase
         $this->actingAsAtOutlet($this->cashier)
             ->get(route('dashboard', ['period' => 'today']))
             ->assertOk()
-            ->assertSee('Ringkasan operasional')
             ->assertSee('Pendapatan kotor')
             ->assertSee('Pesanan berjalan')
+            ->assertSee('Cash')
+            ->assertSee('QRIS')
             ->assertDontSee('Bagi hasil')
             ->assertDontSee('Pendapatan bersih')
             ->assertDontSee('Breakdown penjualan')

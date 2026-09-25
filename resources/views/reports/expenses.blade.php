@@ -11,7 +11,6 @@
             'payment_method' => (string) old('payment_method', ''),
             'notes' => old('notes', ''),
         ];
-        $pct = $bopMonthly > 0 ? min(100, (int) round(($allTotal / $bopMonthly) * 100)) : 0;
         $badge = fn (string $value) => match ($value) {
             'bahan' => 'bg-[#fff3e8] text-[#c2410c]',
             'sewa' => 'bg-[#e8f1ff] text-[#2563eb]',
@@ -35,51 +34,13 @@
     @endphp
 
     <div x-data="bopPage()" @keydown.escape.window="formOpen = false">
-        <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-            <div>
-                <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Biaya operasional</p>
-                <h1 class="mt-1 font-serif text-[1.75rem] font-semibold leading-none text-heading">BOP</h1>
-                <p class="mt-2 max-w-xl text-[13px] text-muted">Pantau rencana bulanan dan catat belanja harian tanpa meninggalkan halaman ini.</p>
-            </div>
-            <button type="button" class="btn-add" @click="openCreate()">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/></svg>
-                Catat BOP
-            </button>
-        </div>
-
-        <div class="mb-5 grid gap-4 lg:grid-cols-2">
-            <div class="stat-card">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Total tercatat</p>
-                    <p class="stat-value">{{ money($allTotal) }}</p>
-                    <p class="stat-hint">{{ $pct }}% dari rencana bulan ini</p>
-                    <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-[#f0ebe4]">
-                        <div class="h-full rounded-full bg-brand transition-all" style="width: {{ $pct }}%"></div>
-                    </div>
-                </div>
-                <span class="stat-icon bg-brand-soft text-brand">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-2.2 0-4 1.3-4 3s1.8 3 4 3 4 1.3 4 3-1.8 3-4 3m0-12V5m0 14v-2"/></svg>
-                </span>
-            </div>
-            <div class="stat-card">
-                <div>
-                    <p class="stat-kicker">Rencana / bulan</p>
-                    <p class="stat-value">{{ money($bopMonthly) }}</p>
-                    <p class="stat-hint">Target omzet minuman minimal sebesar ini</p>
-                </div>
-                <span class="stat-icon bg-[#fff3e8] text-[#c2410c]">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 13h4l3 8 4-16 3 8h4"/></svg>
-                </span>
-            </div>
-        </div>
-
         @if ($byCategory->isNotEmpty())
             <div class="mb-5 card overflow-hidden p-5">
                 <div class="mb-4 flex items-end justify-between gap-3">
                     <div>
                         <h5 class="card-header-title !p-0">Breakdown kategori</h5>
                         <p class="mt-1 text-[12px] text-muted">
-                            @if ($filters['from'] || $filters['to'] || $filters['category'] || $filters['q'])
+                            @if ($hasFilters)
                                 Total filter {{ money($total) }}
                             @else
                                 Semua pengeluaran outlet
@@ -98,41 +59,23 @@
             </div>
         @endif
 
-        <form method="GET" action="{{ route('reports.expenses') }}" class="mb-5 flex flex-wrap items-end gap-3">
-            <div>
-                <label class="label">Dari</label>
-                <input class="input !h-10 !w-40" type="date" name="from" value="{{ $filters['from'] }}">
-            </div>
-            <div>
-                <label class="label">Sampai</label>
-                <input class="input !h-10 !w-40" type="date" name="to" value="{{ $filters['to'] }}">
-            </div>
-            <div>
-                <label class="label">Kategori</label>
-                <select class="input !h-10 !min-w-[200px]" name="category">
-                    <option value="">Semua</option>
-                    @foreach ($filterCategories as $category)
-                        <option value="{{ $category->value }}" @selected($filters['category'] === $category->value)>{{ $category->label() }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="min-w-[200px] flex-1">
-                <label class="label">Cari keterangan</label>
-                <input class="input !h-10" type="search" name="q" value="{{ $filters['q'] }}" placeholder="Tagihan listrik, sewa, …">
-            </div>
-            <button type="submit" class="btn-primary !h-10 !rounded-xl !px-4 text-[13px]">Filter</button>
-            @if ($filters['from'] || $filters['to'] || $filters['category'] || $filters['q'])
-                <a href="{{ route('reports.expenses') }}" class="btn-ghost !h-10 !rounded-xl text-[13px]">Reset</a>
-            @endif
-        </form>
-
         <div class="card overflow-hidden">
             <div class="card-header">
                 <div>
                     <h5 class="card-header-title">Riwayat pengeluaran</h5>
-                    <p class="card-header-subtitle">Catatan BOP outlet yang sedang dipilih.</p>
+                    <p class="card-header-subtitle">Filter kolom memuat ulang otomatis.</p>
+                </div>
+                <div class="card-header-actions">
+                    @if ($hasFilters)
+                        <a href="{{ route('reports.expenses') }}" class="btn-ghost">Reset filter</a>
+                    @endif
+                    <button type="button" class="btn-add" @click="openCreate()">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/></svg>
+                        Catat BOP
+                    </button>
                 </div>
             </div>
+            <form id="expense-filters" method="GET" action="{{ route('reports.expenses') }}"></form>
             <div class="table-wrap">
                 <table class="list-table">
                     <thead>
@@ -143,6 +86,34 @@
                             <th>Bayar</th>
                             <th>Keterangan</th>
                             <th>Oleh</th>
+                        </tr>
+                        <tr class="filter-row">
+                            <th>
+                                <input form="expense-filters" class="col-filter" type="date" name="date" value="{{ $filters['date'] ?? '' }}" onchange="this.form.submit()">
+                            </th>
+                            <th>
+                                <select form="expense-filters" class="col-filter" name="category" onchange="this.form.submit()">
+                                    <option value="">Semua</option>
+                                    @foreach ($filterCategories as $category)
+                                        <option value="{{ $category->value }}" @selected(($filters['category'] ?? '') === $category->value)>{{ $category->label() }}</option>
+                                    @endforeach
+                                </select>
+                            </th>
+                            <th></th>
+                            <th>
+                                <select form="expense-filters" class="col-filter" name="payment_method" onchange="this.form.submit()">
+                                    <option value="">Semua</option>
+                                    @foreach ($paymentMethods as $method)
+                                        <option value="{{ $method->value }}" @selected(($filters['payment_method'] ?? '') === $method->value)>{{ $method->label() }}</option>
+                                    @endforeach
+                                </select>
+                            </th>
+                            <th>
+                                <input form="expense-filters" class="col-filter" type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Keterangan..." onchange="this.form.submit()">
+                            </th>
+                            <th>
+                                <input form="expense-filters" class="col-filter" type="search" name="user" value="{{ $filters['user'] ?? '' }}" placeholder="Nama..." onchange="this.form.submit()">
+                            </th>
                         </tr>
                     </thead>
                     <tbody>

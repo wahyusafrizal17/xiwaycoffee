@@ -20,6 +20,6 @@ return [
     'whatsapp' => env('SITE_WHATSAPP'),
     'hours' => env('SITE_HOURS'),
     'maps_query' => 'XIWAY COFFEE Jl. Nusa Sari Raya No.6A Citeureup Cimahi Utara',
-    'og_image' => '/images/menu/xiway-menu-board.jpg',
-    'hero_image' => '/images/menu/xiway-menu-board.jpg',
+    'og_image' => '/images/hero-banner.jpg',
+    'hero_image' => '/images/hero-banner.jpg',
 ];

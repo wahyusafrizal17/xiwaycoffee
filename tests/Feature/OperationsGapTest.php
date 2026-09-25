@@ -183,15 +183,21 @@ class OperationsGapTest extends TestCase
         $orders->addItem($order, ['product_id' => $this->sellableProduct->id, 'quantity' => 2]);
 
         $this->postJson(route('pos.hold', $order))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['name']);
+
+        $this->postJson(route('pos.hold', $order), ['name' => 'Budi'])
             ->assertOk()
             ->assertJsonPath('id', $order->id)
-            ->assertJsonPath('status', 'held');
+            ->assertJsonPath('status', 'held')
+            ->assertJsonPath('customer', 'Budi');
 
         $this->assertSame(OrderStatus::Held, $order->fresh()->status);
+        $this->assertSame('Budi', $order->fresh()->notes);
 
         $this->getJson(route('pos.held'))
             ->assertOk()
-            ->assertJsonFragment(['id' => $order->id, 'order_number' => $order->order_number]);
+            ->assertJsonFragment(['id' => $order->id, 'order_number' => $order->order_number, 'customer' => 'Budi']);
 
         $this->getJson(route('pos.recall', $order))
             ->assertOk()
@@ -242,7 +248,7 @@ class OperationsGapTest extends TestCase
             'order_type' => OrderType::Pickup->value,
         ]);
         $orders->addItem($held, ['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
-        $orders->hold($held);
+        $orders->hold($held, 'Tamu Hold');
 
         $submitted = $orders->createDraft([
             'outlet_id' => $this->outlet->id,

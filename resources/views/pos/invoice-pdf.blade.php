@@ -79,7 +79,6 @@
             'cancelled' => 'status-cancel',
             default => 'status',
         };
-        $taxPct = rtrim(rtrim(number_format((float) ($order->tax_rate ?? 0), 2, '.', ''), '0'), '.');
     @endphp
 
     <div class="brand">{{ $order->outlet?->name ?: config('app.name') }}</div>
@@ -126,7 +125,7 @@
             </div>
         @endif
         <div class="row">
-            <span class="label">Charge ({{ $taxPct ?: '0' }}%)</span>
+            <span class="label">Biaya Layanan</span>
             <span class="value">{{ $fmt($order->tax_amount) }}</span>
         </div>
         <hr class="divider">

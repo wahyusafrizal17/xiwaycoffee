@@ -168,7 +168,7 @@
                 <div class="space-y-3 px-6 pb-6 text-sm">
                     <div class="flex justify-between text-muted"><span>Subtotal</span><span class="font-medium text-heading">{{ money($order->subtotal) }}</span></div>
                     <div class="flex justify-between text-muted"><span>Diskon {{ $order->discount?->name }}</span><span class="font-medium {{ $order->discount_amount > 0 ? 'text-[#ff9f43]' : 'text-heading' }}">{{ money($order->discount_amount) }}</span></div>
-                    <div class="flex justify-between text-muted"><span>Charge</span><span class="font-medium text-heading">{{ money($order->tax_amount) }}</span></div>
+                    <div class="flex justify-between text-muted"><span>Biaya Layanan</span><span class="font-medium text-heading">{{ money($order->tax_amount) }}</span></div>
                     <div class="flex justify-between text-muted"><span>Service</span><span class="font-medium text-heading">{{ money($order->service_charge) }}</span></div>
                     <div class="flex justify-between text-muted"><span>Poin</span><span class="font-medium text-heading">- {{ money($order->points_value) }}</span></div>
                     <div class="flex justify-between text-muted"><span>Terbayar</span><span class="font-medium text-heading">{{ money($order->paidTotal()) }}</span></div>

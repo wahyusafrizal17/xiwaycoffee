@@ -74,6 +74,7 @@ class DashboardService
             ->where('is_active', true);
 
         $target = $this->drinkTarget($outletId, $range);
+        $paymentTotals = $this->paymentTotals($outletId, $range);
 
         return [
             'period' => $range['period'],
@@ -90,6 +91,8 @@ class DashboardService
             'net' => (float) $summary['remainder'],
             'shares' => $summary['shares'],
             'target' => $target,
+            'cash' => $paymentTotals['cash'],
+            'qris' => $paymentTotals['qris'],
             'orders' => $orderCount,
             'aov' => $orderCount > 0 ? (float) $summary['gross'] / $orderCount : 0,
             'pending_kitchen' => $pendingKitchen,
@@ -124,34 +127,30 @@ class DashboardService
             ->limit(8)
             ->get();
 
-        $byCategory = OrderItem::query()
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->join('products', 'products.id', '=', 'order_items.product_id')
-            ->join('categories', 'categories.id', '=', 'products.category_id')
-            ->when($outletId, fn ($q) => $q->where('orders.outlet_id', $outletId))
-            ->where('orders.payment_status', PaymentStatus::Paid->value)
-            ->whereDate('orders.created_at', '>=', $range['from'])
-            ->whereDate('orders.created_at', '<=', $range['to'])
-            ->selectRaw('categories.name, SUM(order_items.total) as total')
-            ->groupBy('categories.name')
-            ->orderByDesc('total')
-            ->limit(8)
-            ->get();
+        return [
+            'sales_trend' => $salesTrend,
+            'top_products' => $topProducts,
+        ];
+    }
 
-        $payments = DB::table('payments')
+    /**
+     * @return array{cash: float, qris: float}
+     */
+    protected function paymentTotals(?int $outletId, array $range): array
+    {
+        $rows = DB::table('payments')
             ->join('orders', 'orders.id', '=', 'payments.order_id')
             ->when($outletId, fn ($q) => $q->where('orders.outlet_id', $outletId))
             ->whereDate('payments.created_at', '>=', $range['from'])
             ->whereDate('payments.created_at', '<=', $range['to'])
+            ->whereIn('payments.method', ['cash', 'qris'])
             ->selectRaw('payments.method, SUM(payments.amount) as total')
             ->groupBy('payments.method')
-            ->get();
+            ->pluck('total', 'method');
 
         return [
-            'sales_trend' => $salesTrend,
-            'top_products' => $topProducts,
-            'by_category' => $byCategory,
-            'payments' => $payments,
+            'cash' => (float) ($rows['cash'] ?? 0),
+            'qris' => (float) ($rows['qris'] ?? 0),
         ];
     }
 

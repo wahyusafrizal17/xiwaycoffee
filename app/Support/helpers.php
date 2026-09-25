@@ -60,7 +60,7 @@ function setting(string $key, mixed $default = null, ?int $outletId = null): mix
 
 function tax_rate(): float
 {
-    return (float) setting('tax_rate', 11);
+    return (float) setting('tax_rate', 10);
 }
 
 /**

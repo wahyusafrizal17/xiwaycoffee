@@ -414,7 +414,7 @@
     }
 
     .pos-shell {
-        @apply grid h-full min-h-0 flex-1 gap-3 p-3;
+        @apply relative grid h-full min-h-0 flex-1 gap-3 p-3;
         grid-template-columns: minmax(0, 1fr);
     }
 
@@ -424,8 +424,21 @@
         }
     }
 
+    .pos-busy-overlay {
+        @apply absolute inset-0 z-[60] flex flex-col items-center justify-center gap-2.5 rounded-2xl bg-white/75 backdrop-blur-[2px];
+    }
+
+    .pos-busy-spinner {
+        @apply h-8 w-8 animate-spin text-brand;
+    }
+
     .pos-catalog {
         @apply flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#ebe7e2] bg-white;
+        transition: opacity 0.15s ease;
+    }
+
+    .pos-catalog.is-busy {
+        @apply pointer-events-none opacity-55;
     }
 
     .pos-cart-fab {
@@ -438,6 +451,7 @@
 
     .pos-cart-sheet {
         @apply fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col rounded-t-3xl bg-white shadow-[0_-12px_40px_rgba(0,0,0,0.18)] lg:static lg:z-auto lg:max-h-none lg:rounded-2xl lg:shadow-none;
+        transition: transform 0.2s ease, opacity 0.2s ease;
     }
 
     @media (min-width: 1024px) {
@@ -968,8 +982,10 @@
         gap: 12px;
         border: 0;
         border-radius: 14px;
-        background: transparent;
+        background: #faf9f7;
         padding: 6px 8px 6px 12px;
+        position: relative;
+        z-index: 1;
     }
 
     .user-menu-avatar {
@@ -994,7 +1010,7 @@
         position: absolute;
         top: calc(100% + 8px);
         right: 0;
-        z-index: 40;
+        z-index: 60;
         min-width: 220px;
         overflow: hidden;
         border-radius: 14px;

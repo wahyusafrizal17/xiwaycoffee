@@ -11,7 +11,6 @@ use App\Enums\WasteReason;
 use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\Customer;
-use App\Models\CustomerPoint;
 use App\Models\DiningTable;
 use App\Models\Discount;
 use App\Models\Inventory;
@@ -26,6 +25,7 @@ use App\Models\User;
 use App\Services\StockOpnameService;
 use App\Services\WasteService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
@@ -148,7 +148,7 @@ class DemoDataSeeder extends Seeder
     protected function seedSettings(): void
     {
         $settings = [
-            'tax_rate' => '11',
+            'tax_rate' => '10',
             'service_charge' => '0',
             'points_earn_per_amount' => '10000',
             'points_redeem_value' => '100',
@@ -185,7 +185,7 @@ class DemoDataSeeder extends Seeder
 
     /**
      * @param  array<string, Outlet>  $outlets
-     * @return array<string, \Illuminate\Support\Collection<int, DiningTable>>
+     * @return array<string, Collection<int, DiningTable>>
      */
     protected function seedTables(array $outlets): array
     {
@@ -223,7 +223,7 @@ class DemoDataSeeder extends Seeder
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, Customer>
+     * @return Collection<int, Customer>
      */
     protected function seedCustomers()
     {
@@ -412,7 +412,7 @@ class DemoDataSeeder extends Seeder
     {
         $entries = [
             ['action' => 'login', 'module' => 'auth', 'new' => ['email' => $admin->email]],
-            ['action' => 'updated', 'module' => 'settings', 'new' => ['tax_rate' => 11]],
+            ['action' => 'updated', 'module' => 'settings', 'new' => ['tax_rate' => 10]],
             ['action' => 'viewed', 'module' => 'reports', 'new' => ['report' => 'sales']],
         ];
 

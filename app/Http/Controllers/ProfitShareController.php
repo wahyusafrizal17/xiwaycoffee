@@ -27,18 +27,26 @@ class ProfitShareController extends Controller
         abort_unless($this->canManageBop($request), 403);
 
         $outletId = current_outlet_id();
-        $from = $request->string('from')->toString() ?: null;
-        $to = $request->string('to')->toString() ?: null;
+        $date = $request->string('date')->toString() ?: null;
         $category = $request->string('category')->toString() ?: null;
+        $paymentMethod = $request->string('payment_method')->toString() ?: null;
         $search = $request->string('q')->toString() ?: null;
+        $user = $request->string('user')->toString() ?: null;
+
+        // Keep legacy from/to query params working if bookmarked.
+        $from = $date ?: ($request->string('from')->toString() ?: null);
+        $to = $date ? $date : ($request->string('to')->toString() ?: null);
 
         $query = OperatingExpense::query()
             ->with('user')
             ->when($outletId, fn ($q, $id) => $q->where('outlet_id', $id))
-            ->when($from, fn ($q) => $q->whereDate('spent_on', '>=', $from))
-            ->when($to, fn ($q) => $q->whereDate('spent_on', '<=', $to))
+            ->when($date, fn ($q) => $q->whereDate('spent_on', $date))
+            ->when(! $date && $from, fn ($q) => $q->whereDate('spent_on', '>=', $from))
+            ->when(! $date && $to, fn ($q) => $q->whereDate('spent_on', '<=', $to))
             ->when($category, fn ($q) => $q->where('category', $category))
-            ->when($search, fn ($q) => $q->where('notes', 'like', '%'.$search.'%'));
+            ->when($paymentMethod, fn ($q) => $q->where('payment_method', $paymentMethod))
+            ->when($search, fn ($q) => $q->where('notes', 'like', '%'.$search.'%'))
+            ->when($user, fn ($q) => $q->whereHas('user', fn ($u) => $u->where('name', 'like', '%'.$user.'%')));
 
         $filteredTotal = (float) (clone $query)->sum('amount');
         $byCategory = (clone $query)
@@ -57,23 +65,23 @@ class ProfitShareController extends Controller
                 ];
             });
 
+        $filters = [
+            'date' => $date,
+            'category' => $category,
+            'payment_method' => $paymentMethod,
+            'q' => $search,
+            'user' => $user,
+        ];
+
         return view('reports.expenses', [
             'expenses' => $query->orderByDesc('spent_on')->orderByDesc('id')->paginate(20)->withQueryString(),
             'categories' => ExpenseCategory::selectable(),
             'filterCategories' => ExpenseCategory::cases(),
             'paymentMethods' => ExpensePaymentMethod::cases(),
             'total' => $filteredTotal,
-            'allTotal' => (float) OperatingExpense::query()
-                ->when($outletId, fn ($q, $id) => $q->where('outlet_id', $id))
-                ->sum('amount'),
             'byCategory' => $byCategory,
-            'bopMonthly' => monthly_bop(),
-            'filters' => [
-                'from' => $from,
-                'to' => $to,
-                'category' => $category,
-                'q' => $search,
-            ],
+            'filters' => $filters,
+            'hasFilters' => collect($filters)->contains(fn ($v) => filled($v)),
         ]);
     }
 

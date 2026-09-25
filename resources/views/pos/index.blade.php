@@ -2,7 +2,14 @@
 @section('content')
 <div class="flex h-full min-h-0" x-data="posApp()">
     <div class="pos-shell">
-        <section class="pos-catalog">
+        <div class="pos-busy-overlay" x-show="busy && !payOpen" x-cloak x-transition.opacity.duration.150ms>
+            <svg class="pos-busy-spinner" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"></path>
+            </svg>
+            <p class="text-sm font-medium text-heading" x-text="busyLabel || 'Memproses…'"></p>
+        </div>
+        <section class="pos-catalog" :class="busy && !payOpen && 'is-busy'">
             <div class="flex items-center justify-between gap-3 border-b border-[#f0ece7] px-3 py-2 text-xs" x-show="!online" x-cloak>
                 <span class="font-medium text-[#d97706]">Mode offline — order akan dikirim saat koneksi kembali.</span>
             </div>
@@ -13,16 +20,9 @@
                         <button type="button" class="pos-chip" :class="category == {{ $category->id }} ? 'pos-chip-active' : 'pos-chip-idle'" @click="category = {{ $category->id }}">{{ $category->name }}</button>
                     @endforeach
                 </div>
-                <div class="flex shrink-0 items-center gap-2">
-                    <div class="flex items-center gap-1 rounded-xl bg-[#f3f0ec] p-1" title="Kontrol layar menu TV">
-                        <button type="button" class="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition" :class="displayFocus === 'drinks' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setDisplayFocus('drinks')">Minuman</button>
-                        <button type="button" class="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition" :class="displayFocus === 'food' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setDisplayFocus('food')">Makanan</button>
-                        <button type="button" class="rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition" :class="displayFocus === 'auto' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setDisplayFocus('auto')">Auto</button>
-                    </div>
-                    <div class="relative w-full sm:w-44">
-                        <svg class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/></svg>
-                        <input class="input !rounded-xl !border-[#ebe7e2] !bg-[#faf9f7] !py-2 !pl-9 !text-[13px]" placeholder="Cari menu..." x-model="search">
-                    </div>
+                <div class="relative w-full shrink-0 sm:w-44">
+                    <svg class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/></svg>
+                    <input class="input !rounded-xl !border-[#ebe7e2] !bg-[#faf9f7] !py-2 !pl-9 !text-[13px]" placeholder="Cari menu..." x-model="search">
                 </div>
             </div>
             <div class="grid flex-1 auto-rows-min grid-cols-1 gap-2 overflow-y-auto p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -79,19 +79,15 @@
             <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-[11px]" x-text="(order?.items || []).reduce((n, i) => n + Number(i.quantity || 0), 0) || 0"></span>
         </button>
 
-        <div class="pos-cart-backdrop" x-show="cartOpen" x-cloak @click="cartOpen = false"></div>
+        <div class="pos-cart-backdrop" x-show="cartOpen" x-cloak x-transition.opacity.duration.150ms @click="cartOpen = false"></div>
 
         <aside
             class="order-panel pos-cart-sheet"
-            :class="cartOpen ? 'flex' : 'hidden lg:flex'"
+            :class="[cartOpen ? 'flex' : 'hidden lg:flex', (busy && !payOpen) ? 'pointer-events-none' : '']"
         >
             <div class="border-b border-[#f0ece7] px-4 py-3 lg:px-4">
                 <div class="mx-auto mb-2.5 h-1 w-10 rounded-full bg-[#e5e5e5] lg:hidden"></div>
                 <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <p class="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Current order</p>
-                        <p class="mt-1 truncate text-[15px] font-semibold text-heading" x-text="order?.order_number || 'Draft baru'"></p>
-                    </div>
                     <div class="flex shrink-0 items-center gap-1.5">
                         <span class="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand" x-show="order?.status === 'held'" x-cloak>Hold</span>
                         <span class="rounded-full bg-[#f3f0ec] px-2 py-0.5 text-[10px] font-medium text-muted" x-show="order?.estimated_ready_at && order?.status !== 'held'" x-text="etaLabel()" x-cloak></span>
@@ -99,9 +95,18 @@
                     </div>
                 </div>
                 <div class="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-[#f3f0ec] p-1">
-                    <button type="button" class="rounded-lg px-2 py-1.5 text-[12px] font-semibold transition" :class="order_type === 'pickup' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="order_type = 'pickup'">Pickup</button>
-                    <button type="button" class="rounded-lg px-2 py-1.5 text-[12px] font-semibold transition" :class="order_type === 'dine_in' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="order_type = 'dine_in'">Dine-in</button>
-                    <button type="button" class="rounded-lg px-2 py-1.5 text-[12px] font-semibold transition" :class="order_type === 'online' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="order_type = 'online'">Online</button>
+                    <button type="button" class="rounded-lg px-2 py-1.5 text-[12px] font-semibold transition" :class="order_type === 'dine_in' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setOrderType('dine_in')">Makan Disini</button>
+                    <button type="button" class="rounded-lg px-2 py-1.5 text-[12px] font-semibold transition" :class="order_type === 'pickup' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setOrderType('pickup')">Bawa Pulang</button>
+                    <button type="button" class="rounded-lg px-2 py-1.5 text-[12px] font-semibold transition" :class="order_type === 'online' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setOrderType('online')">Online</button>
+                </div>
+                <div class="mt-2.5" x-show="needsTable()" x-cloak>
+                    <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Nomor meja</label>
+                    <select class="input !h-10 !rounded-xl text-[13px]" x-model="table_id">
+                        <option value="">Pilih meja</option>
+                        <template x-for="table in tables" :key="table.id">
+                            <option :value="String(table.id)" x-text="'Meja ' + table.code"></option>
+                        </template>
+                    </select>
                 </div>
             </div>
 
@@ -158,7 +163,7 @@
                     <p class="text-[11px] text-[#c2410c]" x-show="discountHint()" x-text="discountHint()" x-cloak></p>
                 </div>
                 <div class="order-row text-muted">
-                    <span>Charge</span>
+                    <span>Biaya Layanan</span>
                     <span class="font-medium text-heading" x-text="formatMoney(order?.tax_amount || 0)"></span>
                 </div>
                 <div class="flex items-center justify-between rounded-xl bg-heading px-3.5 py-3 text-white">
@@ -167,7 +172,11 @@
                 </div>
                 <p class="text-xs font-medium text-brand" x-show="notice" x-text="notice" x-cloak></p>
                 <div class="grid grid-cols-2 gap-2">
-                    <button type="button" class="inline-flex items-center justify-center gap-2 rounded-xl border border-[#ebe7e2] bg-white px-4 py-2.5 text-sm font-medium text-heading transition hover:bg-[#faf9f7] disabled:cursor-not-allowed disabled:opacity-40" @click="hold()" :disabled="!order?.items?.length">
+                    <button type="button" class="inline-flex items-center justify-center gap-2 rounded-xl border border-[#ebe7e2] bg-white px-4 py-2.5 text-sm font-medium text-heading transition hover:bg-[#faf9f7] disabled:cursor-not-allowed disabled:opacity-40" @click="hold()" :disabled="!order?.items?.length || busy">
+                        <svg x-show="busy && busyLabel === 'Menyimpan hold…'" x-cloak class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                            <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"></path>
+                        </svg>
                         Hold
                         <span
                             class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-heading px-1.5 text-[10px] font-bold leading-none text-white"
@@ -178,14 +187,14 @@
                             title="Lihat order hold"
                         ></span>
                     </button>
-                    <button type="button" class="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40" @click="openPay()" :disabled="!canPay()">Bayar</button>
+                    <button type="button" class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40" @click="openPay()" :disabled="!canPay()">Bayar</button>
                 </div>
             </div>
         </aside>
     </div>
 
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" x-show="optionOpen" x-cloak @click.self="optionOpen = false">
-        <div class="pay-modal !max-w-[480px]">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" x-show="optionOpen" x-cloak x-transition.opacity.duration.150ms @click.self="!busy && (optionOpen = false)">
+        <div class="pay-modal !max-w-[480px]" x-show="optionOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 translate-y-2 scale-[0.98]" x-transition:enter-end="opacity-100 translate-y-0 scale-100">
             <div class="pay-modal-hero">
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
@@ -235,8 +244,8 @@
         </div>
     </div>
 
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" x-show="payOpen" x-cloak @click.self="!busy && (payOpen = false)">
-        <div class="pay-modal relative">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" x-show="payOpen" x-cloak x-transition.opacity.duration.150ms @click.self="!busy && (payOpen = false)">
+        <div class="pay-modal relative" x-show="payOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 translate-y-2 scale-[0.98]" x-transition:enter-end="opacity-100 translate-y-0 scale-100">
             <div class="pay-modal-hero">
                 <div class="flex items-center justify-between gap-4">
                     <div class="min-w-0">
@@ -302,8 +311,8 @@
         </div>
     </div>
 
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" x-show="invoiceOpen" x-cloak @click.self="skipInvoice()">
-        <div class="pay-modal">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" x-show="invoiceOpen" x-cloak x-transition.opacity.duration.150ms @click.self="!invoiceBusy && skipInvoice()">
+        <div class="pay-modal" x-show="invoiceOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 translate-y-2 scale-[0.98]" x-transition:enter-end="opacity-100 translate-y-0 scale-100">
             <div class="pay-modal-hero">
                 <div class="flex items-center justify-between gap-4">
                     <div class="min-w-0">
@@ -335,8 +344,8 @@
         </div>
     </div>
 
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="openHeld" x-cloak>
-        <div class="card w-full max-w-lg p-6">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="openHeld" x-cloak x-transition.opacity.duration.150ms @click.self="!busy && (openHeld = false)">
+        <div class="card relative w-full max-w-lg p-6" x-show="openHeld" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 translate-y-2 scale-[0.98]" x-transition:enter-end="opacity-100 translate-y-0 scale-100">
             <div class="flex items-start justify-between gap-3">
                 <div>
                     <h3 class="text-lg font-semibold">Order tertunda</h3>
@@ -344,11 +353,11 @@
                 </div>
                 <span class="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand" x-text="heldCount()"></span>
             </div>
-            <div class="mt-4 max-h-80 space-y-2 overflow-y-auto">
+            <div class="relative mt-4 max-h-80 space-y-2 overflow-y-auto">
                 <template x-for="held in visibleHeld()" :key="held.id">
-                    <button type="button" class="flex w-full items-center justify-between gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-brand hover:bg-brand-soft" @click="recall(held.id)">
+                    <button type="button" class="flex w-full items-center justify-between gap-3 rounded-xl border border-line px-4 py-3 text-left transition hover:border-brand hover:bg-brand-soft disabled:opacity-50" @click="recall(held.id)" :disabled="busy">
                         <span>
-                            <span class="block text-sm font-semibold text-heading" x-text="held.order_number"></span>
+                            <span class="block text-sm font-semibold text-heading" x-text="held.customer || held.order_number"></span>
                             <span class="mt-0.5 block text-xs text-muted" x-text="heldMeta(held)"></span>
                         </span>
                         <span class="text-right">
@@ -358,9 +367,16 @@
                     </button>
                 </template>
                 <p class="py-8 text-center text-sm text-muted" x-show="heldCount() === 0">Tidak ada order tertunda.</p>
+                <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-white/80 backdrop-blur-[1px]" x-show="busy && openHeld" x-cloak>
+                    <svg class="h-7 w-7 animate-spin text-brand" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                        <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"></path>
+                    </svg>
+                    <p class="text-xs font-medium text-heading" x-text="busyLabel || 'Memuat…'"></p>
+                </div>
             </div>
             <div class="mt-4 flex justify-end">
-                <button class="btn-ghost" @click="openHeld = false">Tutup</button>
+                <button class="btn-ghost" @click="openHeld = false" :disabled="busy">Tutup</button>
             </div>
         </div>
     </div>
@@ -372,10 +388,9 @@
 <script>
 function posApp() {
     return {
-        order: null, search: '', category: null, order_type: 'pickup', table_id: '',
-        discount_id: '', method: 'cash', tendered: 0, payOpen: false, openHeld: false, busy: false, notice: '',
+        order: null, search: '', category: null, order_type: 'dine_in', table_id: '',
+        discount_id: '', method: 'cash', tendered: 0, payOpen: false, openHeld: false, busy: false, busyLabel: '', notice: '',
         cartOpen: false,
-        displayFocus: 'auto',
         optionOpen: false,
         optionProduct: null,
         optionVariantId: null,
@@ -389,6 +404,7 @@ function posApp() {
             { id: 'qris', label: 'QRIS', hint: 'Scan QR' },
         ],
         heldOrders: @json($heldOrders),
+        tables: @json($tables),
         online: navigator.onLine,
         images: @json($productImages),
         placeholder: @json(asset('images/menu/placeholder.svg')),
@@ -408,17 +424,42 @@ function posApp() {
         },
         heldMeta(held) {
             const status = held.status === 'draft' ? 'Draft' : 'Hold';
-            const parts = [status, held.order_type_label || held.order_type, held.table ? `Meja ${held.table}` : null, held.customer, `${held.items_count || 0} item`].filter(Boolean);
+            const parts = [
+                status,
+                held.customer ? held.order_number : null,
+                held.order_type_label || held.order_type,
+                held.table ? `Meja ${held.table}` : null,
+                `${held.items_count || 0} item`,
+            ].filter(Boolean);
             return parts.join(' · ');
         },
         async openHeldList() {
-            await this.loadHeld();
+            await this.runBusy('Memuat hold…', async () => {
+                await this.loadHeld();
+            });
             this.openHeld = true;
         },
         async loadHeld() {
             try {
                 this.heldOrders = await this.request('{{ route('pos.held', absolute: false) }}', { headers: await this.csrf() });
             } catch (e) {}
+        },
+        async runBusy(label, fn) {
+            const nested = this.busy;
+            if (! nested) {
+                this.busy = true;
+                this.busyLabel = label || 'Memproses…';
+            } else if (label) {
+                this.busyLabel = label;
+            }
+            try {
+                return await fn();
+            } finally {
+                if (! nested) {
+                    this.busy = false;
+                    this.busyLabel = '';
+                }
+            }
         },
         channel() {
             return this.order_type === 'pickup' ? 'pickup' : (this.order_type === 'online' ? 'online' : 'pos');
@@ -466,7 +507,16 @@ function posApp() {
         changeDue() { return Math.max(0, this.tenderedAmount() - this.grandTotal()); },
         cashShort() { return this.method === 'cash' && this.tenderedAmount() < this.grandTotal(); },
         canPay() {
-            return !!this.order?.items?.length && !this.busy;
+            if (!this.order?.items?.length || this.busy) return false;
+            if (this.needsTable() && !this.table_id) return false;
+            return true;
+        },
+        needsTable() {
+            return this.order_type === 'dine_in' || this.order_type === 'pickup';
+        },
+        setOrderType(type) {
+            this.order_type = type;
+            if (!this.needsTable()) this.table_id = '';
         },
         canCompletePay() {
             if (!this.canPay()) return false;
@@ -480,7 +530,9 @@ function posApp() {
         },
         openPay() {
             if (!this.canPay()) {
-                this.notice = 'Tambah item dulu.';
+                this.notice = this.needsTable() && !this.table_id
+                    ? 'Pilih nomor meja dulu.'
+                    : 'Tambah item dulu.';
                 return;
             }
             this.notice = '';
@@ -492,18 +544,6 @@ function posApp() {
             this.method = id;
             this.notice = '';
             if (id !== 'cash') this.tendered = this.grandTotal();
-        },
-        async setDisplayFocus(mode) {
-            this.displayFocus = mode;
-            try {
-                await this.request('{{ route('pos.display.focus', absolute: false) }}', {
-                    method: 'POST',
-                    headers: await this.csrf(),
-                    body: JSON.stringify({ mode }),
-                });
-            } catch (e) {
-                this.notice = e.message || 'Gagal update layar menu.';
-            }
         },
         persistDraft() {
             const payload = {
@@ -565,6 +605,7 @@ function posApp() {
             return this.order;
         },
         beginAdd(productId, variantId, bundleId) {
+            if (this.busy) return;
             if (bundleId) {
                 return this.addProduct(productId, variantId, bundleId);
             }
@@ -635,84 +676,146 @@ function posApp() {
             this.addProduct(productId, variantId, null, false, optionIds, quantity);
         },
         async addProduct(productId, variantId, bundleId, fromQueue = false, optionIds = [], quantity = 1) {
+            if (this.busy && !fromQueue) return;
             try {
-                await this.ensureOrder();
-                this.order = await this.request(`/pos/${this.order.id}/items`, { method: 'POST', headers: await this.csrf(), body: JSON.stringify({
-                    product_id: productId, product_variant_id: variantId, bundle_id: bundleId, quantity: quantity || 1, option_ids: optionIds || []
-                })});
-                this.persistDraft();
+                await this.runBusy('Menambah item…', async () => {
+                    await this.ensureOrder();
+                    this.order = await this.request(`/pos/${this.order.id}/items`, { method: 'POST', headers: await this.csrf(), body: JSON.stringify({
+                        product_id: productId, product_variant_id: variantId, bundle_id: bundleId, quantity: quantity || 1, option_ids: optionIds || []
+                    })});
+                    this.persistDraft();
+                });
             } catch (e) {
                 if (!fromQueue) this.queue({ type: 'add', product_id: productId, variant_id: variantId, bundle_id: bundleId, option_ids: optionIds || [], quantity: quantity || 1 });
                 this.notice = e.message || 'Gagal menambah item.';
             }
         },
         async changeQty(item, delta) {
+            if (this.busy) return;
             const qty = Number(item.quantity) + delta;
             if (qty <= 0) return this.removeItem(item.id);
             item.quantity = qty;
             await this.updateItem(item);
         },
         async updateItem(item) {
-            this.order = await this.request(`/pos/${this.order.id}/items/${item.id}`, { method: 'PUT', headers: await this.csrf(), body: JSON.stringify({ quantity: item.quantity, notes: item.notes })});
-            this.persistDraft();
+            try {
+                await this.runBusy('Memperbarui…', async () => {
+                    this.order = await this.request(`/pos/${this.order.id}/items/${item.id}`, { method: 'PUT', headers: await this.csrf(), body: JSON.stringify({ quantity: item.quantity, notes: item.notes })});
+                    this.persistDraft();
+                });
+            } catch (e) {
+                this.notice = e.message || 'Gagal memperbarui item.';
+            }
         },
         async removeItem(id) {
-            this.order = await this.request(`/pos/${this.order.id}/items/${id}`, { method: 'DELETE', headers: await this.csrf() });
-            this.persistDraft();
+            if (this.busy) return;
+            try {
+                await this.runBusy('Menghapus…', async () => {
+                    this.order = await this.request(`/pos/${this.order.id}/items/${id}`, { method: 'DELETE', headers: await this.csrf() });
+                    this.persistDraft();
+                });
+            } catch (e) {
+                this.notice = e.message || 'Gagal menghapus item.';
+            }
         },
         async applyDiscount() {
-            if (!this.order) return;
-            this.order = await this.request(`/pos/${this.order.id}/discount`, { method: 'POST', headers: await this.csrf(), body: JSON.stringify({ discount_id: this.discount_id || null })});
+            if (!this.order || this.busy) return;
+            try {
+                await this.runBusy('Menerapkan diskon…', async () => {
+                    this.order = await this.request(`/pos/${this.order.id}/discount`, { method: 'POST', headers: await this.csrf(), body: JSON.stringify({ discount_id: this.discount_id || null })});
+                });
+            } catch (e) {
+                this.notice = e.message || 'Gagal menerapkan diskon.';
+            }
         },
         async hold() {
-            if (!this.order) return;
-            const held = await this.request(`/pos/${this.order.id}/hold`, { method: 'POST', headers: await this.csrf() });
-            this.heldOrders = [held, ...this.heldOrders.filter((item) => item.id !== held.id)];
-            this.order = null;
-            this.discount_id = '';
-            localStorage.removeItem('pos_offline_draft');
+            if (!this.order || this.busy) return false;
+            let name = '';
+            if (window.Swal) {
+                const result = await Swal.fire({
+                    title: 'Hold order',
+                    input: 'text',
+                    inputLabel: 'Nama pelanggan',
+                    inputPlaceholder: 'Contoh: Budi',
+                    inputValue: this.order.notes || this.order.customer?.name || '',
+                    showCancelButton: true,
+                    confirmButtonText: 'Hold',
+                    confirmButtonColor: '#7a1f1f',
+                    inputValidator: (value) => !String(value || '').trim() && 'Nama wajib diisi',
+                });
+                if (!result.isConfirmed) return false;
+                name = String(result.value || '').trim();
+            } else {
+                name = String(window.prompt('Nama pelanggan untuk hold:') || '').trim();
+                if (!name) return false;
+            }
+            try {
+                await this.runBusy('Menyimpan hold…', async () => {
+                    const held = await this.request(`/pos/${this.order.id}/hold`, {
+                        method: 'POST',
+                        headers: await this.csrf(),
+                        body: JSON.stringify({ name }),
+                    });
+                    this.heldOrders = [held, ...this.heldOrders.filter((item) => item.id !== held.id)];
+                    this.order = null;
+                    this.discount_id = '';
+                    localStorage.removeItem('pos_offline_draft');
+                });
+                return true;
+            } catch (e) {
+                this.notice = e.message || 'Gagal hold order.';
+                return false;
+            }
         },
         async recall(id) {
+            if (this.busy) return;
             if (this.order && this.order.id !== id && this.order.items?.length) {
-                await this.hold();
+                const held = await this.hold();
+                if (held === false) return;
             }
-            this.order = await this.request(`/pos/${id}/recall`, { headers: await this.csrf() });
-            this.table_id = this.order.table_id || '';
-            this.order_type = this.order.order_type || this.order_type;
-            this.discount_id = this.order.discount_id || '';
-            this.heldOrders = this.heldOrders.filter((item) => item.id !== id);
-            this.openHeld = false;
+            try {
+                await this.runBusy('Memuat order…', async () => {
+                    this.order = await this.request(`/pos/${id}/recall`, { headers: await this.csrf() });
+                    this.table_id = this.order.table_id || '';
+                    this.order_type = this.order.order_type || this.order_type;
+                    this.discount_id = this.order.discount_id || '';
+                    this.heldOrders = this.heldOrders.filter((item) => item.id !== id);
+                    this.openHeld = false;
+                    this.cartOpen = true;
+                });
+            } catch (e) {
+                this.notice = e.message || 'Gagal memuat order.';
+            }
         },
         async checkout() {
             if (!this.canCompletePay()) {
                 this.notice = this.cashShort() ? 'Uang diterima masih kurang dari total.' : 'Tidak bisa menyelesaikan pembayaran.';
                 return;
             }
-            this.busy = true;
             this.notice = '';
             try {
-                const paid = this.method === 'cash' ? this.tenderedAmount() : this.grandTotal();
-                const data = await this.request(`/pos/${this.order.id}/checkout`, { method: 'POST', headers: await this.csrf(), body: JSON.stringify({
-                    method: this.method, amount: this.grandTotal(), tendered: paid,
-                    order_type: this.order_type, table_id: this.table_id || null,
-                })});
-                this.payOpen = false;
-                if (data.order) {
-                    if (data.print_jobs?.length && window.RasaQz?.printTickets) {
-                        await window.RasaQz.printTickets(data);
+                await this.runBusy('Memproses pembayaran…', async () => {
+                    const paid = this.method === 'cash' ? this.tenderedAmount() : this.grandTotal();
+                    const data = await this.request(`/pos/${this.order.id}/checkout`, { method: 'POST', headers: await this.csrf(), body: JSON.stringify({
+                        method: this.method, amount: this.grandTotal(), tendered: paid,
+                        order_type: this.order_type, table_id: this.table_id || null,
+                    })});
+                    this.payOpen = false;
+                    if (data.order) {
+                        if (data.print_jobs?.length && window.RasaQz?.printTickets) {
+                            await window.RasaQz.printTickets(data);
+                        }
+                        this.invoiceOrder = data.order;
+                        this.invoicePhone = data.order.customer?.phone || '';
+                        this.invoiceNotice = data.kitchen_whatsapp_sent ? 'Pesanan dapur sudah dikirim via WhatsApp.' : '';
+                        this.invoiceOpen = true;
+                        this.order = null;
+                        this.tendered = 0;
+                        localStorage.removeItem('pos_offline_draft');
                     }
-                    this.invoiceOrder = data.order;
-                    this.invoicePhone = data.order.customer?.phone || '';
-                    this.invoiceNotice = data.kitchen_whatsapp_sent ? 'Pesanan dapur sudah dikirim via WhatsApp.' : '';
-                    this.invoiceOpen = true;
-                    this.order = null;
-                    this.tendered = 0;
-                    localStorage.removeItem('pos_offline_draft');
-                }
+                });
             } catch (e) {
                 this.notice = e.message || 'Pembayaran gagal.';
-            } finally {
-                this.busy = false;
             }
         },
         skipInvoice() {
@@ -737,13 +840,10 @@ function posApp() {
                 this.invoicePhone = '';
                 this.notice = 'Pembayaran berhasil. Invoice terkirim ke WhatsApp.';
                 if (window.Swal) {
-                    const asPdf = data?.via === 'pdf';
                     await Swal.fire({
                         icon: 'success',
                         title: 'Terkirim',
-                        text: asPdf
-                            ? 'Invoice PDF sudah dikirim ke WhatsApp customer.'
-                            : (data?.notice || 'Invoice sudah dikirim ke WhatsApp (teks).'),
+                        text: data?.notice || 'Invoice berhasil terkirim ke WhatsApp.',
                         confirmButtonText: 'OK',
                         confirmButtonColor: '#7a1f1f',
                     });
