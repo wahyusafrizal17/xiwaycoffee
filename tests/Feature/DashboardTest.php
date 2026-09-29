@@ -173,4 +173,51 @@ class DashboardTest extends TestCase
         $this->assertEquals(1000.0, $metrics['food_cafe']);
         $this->assertEquals(9000.0, $metrics['food_setoran']);
     }
+
+    public function test_dashboard_adjusts_drink_prices_on_20_to_27_september_2026(): void
+    {
+        $drinkCategory = Category::query()->create([
+            'name' => 'Coffee',
+            'slug' => 'coffee-promo',
+            'station' => PrinterStation::Bar->value,
+            'sort_order' => 2,
+            'is_active' => true,
+        ]);
+        $drink = Product::query()->create([
+            'sku' => 'PRD-DRINK-PROMO',
+            'name' => 'Sanger Promo',
+            'category_id' => $drinkCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 20000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+            'station' => PrinterStation::Bar->value,
+        ]);
+
+        $this->actingAsAtOutlet($this->cashier);
+        $orders = app(OrderService::class);
+        foreach (['2026-09-20' => 0.0, '2026-09-24' => 10000.0, '2026-09-28' => 20000.0] as $date => $expected) {
+            $order = $orders->createDraft([
+                'outlet_id' => $this->outlet->id,
+                'order_type' => OrderType::Pickup->value,
+            ]);
+            $orders->addItem($order, ['product_id' => $drink->id, 'quantity' => 1]);
+            $order = $orders->checkout($order->fresh(), [
+                'method' => PaymentMethod::Cash->value,
+                'tendered' => 100000,
+            ]);
+            $order->forceFill(['created_at' => $date.' 12:00:00'])->save();
+
+            $metrics = app(DashboardService::class)->metrics($this->outlet->id, [
+                'period' => 'day',
+                'from' => $date,
+                'to' => $date,
+                'label' => $date,
+            ]);
+
+            $this->assertEquals($expected, $metrics['drinks']);
+        }
+    }
 }

@@ -51,12 +51,14 @@ class DashboardService
         $food = $this->reports->foodSetoran($filters);
         $drinks = $this->drinkSales($filters);
         $foodCut = $this->foodHalfPriceCut($filters);
+        $drinkCut = $this->drinkPriceCut($filters);
         $cafeRate = (float) config('pos.food_cafe_percent', 10) / 100;
         $food['sales'] = round((float) $food['sales'] - $foodCut, 2);
         $food['commission'] = round((float) $food['commission'] - ($foodCut * $cafeRate), 2);
         $food['setoran'] = round((float) $food['setoran'] - ($foodCut * (1 - $cafeRate)), 2);
-        $summary['gross'] = round((float) $summary['gross'] - $foodCut, 2);
-        $summary['sales'] = round((float) $summary['sales'] - ($foodCut * $cafeRate), 2);
+        $drinks = round($drinks - $drinkCut, 2);
+        $summary['gross'] = round((float) $summary['gross'] - $foodCut - $drinkCut, 2);
+        $summary['sales'] = round((float) $summary['sales'] - ($foodCut * $cafeRate) - $drinkCut, 2);
         $summary['remainder'] = round((float) $summary['sales'] - (float) $summary['bop'], 2);
         $summary['shares'] = $this->shares->split($summary['remainder'], $this->shares->partners());
 
@@ -185,6 +187,33 @@ class DashboardService
         return round($sales / 2, 2);
     }
 
+    /**
+     * Minuman: 20 Sep 2026 harga 0, 21–27 Sep 2026 setengah harga.
+     * ponytail: tanggal tetap, pindah ke diskon order kalau promo jadi rutin.
+     */
+    protected function drinkPriceCut(array $filters): float
+    {
+        $from = $filters['from'] ?? null;
+        $to = $filters['to'] ?? null;
+        if ((filled($from) && $from > '2026-09-27') || (filled($to) && $to < '2026-09-20')) {
+            return 0.0;
+        }
+
+        $cut = OrderItem::query()
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->join('products', 'products.id', '=', 'order_items.product_id')
+            ->join('categories', 'categories.id', '=', 'products.category_id')
+            ->where('orders.payment_status', PaymentStatus::Paid->value)
+            ->whereIn('categories.name', drink_category_names())
+            ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
+            ->when(filled($from), fn ($q) => $q->whereDate('orders.created_at', '>=', $from))
+            ->when(filled($to), fn ($q) => $q->whereDate('orders.created_at', '<=', $to))
+            ->selectRaw("SUM(CASE WHEN DATE(orders.created_at) = '2026-09-20' THEN order_items.total WHEN DATE(orders.created_at) BETWEEN '2026-09-21' AND '2026-09-27' THEN order_items.total * 0.5 ELSE 0 END) as cut")
+            ->value('cut');
+
+        return round((float) $cut, 2);
+    }
+
     protected function drinkSales(array $filters): float
     {
         return (float) OrderItem::query()
@@ -223,11 +252,12 @@ class DashboardService
             $to = Carbon::now()->startOfDay();
         }
 
-        $actual = $this->drinkSales([
+        $monthFilters = [
             'outlet_id' => $outletId,
             'from' => $from,
             'to' => $to->toDateString(),
-        ]);
+        ];
+        $actual = round($this->drinkSales($monthFilters) - $this->drinkPriceCut($monthFilters), 2);
         $progress = $amount > 0 ? min(100, round($actual / $amount * 100, 1)) : 0.0;
 
         return [
