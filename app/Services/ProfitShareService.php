@@ -110,8 +110,10 @@ class ProfitShareService
                     ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('created_at', '>=', $filters['from']))
                     ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('created_at', '<=', $filters['to']));
             })
-            ->get(['total', 'quantity', 'consignment_commission']);
+            ->get(['total']);
 
-        return round($items->sum(fn (OrderItem $item) => (float) $item->total - ((float) $item->consignment_commission * (float) $item->quantity)), 2);
+        $cafe = (float) config('pos.food_cafe_percent', 10) / 100;
+
+        return round($items->sum(fn (OrderItem $item) => (float) $item->total * (1 - $cafe)), 2);
     }
 }

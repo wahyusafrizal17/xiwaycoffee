@@ -38,9 +38,9 @@
             </div>
             <div class="stat-card">
                 <div>
-                    <p class="stat-kicker">Komisi cafe</p>
+                    <p class="stat-kicker">Bagian cafe</p>
                     <p class="stat-value">{{ money($commission) }}</p>
-                    <p class="stat-hint">Periode terpilih</p>
+                    <p class="stat-hint">{{ (int) config('pos.food_cafe_percent', 10) }}% dari penjualan</p>
                 </div>
             </div>
             <div class="stat-card">
@@ -85,7 +85,7 @@
                             <th>Menu</th>
                             <th>Qty</th>
                             <th>Penjualan</th>
-                            <th>Komisi cafe</th>
+                            <th>Bagian cafe</th>
                             <th>Setoran</th>
                         </tr>
                     </thead>

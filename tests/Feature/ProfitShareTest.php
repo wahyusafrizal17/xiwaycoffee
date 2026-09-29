@@ -121,7 +121,7 @@ class ProfitShareTest extends TestCase
 
         $item = $order->items()->first();
         $this->assertEquals(2000.0, (float) $item->consignment_commission);
-        $this->assertEquals(13000.0, (float) $item->total - ((float) $item->consignment_commission * (float) $item->quantity));
+        $this->assertEquals(13500.0, round((float) $item->total * 0.9, 2));
 
         $summary = app(ProfitShareService::class)->summarize([
             'outlet_id' => $this->outlet->id,
@@ -129,8 +129,8 @@ class ProfitShareTest extends TestCase
             'to' => now()->toDateString(),
         ]);
 
-        $this->assertEquals(13000.0, $summary['food_setoran']);
-        $this->assertEquals(round((float) $order->grand_total - 13000, 2), $summary['sales']);
+        $this->assertEquals(13500.0, $summary['food_setoran']);
+        $this->assertEquals(round((float) $order->grand_total - 13500, 2), $summary['sales']);
 
         $this->actingAsAtOutlet($this->admin)
             ->get(route('reports.setoran', ['period' => 'today']))
@@ -178,7 +178,7 @@ class ProfitShareTest extends TestCase
             ->get(route('reports.setoran'))
             ->assertOk()
             ->assertSee('Belum disetor')
-            ->assertSee(money(13000));
+            ->assertSee(money(13500));
 
         $this->actingAsAtOutlet($this->admin)
             ->post(route('reports.setoran.store'), [

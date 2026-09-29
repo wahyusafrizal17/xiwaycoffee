@@ -128,8 +128,8 @@ class BankAccountTest extends TestCase
             ])
             ->assertRedirect();
 
-        // food outstanding was 13000; after BOP balance 10000, settlement debits 13000 → -3000
-        $this->assertEquals(-3000.0, $bank->balance($this->outlet->id));
+        // food outstanding is 90% of 15000 = 13500; after BOP balance 10000, settlement debits 13500
+        $this->assertEquals(-3500.0, $bank->balance($this->outlet->id));
     }
 
     public function test_admin_can_open_rekening_page(): void

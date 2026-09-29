@@ -388,12 +388,12 @@ class ReportService
             ->selectRaw('order_items.name as name')
             ->selectRaw('SUM(order_items.quantity) as qty')
             ->selectRaw('SUM(order_items.total) as sales')
-            ->selectRaw('SUM(order_items.consignment_commission * order_items.quantity) as commission')
             ->groupBy('order_items.name')
             ->orderBy('order_items.name')
             ->get()
             ->map(function ($row) {
-                $row->setoran = (float) $row->sales - (float) $row->commission;
+                $row->commission = round((float) $row->sales * (float) config('pos.food_cafe_percent', 10) / 100, 2);
+                $row->setoran = round((float) $row->sales - $row->commission, 2);
 
                 return $row;
             });
