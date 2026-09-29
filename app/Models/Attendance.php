@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'employee_id', 'outlet_id', 'work_date', 'clock_in_at', 'clock_out_at',
-    'clock_in_lat', 'clock_in_lng', 'clock_in_distance_m', 'selfie_path', 'is_late',
+    'clock_in_lat', 'clock_in_lng', 'clock_in_distance_m', 'selfie_path', 'is_late', 'late_reason',
 ])]
 class Attendance extends Model
 {

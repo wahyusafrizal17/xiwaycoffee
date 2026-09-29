@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Outlet;
 use App\Models\Role;
@@ -83,14 +84,125 @@ class AttendanceTest extends TestCase
             -6.8721000,
             107.5425000,
             UploadedFile::fake()->image('selfie.jpg'),
+            'Macet',
         );
 
         $this->assertTrue($row->is_late);
+        $this->assertSame('Macet', $row->late_reason);
         $this->assertNotNull($row->selfie_path);
         $this->assertDatabaseHas('attendances', [
             'employee_id' => $this->employee->id,
             'is_late' => 1,
         ]);
+    }
+
+    public function test_shift_clock_in_is_late_after_thirty_minutes_before_start(): void
+    {
+        WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => now()->toDateString(),
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
+        ]);
+
+        $service = app(AttendanceService::class);
+        $this->travelTo(now()->setTime(8, 30));
+        $onTime = $service->clockIn(
+            $this->employee,
+            -6.8721000,
+            107.5425000,
+            UploadedFile::fake()->image('selfie.jpg'),
+        );
+        $this->assertFalse($onTime->is_late);
+
+        $onTime->delete();
+        $this->travelTo(now()->setTime(8, 31));
+
+        try {
+            $service->clockIn(
+                $this->employee,
+                -6.8721000,
+                107.5425000,
+                UploadedFile::fake()->image('selfie.jpg'),
+            );
+            $this->fail('Alasan terlambat wajib.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('late_reason', $e->errors());
+        }
+
+        $late = $service->clockIn(
+            $this->employee,
+            -6.8721000,
+            107.5425000,
+            UploadedFile::fake()->image('selfie.jpg'),
+            'Macet',
+        );
+        $this->assertTrue($late->is_late);
+        $this->assertSame('Macet', $late->late_reason);
+    }
+
+    public function test_off_day_does_not_require_clock_in(): void
+    {
+        WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => now()->toDateString(),
+            'starts_at' => null,
+            'ends_at' => null,
+        ]);
+
+        $this->travelTo(now()->setTime(10, 0));
+        $service = app(AttendanceService::class);
+        $this->assertTrue($service->isOff($this->employee));
+        $this->assertFalse($service->isLate($this->employee));
+
+        try {
+            $service->clockIn($this->employee, -6.8721000, 107.5425000, UploadedFile::fake()->image('selfie.jpg'));
+            $this->fail('Hari OFF tidak perlu absen.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('clock_in', $e->errors());
+        }
+
+        $this->assertSame(0, Attendance::query()->count());
+    }
+
+    public function test_admin_sets_cafe_point_and_clock_in_must_be_there(): void
+    {
+        $admin = User::query()->create([
+            'name' => 'Admin',
+            'email' => 'admin-geo@test.local',
+            'password' => Hash::make('password'),
+            'is_active' => true,
+        ]);
+        $admin->roles()->sync([Role::query()->where('name', 'admin')->firstOrFail()->id]);
+        $admin->outlets()->sync([$this->outlet->id => ['is_default' => true]]);
+
+        $this->actingAs($admin)
+            ->put(route('outlets.update', $this->outlet), [
+                'code' => $this->outlet->code,
+                'name' => $this->outlet->name,
+                'latitude' => -6.2000000,
+                'longitude' => 106.8000000,
+                'geo_radius_m' => 80,
+            ])
+            ->assertRedirect(route('outlets.index'));
+
+        $this->outlet->refresh();
+        $this->assertEquals(-6.2, (float) $this->outlet->latitude);
+        $this->assertSame(80, (int) $this->outlet->geo_radius_m);
+
+        $this->employee->refresh();
+        $this->travelTo(now()->setTime(8, 0));
+        $service = app(AttendanceService::class);
+
+        try {
+            $service->clockIn($this->employee, -6.8721000, 107.5425000, UploadedFile::fake()->image('selfie.jpg'));
+            $this->fail('Absen di luar titik kafe harus ditolak.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('gps', $e->errors());
+        }
+
+        $row = $service->clockIn($this->employee, -6.2000000, 106.8000000, UploadedFile::fake()->image('selfie.jpg'));
+        $this->assertNotNull($row->clock_in_at);
     }
 
     public function test_employee_seeder_creates_four_staff(): void

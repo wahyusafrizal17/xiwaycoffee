@@ -57,6 +57,9 @@ class OutletController extends Controller
             'city' => ['nullable', 'string', 'max:80'],
             'address' => ['nullable', 'string'],
             'phone' => ['nullable', 'string', 'max:30'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'geo_radius_m' => ['nullable', 'integer', 'min:10', 'max:2000'],
             'is_central_kitchen' => ['sometimes', 'boolean'],
             'opens_at' => ['nullable'],
             'closes_at' => ['nullable'],
@@ -67,6 +70,7 @@ class OutletController extends Controller
         ]) + [
             'is_central_kitchen' => $request->boolean('is_central_kitchen'),
             'is_active' => true,
+            'geo_radius_m' => $request->input('geo_radius_m') ?: 150,
         ]);
 
         return redirect()->route('outlets.index')->with('success', 'Outlet ditambahkan.');
@@ -82,6 +86,9 @@ class OutletController extends Controller
             'city' => ['nullable', 'string', 'max:80'],
             'address' => ['nullable', 'string'],
             'phone' => ['nullable', 'string', 'max:30'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'geo_radius_m' => ['nullable', 'integer', 'min:10', 'max:2000'],
             'is_central_kitchen' => ['sometimes', 'boolean'],
             'is_active' => ['sometimes', 'boolean'],
             'opens_at' => ['nullable'],
@@ -93,6 +100,7 @@ class OutletController extends Controller
         ]) + [
             'is_central_kitchen' => $request->boolean('is_central_kitchen'),
             'is_active' => $request->boolean('is_active', $outlet->is_active),
+            'geo_radius_m' => $request->input('geo_radius_m') ?: 150,
         ]);
 
         return redirect()->route('outlets.index')->with('success', 'Outlet diperbarui.');

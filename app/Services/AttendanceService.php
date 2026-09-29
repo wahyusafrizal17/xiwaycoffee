@@ -4,15 +4,22 @@ namespace App\Services;
 
 use App\Models\Attendance;
 use App\Models\Employee;
-use App\Models\Outlet;
+use App\Models\WorkShift;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class AttendanceService
 {
-    public function clockIn(Employee $employee, float $lat, float $lng, UploadedFile|string $selfie): Attendance
+    public function clockIn(Employee $employee, float $lat, float $lng, UploadedFile|string $selfie, ?string $reason = null): Attendance
     {
+        if ($this->isOff($employee)) {
+            throw ValidationException::withMessages([
+                'clock_in' => 'Hari ini OFF. Tidak perlu absen.',
+            ]);
+        }
+
         $outlet = $employee->outlet;
         if (! $outlet?->latitude || ! $outlet?->longitude) {
             throw ValidationException::withMessages([
@@ -37,8 +44,13 @@ class AttendanceService
         }
 
         $path = $this->storeSelfie($employee, $selfie);
-        $cutoff = (string) config('pos.attendance.late_after', '08:30');
-        $isLate = now()->format('H:i') > $cutoff;
+        $isLate = $this->isLate($employee);
+        $reason = trim((string) $reason);
+        if ($isLate && $reason === '') {
+            throw ValidationException::withMessages([
+                'late_reason' => 'Absen lewat jadwal. Alasan wajib diisi.',
+            ]);
+        }
 
         return Attendance::query()->updateOrCreate(
             ['employee_id' => $employee->id, 'work_date' => $today],
@@ -50,8 +62,39 @@ class AttendanceService
                 'clock_in_distance_m' => $distance,
                 'selfie_path' => $path,
                 'is_late' => $isLate,
+                'late_reason' => $isLate ? $reason : null,
             ],
         );
+    }
+
+    public function isLate(Employee $employee, ?Carbon $at = null): bool
+    {
+        $at = $at ?? now();
+        $shift = WorkShift::query()
+            ->where('employee_id', $employee->id)
+            ->whereDate('work_date', $at->toDateString())
+            ->first();
+
+        if ($shift && ! $shift->starts_at) {
+            return false;
+        }
+
+        $cutoff = $shift?->starts_at
+            ? Carbon::parse($at->toDateString().' '.$shift->starts_at)->subMinutes(30)
+            : Carbon::parse($at->toDateString().' '.config('pos.attendance.late_after', '08:30'));
+
+        return $at->greaterThan($cutoff);
+    }
+
+    public function isOff(Employee $employee, ?Carbon $at = null): bool
+    {
+        $at = $at ?? now();
+        $shift = WorkShift::query()
+            ->where('employee_id', $employee->id)
+            ->whereDate('work_date', $at->toDateString())
+            ->first();
+
+        return $shift !== null && ! $shift->starts_at;
     }
 
     public function clockOut(Employee $employee, float $lat, float $lng): Attendance

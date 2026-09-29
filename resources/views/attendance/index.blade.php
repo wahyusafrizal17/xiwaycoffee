@@ -6,8 +6,8 @@
         <div class="stat-card">
             <div>
                 <p class="stat-kicker">Batas tepat waktu</p>
-                <p class="stat-value">{{ $lateAfter }}</p>
-                <p class="stat-hint">Lewat jam ini dihitung telat</p>
+                <p class="stat-value">{{ $offToday ? 'OFF' : $clockInBy }}</p>
+                <p class="stat-hint">{{ $offToday ? 'Hari ini OFF. Tidak perlu absen.' : '30 menit sebelum jadwal masuk' }}</p>
             </div>
         </div>
         @if ($employee)
@@ -22,7 +22,9 @@
                 <div>
                     <p class="stat-kicker">Status hari ini</p>
                     <p class="stat-value !text-2xl">
-                        @if (! $today?->clock_in_at)
+                        @if ($offToday && ! $today?->clock_in_at)
+                            OFF
+                        @elseif (! $today?->clock_in_at)
                             Belum absen
                         @elseif (! $today?->clock_out_at)
                             {{ $today->is_late ? 'Masuk (telat)' : 'Masuk' }}
@@ -44,11 +46,13 @@
         <div class="card p-6 text-sm text-muted">Akun ini belum terdaftar sebagai karyawan.</div>
     @endif
 
-    @if ($employee)
+    @if ($employee && $offToday && ! $today?->clock_in_at)
+        <div class="card p-6 text-sm text-muted">Hari ini OFF. Tidak perlu absen.</div>
+    @elseif ($employee)
         <div class="mb-5 grid gap-4 lg:grid-cols-2" x-data="attendanceCam()">
             <div class="card p-5">
                 <h5 class="card-header-title mb-1">Absen masuk</h5>
-                <p class="mb-4 text-sm text-muted">Wajib GPS di area ruko + selfie. Pastikan izinkan kamera & lokasi.</p>
+                <p class="mb-4 text-sm text-muted">Wajib di titik kafe{{ $outlet?->geo_radius_m ? ' (radius '.$outlet->geo_radius_m.' m)' : '' }} + selfie. Titik diset admin di outlet.</p>
 
                 <div class="mb-3 overflow-hidden rounded-xl bg-slate-900">
                     <video x-ref="video" class="aspect-[4/3] w-full object-cover" autoplay playsinline muted x-show="!selfie"></video>
@@ -69,6 +73,11 @@
                     <input type="hidden" name="latitude" x-model="lat">
                     <input type="hidden" name="longitude" x-model="lng">
                     <input type="hidden" name="selfie" x-model="selfie">
+                    <div class="mb-3">
+                        <label class="label">Alasan terlambat</label>
+                        <input class="input" type="text" name="late_reason" value="{{ old('late_reason') }}" maxlength="255" placeholder="Wajib jika lewat batas" @if ($reasonRequired) required @endif>
+                        @error('late_reason')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                    </div>
                     <button
                         type="submit"
                         class="btn-primary"
@@ -85,7 +94,7 @@
 
             <div class="card p-5">
                 <h5 class="card-header-title mb-1">Absen pulang</h5>
-                <p class="mb-4 text-sm text-muted">GPS harus di area ruko. Selfie tidak wajib saat pulang.</p>
+                <p class="mb-4 text-sm text-muted">GPS harus di titik kafe. Selfie tidak wajib saat pulang.</p>
 
                 <form method="POST" action="{{ route('attendance.clock-out') }}" @submit="prepareOut($event)">
                     @csrf
@@ -107,7 +116,7 @@
                         <p class="label mb-2">Selfie hari ini</p>
                         <img src="{{ $today->selfieUrl() }}" alt="Selfie" class="max-h-48 rounded-xl border border-line object-cover">
                         @if ($today->is_late)
-                            <p class="mt-2 text-xs font-medium text-amber-600">Tercatat telat (melewati {{ $lateAfter }}).</p>
+                            <p class="mt-2 text-xs font-medium text-amber-600">Tercatat telat{{ $today->late_reason ? ': '.$today->late_reason : '' }}.</p>
                         @endif
                     </div>
                 @endif
@@ -126,6 +135,7 @@
                             <th>Masuk</th>
                             <th>Pulang</th>
                             <th>Status</th>
+                            <th>Alasan</th>
                             <th>Jarak</th>
                         </tr>
                     </thead>
@@ -142,10 +152,11 @@
                                         <span class="text-emerald-600">Tepat waktu</span>
                                     @endif
                                 </td>
+                                <td class="max-w-[200px] truncate text-[13px] text-muted">{{ $row->late_reason ?: '—' }}</td>
                                 <td>{{ $row->clock_in_distance_m !== null ? $row->clock_in_distance_m.' m' : '—' }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="py-10 text-center text-sm text-slate-400">Belum ada riwayat.</td></tr>
+                            <tr><td colspan="6" class="py-10 text-center text-sm text-slate-400">Belum ada riwayat.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

@@ -8,6 +8,7 @@ use App\Models\WorkShift;
 use App\Services\AttendanceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class AttendanceController extends Controller
@@ -54,13 +55,24 @@ class AttendanceController extends Controller
                 ->get();
         }
 
+        $clockInBy = config('pos.attendance.late_after', '08:30');
+        $offToday = false;
+        if ($todayShift?->starts_at) {
+            $clockInBy = Carbon::parse($todayShift->starts_at)->subMinutes(30)->format('H:i');
+        } elseif ($todayShift) {
+            $offToday = true;
+            $clockInBy = null;
+        }
+
         return view('attendance.index', [
             'employee' => $employee,
             'today' => $today,
             'todayShift' => $todayShift,
             'history' => $history,
             'team' => $team,
-            'lateAfter' => config('pos.attendance.late_after', '08:30'),
+            'clockInBy' => $clockInBy,
+            'offToday' => $offToday,
+            'reasonRequired' => $employee && ! $offToday ? app(AttendanceService::class)->isLate($employee) : false,
             'outlet' => $employee?->outlet,
         ]);
     }
@@ -78,9 +90,16 @@ class AttendanceController extends Controller
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
             'selfie' => ['required', 'string'],
+            'late_reason' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $attendance->clockIn($employee, (float) $data['latitude'], (float) $data['longitude'], $data['selfie']);
+        $attendance->clockIn(
+            $employee,
+            (float) $data['latitude'],
+            (float) $data['longitude'],
+            $data['selfie'],
+            $data['late_reason'] ?? null,
+        );
 
         return back()->with('success', 'Absen masuk tercatat.');
     }

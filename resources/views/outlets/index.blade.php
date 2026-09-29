@@ -12,6 +12,9 @@
             'city' => old('city', data_get($focusPayload, 'city', '')),
             'address' => old('address', data_get($focusPayload, 'address', '')),
             'phone' => old('phone', data_get($focusPayload, 'phone', '')),
+            'latitude' => old('latitude', data_get($focusPayload, 'latitude', '')),
+            'longitude' => old('longitude', data_get($focusPayload, 'longitude', '')),
+            'geo_radius_m' => old('geo_radius_m', data_get($focusPayload, 'geo_radius_m', 150)),
             'opens_at' => old('opens_at', data_get($focusPayload, 'opens_at', '')),
             'closes_at' => old('closes_at', data_get($focusPayload, 'closes_at', '')),
             'is_central_kitchen' => old('is_central_kitchen', data_get($focusPayload, 'is_central_kitchen', false) ? '1' : '0') === '1',
@@ -204,6 +207,10 @@
                         <p class="stat-kicker">Alamat</p>
                         <p class="mt-1 text-sm font-semibold" x-text="viewing?.address || '—'"></p>
                     </div>
+                    <div class="mt-4 rounded-xl bg-[#fafafa] px-4 py-3">
+                        <p class="stat-kicker">Titik absen</p>
+                        <p class="mt-1 text-sm font-semibold" x-text="viewing?.latitude ? (viewing.latitude + ', ' + viewing.longitude + ' · ' + viewing.geo_radius_m + ' m') : 'Belum diset'"></p>
+                    </div>
                 </div>
                 @can('outlets.manage')
                     <div class="crud-modal-footer">
@@ -266,6 +273,25 @@
                                     <label class="label">Alamat</label>
                                     <textarea class="input min-h-24" name="address" x-model="form.address"></textarea>
                                 </div>
+                                <div>
+                                    <label class="label">Latitude</label>
+                                    <input class="input" name="latitude" inputmode="decimal" x-model="form.latitude" placeholder="-6.8721000">
+                                    @error('latitude')<p class="mt-1 text-sm text-red-600" x-show="serverFormError" x-cloak>{{ $message }}</p>@enderror
+                                </div>
+                                <div>
+                                    <label class="label">Longitude</label>
+                                    <input class="input" name="longitude" inputmode="decimal" x-model="form.longitude" placeholder="107.5425000">
+                                    @error('longitude')<p class="mt-1 text-sm text-red-600" x-show="serverFormError" x-cloak>{{ $message }}</p>@enderror
+                                </div>
+                                <div>
+                                    <label class="label">Radius absen (m)</label>
+                                    <input class="input" type="number" name="geo_radius_m" min="10" max="2000" x-model="form.geo_radius_m">
+                                    @error('geo_radius_m')<p class="mt-1 text-sm text-red-600" x-show="serverFormError" x-cloak>{{ $message }}</p>@enderror
+                                </div>
+                                <div class="flex items-end">
+                                    <button type="button" class="btn-ghost" @click="useMyLocation()">Ambil titik saya</button>
+                                </div>
+                                <p class="sm:col-span-2 text-[12px] text-muted" x-show="geoLabel" x-text="geoLabel"></p>
                                 <div class="sm:col-span-2 flex flex-wrap gap-5">
                                     <label class="flex items-center gap-2.5 text-sm">
                                         <input type="hidden" name="is_central_kitchen" :value="form.is_central_kitchen ? 1 : 0">
@@ -302,6 +328,9 @@
                 city: '',
                 address: '',
                 phone: '',
+                latitude: '',
+                longitude: '',
+                geo_radius_m: 150,
                 opens_at: '',
                 closes_at: '',
                 is_central_kitchen: false,
@@ -330,6 +359,25 @@
                 viewOpen: !formError && requestedModal === 'view' && !!focus,
                 viewing: focus,
                 serverFormError: formError,
+                geoLabel: '',
+                useMyLocation() {
+                    if (!navigator.geolocation) {
+                        this.geoLabel = 'Browser tidak mendukung GPS.';
+                        return;
+                    }
+                    this.geoLabel = 'Mengambil lokasi…';
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            this.form.latitude = pos.coords.latitude.toFixed(7);
+                            this.form.longitude = pos.coords.longitude.toFixed(7);
+                            this.geoLabel = 'Titik terisi dari lokasi perangkat.';
+                        },
+                        () => {
+                            this.geoLabel = 'Gagal ambil lokasi. Izinkan GPS, atau isi latitude dan longitude manual.';
+                        },
+                        { enableHighAccuracy: true, timeout: 15000 }
+                    );
+                },
                 openCreate() {
                     this.formMode = 'create';
                     this.form = emptyForm();

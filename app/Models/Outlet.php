@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AppliesFillableAttribute;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Concerns\AppliesFillableAttribute;
 
 #[Fillable(['code', 'name', 'city', 'address', 'phone', 'latitude', 'longitude', 'geo_radius_m', 'is_central_kitchen', 'is_active', 'opens_at', 'closes_at'])]
 class Outlet extends Model
@@ -85,6 +85,9 @@ class Outlet extends Model
             'city' => $this->city ?? '',
             'address' => $this->address ?? '',
             'phone' => $this->phone ?? '',
+            'latitude' => $this->latitude !== null ? (string) $this->latitude : '',
+            'longitude' => $this->longitude !== null ? (string) $this->longitude : '',
+            'geo_radius_m' => (int) ($this->geo_radius_m ?: 150),
             'opens_at' => $this->opens_at ? substr((string) $this->opens_at, 0, 5) : '',
             'closes_at' => $this->closes_at ? substr((string) $this->closes_at, 0, 5) : '',
             'hours_label' => $this->hoursLabel(),
