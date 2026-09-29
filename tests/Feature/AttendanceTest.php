@@ -129,7 +129,11 @@ class AttendanceTest extends TestCase
         $this->assertSame('09:00', $shift->starts_at);
         $this->assertSame('22:00', $shift->ends_at);
 
-        $off = WorkShift::query()->where('employee_id', $ergina->employee->id)->whereDate('work_date', '2026-09-30')->first();
+        $rere = WorkShift::query()->where('employee_id', $ergina->employee->id)->whereDate('work_date', '2026-09-30')->first();
+        $this->assertSame('09:00', $rere->starts_at);
+        $this->assertSame('17:00', $rere->ends_at);
+
+        $off = WorkShift::query()->where('employee_id', $ergina->employee->id)->whereDate('work_date', '2026-10-01')->first();
         $this->assertNull($off->starts_at);
     }
 
