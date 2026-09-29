@@ -154,6 +154,8 @@ class ProfitShareController extends Controller
         abort_unless($request->user()->hasPermission('reports.view'), 403);
 
         $data = $request->validate([
+            'from' => ['required', 'date'],
+            'to' => ['required', 'date', 'after_or_equal:from'],
             'settled_on' => ['required', 'date'],
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
@@ -162,10 +164,15 @@ class ProfitShareController extends Controller
             (int) current_outlet_id(),
             (int) $request->user()->id,
             $data['settled_on'],
+            $data['from'],
+            $data['to'],
             $data['notes'] ?? null,
         );
 
-        return redirect()->route('reports.setoran')->with('success', 'Setoran tercatat.');
+        return redirect()->route('reports.setoran', [
+            'from' => $data['from'],
+            'to' => $data['to'],
+        ])->with('success', 'Setoran tercatat.');
     }
 
     protected function canManageBop(Request $request): bool

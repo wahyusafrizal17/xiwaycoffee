@@ -11,9 +11,11 @@
         $chipOn = 'bg-brand text-white';
         $chipOff = 'bg-[#f5f5f5] text-muted hover:bg-[#ececec]';
         $formError = $errors->any();
+        $formOpen = $formError || request()->boolean('open');
+        $previewOutlet = filled($filters['outlet_id'] ?? null) ? '&outlet_id='.urlencode((string) $filters['outlet_id']) : '';
     @endphp
 
-    <div x-data="{ formOpen: {{ $formError ? 'true' : 'false' }} }" @keydown.escape.window="formOpen = false">
+    <div x-data="{ formOpen: {{ $formOpen ? 'true' : 'false' }} }" @keydown.escape.window="formOpen = false">
         @include('reports._nav')
 
         <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -22,7 +24,7 @@
                 <h1 class="mt-1 font-serif text-[1.75rem] font-semibold leading-none text-heading">Setoran makanan</h1>
                 <p class="mt-2 max-w-xl text-[13px] text-muted">Hitung bagian mitra, lalu catat saat cafe menyetor sekaligus.</p>
             </div>
-            <button type="button" class="btn-add" @click="formOpen = true" @if ($outstanding <= 0) disabled @endif>
+            <button type="button" class="btn-add" @click="formOpen = true" @if ($setoran <= 0) disabled @endif>
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/></svg>
                 Catat setoran
             </button>
@@ -119,7 +121,8 @@
                 <table class="list-table">
                     <thead>
                         <tr>
-                            <th>Tanggal</th>
+                            <th>Tanggal setor</th>
+                            <th>Periode</th>
                             <th class="text-right">Nominal</th>
                             <th>Keterangan</th>
                             <th>Oleh</th>
@@ -129,13 +132,20 @@
                         @forelse ($settlements as $settlement)
                             <tr>
                                 <td class="whitespace-nowrap text-[13px] text-muted">{{ $settlement->settled_on?->format('d M Y') }}</td>
+                                <td class="whitespace-nowrap text-[13px] text-muted">
+                                    @if ($settlement->period_from && $settlement->period_to)
+                                        {{ $settlement->period_from->format('d M Y') }} – {{ $settlement->period_to->format('d M Y') }}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
                                 <td class="text-right font-medium tabular-nums">{{ money($settlement->amount) }}</td>
                                 <td class="max-w-[280px] truncate text-[13px] text-muted">{{ $settlement->notes ?: '—' }}</td>
                                 <td class="text-[13px]">{{ $settlement->user?->name ?? '—' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="py-16 text-center text-sm text-slate-400">Belum ada setoran tercatat.</td>
+                                <td colspan="5" class="py-16 text-center text-sm text-slate-400">Belum ada setoran tercatat.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -151,7 +161,7 @@
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <h3 class="font-serif text-lg font-semibold text-heading">Catat setoran</h3>
-                                <p class="mt-1 text-[13px] text-muted">Menyetor seluruh sisa {{ money($outstanding) }} sekaligus.</p>
+                                <p class="mt-1 text-[13px] text-muted">Nominal mengikuti penjualan makanan pada periode yang dipilih.</p>
                             </div>
                             <button type="button" class="modal-close" @click="formOpen = false">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 6l12 12M18 6L6 18"/></svg>
@@ -159,6 +169,18 @@
                         </div>
 
                         <div class="mt-5 grid gap-4">
+                            <div class="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label class="label">Dari tanggal</label>
+                                    <input class="input" type="date" name="from" required value="{{ old('from', $filters['from'] ?? '') }}" onchange="if (this.value && this.form.to.value) location.href='{{ route('reports.setoran') }}?open=1&from='+encodeURIComponent(this.value)+'&to='+encodeURIComponent(this.form.to.value)+'{{ $previewOutlet }}'">
+                                    @error('from')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                                <div>
+                                    <label class="label">Sampai tanggal</label>
+                                    <input class="input" type="date" name="to" required value="{{ old('to', $filters['to'] ?? '') }}" onchange="if (this.form.from.value && this.value) location.href='{{ route('reports.setoran') }}?open=1&from='+encodeURIComponent(this.form.from.value)+'&to='+encodeURIComponent(this.value)+'{{ $previewOutlet }}'">
+                                    @error('to')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                            </div>
                             <div>
                                 <label class="label">Tanggal setor</label>
                                 <input class="input" type="date" name="settled_on" required value="{{ old('settled_on', now()->toDateString()) }}">
@@ -166,9 +188,8 @@
                             </div>
                             <div>
                                 <label class="label">Nominal</label>
-                                <input class="input bg-[#fafafa]" type="text" value="{{ money($outstanding) }}" readonly>
-                                <p class="mt-1 text-[12px] text-muted">Otomatis seluruh yang belum disetor.</p>
-                                @error('amount')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                <input class="input bg-[#fafafa]" type="text" value="{{ money($setoran) }}" readonly>
+                                <p class="mt-1 text-[12px] text-muted">{{ 100 - (int) config('pos.food_cafe_percent', 10) }}% penjualan makanan pada periode di atas. Sisa belum disetor {{ money($outstanding) }}.</p>
                             </div>
                             <div>
                                 <label class="label">Keterangan</label>
@@ -179,7 +200,7 @@
                     </div>
                     <div class="crud-modal-footer">
                         <button type="button" class="btn-ghost" @click="formOpen = false">Batal</button>
-                        <button class="btn-add" type="submit" @if ($outstanding <= 0) disabled @endif>Simpan setoran</button>
+                        <button class="btn-add" type="submit" @if ($setoran <= 0) disabled @endif>Simpan setoran</button>
                     </div>
                 </form>
             </div>

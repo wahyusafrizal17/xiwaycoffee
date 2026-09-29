@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['outlet_id', 'user_id', 'settled_on', 'amount', 'notes'])]
+#[Fillable(['outlet_id', 'user_id', 'settled_on', 'period_from', 'period_to', 'amount', 'notes'])]
 class FoodSettlement extends Model
 {
     use AppliesFillableAttribute;
@@ -16,6 +16,8 @@ class FoodSettlement extends Model
     {
         return [
             'settled_on' => 'date',
+            'period_from' => 'date',
+            'period_to' => 'date',
             'amount' => 'decimal:2',
         ];
     }

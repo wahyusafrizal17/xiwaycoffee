@@ -123,6 +123,8 @@ class BankAccountTest extends TestCase
 
         $this->actingAsAtOutlet($this->admin)
             ->post(route('reports.setoran.store'), [
+                'from' => now()->toDateString(),
+                'to' => now()->toDateString(),
                 'settled_on' => now()->toDateString(),
                 'notes' => 'Setor mitra',
             ])

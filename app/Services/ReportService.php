@@ -432,13 +432,36 @@ class ReportService
         ];
     }
 
-    public function settleFoodSetoran(int $outletId, int $userId, string $settledOn, ?string $notes = null): FoodSettlement
+    public function settleFoodSetoran(int $outletId, int $userId, string $settledOn, string $from, string $to, ?string $notes = null): FoodSettlement
     {
-        $outstanding = $this->foodSetoranBalance($outletId)['outstanding'];
+        $amount = (float) $this->foodSetoran([
+            'outlet_id' => $outletId,
+            'from' => $from,
+            'to' => $to,
+        ])['setoran'];
 
-        if ($outstanding <= 0) {
+        if ($amount <= 0) {
             throw ValidationException::withMessages([
-                'amount' => 'Tidak ada setoran yang belum dibayar.',
+                'from' => 'Tidak ada setoran makanan pada periode ini.',
+            ]);
+        }
+
+        $overlap = FoodSettlement::query()
+            ->where('outlet_id', $outletId)
+            ->whereDate('period_from', '<=', $to)
+            ->whereDate('period_to', '>=', $from)
+            ->exists();
+
+        if ($overlap) {
+            throw ValidationException::withMessages([
+                'from' => 'Periode ini sudah pernah disetor.',
+            ]);
+        }
+
+        $outstanding = $this->foodSetoranBalance($outletId)['outstanding'];
+        if ($amount > $outstanding) {
+            throw ValidationException::withMessages([
+                'from' => 'Nominal periode melebihi yang belum disetor.',
             ]);
         }
 
@@ -446,13 +469,15 @@ class ReportService
             'outlet_id' => $outletId,
             'user_id' => $userId,
             'settled_on' => $settledOn,
-            'amount' => $outstanding,
+            'period_from' => $from,
+            'period_to' => $to,
+            'amount' => $amount,
             'notes' => $notes,
         ]);
 
         app(BankAccountService::class)->debit(
             $outletId,
-            $outstanding,
+            $amount,
             BankMovementType::FoodSettlement,
             $settlement,
             $notes ?: 'Setoran makanan mitra',

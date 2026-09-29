@@ -9,6 +9,7 @@ use App\Enums\ProductType;
 use App\Models\Product;
 use App\Services\OrderService;
 use App\Services\ProfitShareService;
+use Database\Seeders\CatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\SeedsPosFixture;
 use Tests\TestCase;
@@ -169,6 +170,8 @@ class ProfitShareTest extends TestCase
 
         $this->actingAsAtOutlet($this->cashier)
             ->post(route('reports.setoran.store'), [
+                'from' => now()->toDateString(),
+                'to' => now()->toDateString(),
                 'settled_on' => now()->toDateString(),
                 'notes' => 'Kasir tidak boleh',
             ])
@@ -182,10 +185,15 @@ class ProfitShareTest extends TestCase
 
         $this->actingAsAtOutlet($this->admin)
             ->post(route('reports.setoran.store'), [
+                'from' => now()->toDateString(),
+                'to' => now()->toDateString(),
                 'settled_on' => now()->toDateString(),
                 'notes' => 'Setoran minggu ini',
             ])
-            ->assertRedirect(route('reports.setoran'));
+            ->assertRedirect(route('reports.setoran', [
+                'from' => now()->toDateString(),
+                'to' => now()->toDateString(),
+            ]));
 
         $this->actingAsAtOutlet($this->admin)
             ->get(route('reports.setoran'))
@@ -195,9 +203,64 @@ class ProfitShareTest extends TestCase
             ->assertSee('Setoran minggu ini');
     }
 
+    public function test_food_setoran_can_be_recorded_for_a_date_range(): void
+    {
+        $food = Product::query()->create([
+            'sku' => 'PRD-FOOD-RANGE',
+            'name' => 'Ayam Range',
+            'category_id' => $this->foodCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 20000,
+            'consignment_commission' => 2000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+            'station' => PrinterStation::Kitchen->value,
+        ]);
+
+        $this->actingAsAtOutlet($this->cashier);
+        $orders = app(OrderService::class);
+        foreach (['2026-09-21', '2026-09-24'] as $date) {
+            $order = $orders->createDraft([
+                'outlet_id' => $this->outlet->id,
+                'order_type' => OrderType::Pickup->value,
+            ]);
+            $orders->addItem($order, ['product_id' => $food->id, 'quantity' => 1]);
+            $order = $orders->checkout($order->fresh(), [
+                'method' => PaymentMethod::Cash->value,
+                'tendered' => 100000,
+            ]);
+            $order->forceFill(['created_at' => $date.' 12:00:00'])->save();
+        }
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('reports.setoran.store'), [
+                'from' => '2026-09-21',
+                'to' => '2026-09-22',
+                'settled_on' => '2026-09-22',
+                'notes' => 'Setoran dua hari',
+            ])
+            ->assertRedirect();
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('reports.setoran', ['from' => '2026-09-21', 'to' => '2026-09-24']))
+            ->assertOk()
+            ->assertSee('Setoran dua hari')
+            ->assertSee(money(18000));
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('reports.setoran.store'), [
+                'from' => '2026-09-21',
+                'to' => '2026-09-21',
+                'settled_on' => '2026-09-25',
+            ])
+            ->assertSessionHasErrors('from');
+    }
+
     public function test_catalog_seeder_marks_food_as_consignment(): void
     {
-        $this->seed(\Database\Seeders\CatalogSeeder::class);
+        $this->seed(CatalogSeeder::class);
 
         $sanger = Product::query()->where('name', 'Sanger Classic')->where('is_active', true)->first();
         $this->assertNotNull($sanger);
