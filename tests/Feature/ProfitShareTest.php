@@ -11,6 +11,7 @@ use App\Services\OrderService;
 use App\Services\ProfitShareService;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\Support\SeedsPosFixture;
 use Tests\TestCase;
 
@@ -58,6 +59,7 @@ class ProfitShareTest extends TestCase
                 'category' => 'sewa',
                 'amount' => 10000,
                 'notes' => 'Sewa bulan ini',
+                'evidence' => UploadedFile::fake()->image('bukti.jpg'),
             ])
             ->assertRedirect();
 

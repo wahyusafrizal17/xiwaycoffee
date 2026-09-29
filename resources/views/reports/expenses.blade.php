@@ -85,6 +85,7 @@
                             <th class="text-right">Nominal</th>
                             <th>Bayar</th>
                             <th>Keterangan</th>
+                            <th>Bukti</th>
                             <th>Oleh</th>
                         </tr>
                         <tr class="filter-row">
@@ -111,6 +112,7 @@
                             <th>
                                 <input form="expense-filters" class="col-filter" type="search" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Keterangan..." onchange="this.form.submit()">
                             </th>
+                            <th></th>
                             <th>
                                 <input form="expense-filters" class="col-filter" type="search" name="user" value="{{ $filters['user'] ?? '' }}" placeholder="Nama..." onchange="this.form.submit()">
                             </th>
@@ -129,11 +131,18 @@
                                 <td class="text-right font-medium tabular-nums">{{ money($expense->amount) }}</td>
                                 <td class="text-[13px] text-muted">{{ $expense->payment_method?->label() ?? '—' }}</td>
                                 <td class="max-w-[280px] truncate text-[13px] text-muted">{{ $expense->notes ?: '—' }}</td>
+                                <td class="text-[13px]">
+                                    @if (filled($expense->evidence))
+                                        <a class="font-medium text-brand" href="{{ asset($expense->evidence) }}" target="_blank" rel="noopener">Lihat</a>
+                                    @else
+                                        —
+                                    @endif
+                                </td>
                                 <td class="text-[13px]">{{ $expense->user?->name ?? '—' }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="!border-0">
+                                <td colspan="7" class="!border-0">
                                     <div class="flex flex-col items-center justify-center px-6 py-16 text-center">
                                         <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f6f3ef] text-muted">
                                             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-2.2 0-4 1.3-4 3s1.8 3 4 3 4 1.3 4 3-1.8 3-4 3m0-12V5m0 14v-2"/></svg>
@@ -158,7 +167,7 @@
 
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="formOpen" x-cloak @click.self="formOpen = false">
             <div class="crud-modal" @click.stop>
-                <form class="flex min-h-0 flex-1 flex-col" method="POST" action="{{ route('reports.expenses.store') }}">
+                <form class="flex min-h-0 flex-1 flex-col" method="POST" action="{{ route('reports.expenses.store') }}" enctype="multipart/form-data">
                     @csrf
                     <div class="crud-modal-body">
                         <div class="flex items-start justify-between gap-3">
@@ -203,6 +212,12 @@
                                     @endforeach
                                 </select>
                                 @error('payment_method')<p class="mt-1 text-sm text-red-600" x-show="serverFormError" x-cloak>{{ $message }}</p>@enderror
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="label">Bukti</label>
+                                <input class="input" type="file" name="evidence" accept="image/jpeg,image/png,image/webp,application/pdf" required>
+                                <p class="mt-1 text-[12px] text-muted">Foto atau PDF, maksimal 5 MB.</p>
+                                @error('evidence')<p class="mt-1 text-sm text-red-600" x-show="serverFormError" x-cloak>{{ $message }}</p>@enderror
                             </div>
                             <div class="sm:col-span-2">
                                 <label class="label">Keterangan</label>

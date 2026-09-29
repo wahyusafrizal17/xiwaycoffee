@@ -99,10 +99,25 @@ class ProfitShareController extends Controller
             'amount' => ['required', 'numeric', 'min:1'],
             'payment_method' => ['nullable', Rule::enum(ExpensePaymentMethod::class)],
             'notes' => ['nullable', 'string', 'max:255'],
+            'evidence' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
+        ], [
+            'evidence.required' => 'Bukti wajib diunggah.',
+            'evidence.mimes' => 'Bukti harus berupa foto atau PDF.',
+            'evidence.max' => 'Bukti maksimal 5 MB.',
         ]);
+
+        $file = $request->file('evidence');
+        $directory = public_path('evidence/bop');
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+        $name = $file->hashName();
+        $file->move($directory, $name);
+        unset($data['evidence']);
 
         $expense = OperatingExpense::query()->create([
             ...$data,
+            'evidence' => 'evidence/bop/'.$name,
             'payment_method' => $data['payment_method'] ?? null,
             'outlet_id' => current_outlet_id(),
             'user_id' => $request->user()->id,

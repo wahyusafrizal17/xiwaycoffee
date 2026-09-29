@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['outlet_id', 'user_id', 'spent_on', 'category', 'amount', 'payment_method', 'notes'])]
+#[Fillable(['outlet_id', 'user_id', 'spent_on', 'category', 'amount', 'payment_method', 'notes', 'evidence'])]
 class OperatingExpense extends Model
 {
     use AppliesFillableAttribute;

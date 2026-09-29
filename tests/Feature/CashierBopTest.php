@@ -6,6 +6,7 @@ use App\Enums\ExpenseCategory;
 use App\Enums\ExpensePaymentMethod;
 use App\Models\OperatingExpense;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\Support\SeedsPosFixture;
 use Tests\TestCase;
 
@@ -34,10 +35,25 @@ class CashierBopTest extends TestCase
                 'spent_on' => now()->toDateString(),
                 'category' => ExpenseCategory::Ingredients->value,
                 'amount' => 50000,
+                'notes' => 'Tanpa bukti',
+            ])
+            ->assertSessionHasErrors('evidence');
+
+        $this->actingAs($this->cashier)
+            ->post(route('reports.expenses.store'), [
+                'spent_on' => now()->toDateString(),
+                'category' => ExpenseCategory::Ingredients->value,
+                'amount' => 50000,
                 'payment_method' => ExpensePaymentMethod::Cash->value,
                 'notes' => 'Belanja es batu',
+                'evidence' => UploadedFile::fake()->image('bukti.jpg'),
             ])
             ->assertRedirect(route('reports.expenses'));
+
+        $this->actingAs($this->cashier)
+            ->get(route('reports.expenses'))
+            ->assertOk()
+            ->assertSee('Lihat');
 
         $this->assertDatabaseHas('operating_expenses', [
             'amount' => 50000,
@@ -84,6 +100,7 @@ class CashierBopTest extends TestCase
                 'category' => ExpenseCategory::Electricity->value,
                 'amount' => 1000000,
                 'notes' => 'Tagihan listrik September 2026',
+                'evidence' => UploadedFile::fake()->image('listrik.jpg'),
             ])
             ->assertRedirect();
 
@@ -92,6 +109,7 @@ class CashierBopTest extends TestCase
                 'spent_on' => now()->toDateString(),
                 'category' => ExpenseCategory::Wifi->value,
                 'amount' => 325000,
+                'evidence' => UploadedFile::fake()->image('wifi.jpg'),
             ])
             ->assertRedirect();
 
@@ -100,6 +118,7 @@ class CashierBopTest extends TestCase
                 'spent_on' => now()->toDateString(),
                 'category' => ExpenseCategory::Maintenance->value,
                 'amount' => 500000,
+                'evidence' => UploadedFile::fake()->image('maintenance.jpg'),
             ])
             ->assertRedirect();
 

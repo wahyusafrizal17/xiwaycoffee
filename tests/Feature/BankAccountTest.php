@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Services\BankAccountService;
 use App\Services\OrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\Support\SeedsPosFixture;
 use Tests\TestCase;
 
@@ -116,6 +117,7 @@ class BankAccountTest extends TestCase
                 'category' => 'sewa',
                 'amount' => 5000,
                 'notes' => 'Sewa dari rekening',
+                'evidence' => UploadedFile::fake()->image('bukti.jpg'),
             ])
             ->assertRedirect();
 
