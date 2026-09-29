@@ -31,6 +31,10 @@
                         @endif
                     </p>
                     <p class="stat-hint">{{ $outlet?->name }}</p>
+                    @if ($todayShift)
+                        <p class="mt-1 text-[12px] text-muted">Jadwal hari ini: <span class="font-medium text-heading">{{ $todayShift->label($employee->position) }}</span></p>
+                    @endif
+                    <a href="{{ route('schedules.index') }}" class="mt-2 inline-block text-[12px] font-medium text-brand">Lihat jadwal</a>
                 </div>
             </div>
         @endif

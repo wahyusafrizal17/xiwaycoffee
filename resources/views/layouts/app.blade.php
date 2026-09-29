@@ -36,6 +36,7 @@
                             ['label' => 'POS', 'route' => 'pos.index', 'perm' => 'pos.access', 'icon' => 'pos'],
                             ['label' => 'Orders', 'route' => 'orders.index', 'perm' => 'orders.view', 'icon' => 'orders'],
                             ['label' => 'Absensi', 'route' => 'attendance.index', 'perm' => 'attendance.clock', 'icon' => 'clipboard'],
+                            ['label' => 'Jadwal', 'route' => 'schedules.index', 'perm' => 'attendance.clock', 'icon' => 'clipboard'],
                         ],
                         'Produk & Inventory' => [
                             ['label' => 'Products', 'route' => 'products.index', 'perm' => 'products.view', 'icon' => 'products'],
@@ -200,7 +201,8 @@
         @if (auth()->user()?->hasPermission('dashboard.view'))
             <a href="{{ route('dashboard') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('dashboard') ? 'text-brand' : 'text-muted' }}">Home</a>
         @elseif (auth()->user()?->hasPermission('attendance.clock'))
-            <a href="{{ route('attendance.index') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('attendance.*') ? 'text-brand' : 'text-muted' }}">Absen</a>
+            <a href="{{ route('attendance.index') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('attendance.index') ? 'text-brand' : 'text-muted' }}">Absen</a>
+            <a href="{{ route('schedules.index') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('schedules.*') ? 'text-brand' : 'text-muted' }}">Jadwal</a>
         @endif
         @if (auth()->user()?->can('pos.access'))
             <a href="{{ route('pos.index') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('pos.*') ? 'text-brand' : 'text-muted' }}">POS</a>

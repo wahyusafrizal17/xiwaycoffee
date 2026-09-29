@@ -2,18 +2,20 @@
 
 namespace Tests\Feature;
 
-use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Outlet;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\WorkShift;
 use App\Services\AttendanceService;
 use Database\Seeders\EmployeeSeeder;
 use Database\Seeders\RoleSeeder;
+use Database\Seeders\WorkShiftSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class AttendanceTest extends TestCase
@@ -67,7 +69,7 @@ class AttendanceTest extends TestCase
         $service = app(AttendanceService::class);
         $selfie = UploadedFile::fake()->image('selfie.jpg');
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
         $service->clockIn($this->employee, -6.9000000, 107.6000000, $selfie);
     }
 
@@ -102,6 +104,33 @@ class AttendanceTest extends TestCase
             'salary' => 3000000,
         ]);
         $this->assertDatabaseHas('users', ['email' => 'jimmy@xiway.local']);
+    }
+
+    public function test_schedule_is_tied_to_staff_accounts(): void
+    {
+        $this->seed(EmployeeSeeder::class);
+        $this->seed(WorkShiftSeeder::class);
+
+        $ergina = User::query()->where('email', 'ergina@xiway.local')->first();
+        $this->actingAs($ergina)
+            ->get(route('schedules.index'))
+            ->assertOk()
+            ->assertSee('Ergina')
+            ->assertSee('Zakki')
+            ->assertSee('Naurah')
+            ->assertSee('Jimmy')
+            ->assertSee('OFF')
+            ->assertSee('09.00-22.00*');
+
+        $this->assertSame(128, WorkShift::query()->count());
+
+        $zakiId = User::query()->where('email', 'zakki@xiway.local')->first()->employee->id;
+        $shift = WorkShift::query()->where('employee_id', $zakiId)->whereDate('work_date', '2026-09-30')->first();
+        $this->assertSame('09:00', $shift->starts_at);
+        $this->assertSame('22:00', $shift->ends_at);
+
+        $off = WorkShift::query()->where('employee_id', $ergina->employee->id)->whereDate('work_date', '2026-09-30')->first();
+        $this->assertNull($off->starts_at);
     }
 
     public function test_karyawan_lands_on_attendance_after_login(): void

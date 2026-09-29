@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
                 InviteGuestSeeder::class,
                 BopSeeder::class,
                 EmployeeSeeder::class,
+                WorkShiftSeeder::class,
             ]);
         });
     }
