@@ -8,6 +8,7 @@ use App\Enums\PrinterStation;
 use App\Enums\ProductType;
 use App\Models\Category;
 use App\Models\Product;
+use App\Services\DashboardService;
 use App\Services\OrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\SeedsPosFixture;
@@ -130,5 +131,46 @@ class DashboardTest extends TestCase
             ->assertDontSee('Pendapatan bersih')
             ->assertDontSee('Breakdown penjualan')
             ->assertDontSee('Wahyu');
+    }
+
+    public function test_dashboard_halves_food_prices_on_20_september_2026(): void
+    {
+        $food = Product::query()->create([
+            'sku' => 'PRD-FOOD-HALF',
+            'name' => 'Ayam Half',
+            'category_id' => $this->foodCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 20000,
+            'consignment_commission' => 2000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+            'station' => PrinterStation::Kitchen->value,
+        ]);
+
+        $this->actingAsAtOutlet($this->cashier);
+        $orders = app(OrderService::class);
+        $order = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($order, ['product_id' => $food->id, 'quantity' => 1]);
+        $order = $orders->checkout($order->fresh(), [
+            'method' => PaymentMethod::Cash->value,
+            'tendered' => 100000,
+        ]);
+        $order->forceFill(['created_at' => '2026-09-20 12:00:00'])->save();
+
+        $metrics = app(DashboardService::class)->metrics($this->outlet->id, [
+            'period' => 'day',
+            'from' => '2026-09-20',
+            'to' => '2026-09-20',
+            'label' => '20 Sep 2026',
+        ]);
+
+        $this->assertEquals(10000.0, $metrics['food_sales']);
+        $this->assertEquals(1000.0, $metrics['food_cafe']);
+        $this->assertEquals(9000.0, $metrics['food_setoran']);
     }
 }

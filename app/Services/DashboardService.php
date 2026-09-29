@@ -50,6 +50,15 @@ class DashboardService
         $summary = $this->shares->summarize($filters);
         $food = $this->reports->foodSetoran($filters);
         $drinks = $this->drinkSales($filters);
+        $foodCut = $this->foodHalfPriceCut($filters);
+        $cafeRate = (float) config('pos.food_cafe_percent', 10) / 100;
+        $food['sales'] = round((float) $food['sales'] - $foodCut, 2);
+        $food['commission'] = round((float) $food['commission'] - ($foodCut * $cafeRate), 2);
+        $food['setoran'] = round((float) $food['setoran'] - ($foodCut * (1 - $cafeRate)), 2);
+        $summary['gross'] = round((float) $summary['gross'] - $foodCut, 2);
+        $summary['sales'] = round((float) $summary['sales'] - ($foodCut * $cafeRate), 2);
+        $summary['remainder'] = round((float) $summary['sales'] - (float) $summary['bop'], 2);
+        $summary['shares'] = $this->shares->split($summary['remainder'], $this->shares->partners());
 
         $orderCount = (int) Order::query()
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
@@ -152,6 +161,28 @@ class DashboardService
             'cash' => (float) ($rows['cash'] ?? 0),
             'qris' => (float) ($rows['qris'] ?? 0),
         ];
+    }
+
+    /**
+     * 20 Sep 2026: semua makanan mitra dihitung setengah harga.
+     * ponytail: satu tanggal tetap, pindah ke diskon order kalau promo jadi rutin.
+     */
+    protected function foodHalfPriceCut(array $filters): float
+    {
+        $day = '2026-09-20';
+        if ((filled($filters['from'] ?? null) && $filters['from'] > $day) || (filled($filters['to'] ?? null) && $filters['to'] < $day)) {
+            return 0.0;
+        }
+
+        $sales = (float) OrderItem::query()
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->where('orders.payment_status', PaymentStatus::Paid->value)
+            ->where('order_items.consignment_commission', '>', 0)
+            ->whereDate('orders.created_at', $day)
+            ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
+            ->sum('order_items.total');
+
+        return round($sales / 2, 2);
     }
 
     protected function drinkSales(array $filters): float
