@@ -19,7 +19,7 @@
                     'lg:w-[260px]': !collapsed
                }">
             <div class="flex h-[92px] items-center justify-between gap-2 px-3">
-                <a href="{{ route('dashboard') }}" class="flex min-w-0 flex-1 items-center">
+                <a href="{{ auth()->user()->hasPermission('dashboard.view') ? route('dashboard') : (auth()->user()->hasPermission('reports.food') ? route('reports.setoran') : route('attendance.index')) }}" class="flex min-w-0 flex-1 items-center">
                     <img src="{{ asset('images/logo/logo-white.png') }}" alt="Xiway Pos" class="h-[76px] w-auto max-w-full object-contain object-left" x-show="!collapsed">
                     <img src="{{ asset('images/logo/logo-white.png') }}" alt="Xiway Pos" class="h-10 w-10 object-contain" x-show="collapsed" x-cloak>
                 </a>
@@ -37,6 +37,7 @@
                             ['label' => 'Orders', 'route' => 'orders.index', 'perm' => 'orders.view', 'icon' => 'orders'],
                             ['label' => 'Absensi', 'route' => 'attendance.index', 'perm' => 'attendance.clock', 'unless' => 'attendance.manage', 'icon' => 'clipboard'],
                             ['label' => 'Jadwal', 'route' => 'schedules.index', 'perm' => 'attendance.clock', 'unless' => 'attendance.manage', 'icon' => 'clipboard'],
+                            ['label' => 'Slip Gaji', 'route' => 'employees.mine', 'perm' => 'attendance.clock', 'unless' => 'attendance.manage', 'employee' => true, 'icon' => 'clipboard'],
                             ['label' => 'Management Karyawan', 'route' => 'employees.index', 'perm' => 'attendance.manage', 'icon' => 'user', 'children' => [
                                 ['label' => 'Rekap Absensi', 'route' => 'employees.recap', 'icon' => 'clipboard'],
                                 ['label' => 'Jadwal', 'route' => 'schedules.index', 'icon' => 'clipboard'],
@@ -64,7 +65,7 @@
                             ['label' => 'Laporan', 'route' => 'reports.sales', 'perm' => 'reports.view', 'exact' => true, 'icon' => 'chart', 'children' => [
                                 ['label' => 'Penjualan', 'route' => 'reports.sales', 'perm' => 'reports.view', 'icon' => 'chart'],
                                 ['label' => 'Produk', 'route' => 'reports.products', 'perm' => 'reports.view', 'icon' => 'products'],
-                                ['label' => 'Setoran Makanan', 'route' => 'reports.setoran', 'perm' => 'reports.view', 'icon' => 'clipboard'],
+                                ['label' => 'Setoran Makanan', 'route' => 'reports.setoran', 'perms' => ['reports.view', 'reports.food'], 'icon' => 'clipboard'],
                             ]],
                             ['label' => 'Settings', 'route' => 'settings.index', 'perm' => 'settings.manage', 'icon' => 'settings', 'children' => [
                                 ['label' => 'General', 'route' => 'settings.index', 'perm' => 'settings.manage', 'icon' => 'settings'],
@@ -83,12 +84,17 @@
                         if (! empty($item['unless']) && $user->hasPermission($item['unless'])) {
                             return false;
                         }
+                        if (! empty($item['employee']) && ! $user->employee) {
+                            return false;
+                        }
                         if ($user->hasPermission($item['perm'])) {
                             return true;
                         }
                         foreach ($item['children'] ?? [] as $child) {
-                            if (! empty($child['perm']) && $user->hasPermission($child['perm'])) {
-                                return true;
+                            foreach ($child['perms'] ?? [$child['perm'] ?? null] as $perm) {
+                                if ($perm && $user->hasPermission($perm)) {
+                                    return true;
+                                }
                             }
                         }
 
@@ -127,7 +133,10 @@
                                         </button>
                                         <div class="space-y-0.5 px-2 pb-2 pl-3" x-show="open && !collapsed">
                                             @foreach ($children as $child)
-                                                @if (empty($child['perm']) || auth()->user()->hasPermission($child['perm']))
+                                                @php
+                                                    $childPerms = array_values(array_filter($child['perms'] ?? [$child['perm'] ?? null]));
+                                                @endphp
+                                                @if ($childPerms === [] || collect($childPerms)->contains(fn ($perm) => auth()->user()->hasPermission($perm)))
                                                     @php
                                                         $otherChildren = array_values(array_diff($childRoutes, [$child['route']]));
                                                         $childActive = request()->routeIs($child['route'])
@@ -221,6 +230,9 @@
         @elseif (auth()->user()?->hasPermission('attendance.clock'))
             <a href="{{ route('attendance.index') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('attendance.index') ? 'text-brand' : 'text-muted' }}">Absen</a>
             <a href="{{ route('schedules.index') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('schedules.*') ? 'text-brand' : 'text-muted' }}">Jadwal</a>
+            @if (auth()->user()->employee)
+                <a href="{{ route('employees.mine') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('employees.mine') ? 'text-brand' : 'text-muted' }}">Slip</a>
+            @endif
         @endif
         @if (auth()->user()?->can('pos.access'))
             <a href="{{ route('pos.index') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('pos.*') ? 'text-brand' : 'text-muted' }}">POS</a>

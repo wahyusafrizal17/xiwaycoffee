@@ -281,4 +281,34 @@ class ProfitShareTest extends TestCase
         $mie = Product::query()->where('name', 'Mie Aceh Biasa')->where('is_active', true)->with('variants')->first();
         $this->assertEquals(['Goreng', 'Tumis', 'Kuah'], $mie?->variants->pluck('name')->all());
     }
+
+    public function test_food_role_sees_only_food_sales(): void
+    {
+        $user = $this->makeUser('Irma', 'irma@test.local', 'food', [$this->outlet]);
+
+        $this->actingAsAtOutlet($user)
+            ->get(route('reports.setoran'))
+            ->assertOk()
+            ->assertSee('Penjualan makanan', false)
+            ->assertSee('Setoran Makanan', false)
+            ->assertDontSee('Catat setoran', false)
+            ->assertDontSee('>POS</span>', false);
+
+        $this->actingAsAtOutlet($user)->get(route('reports.sales'))->assertForbidden();
+        $this->actingAsAtOutlet($user)->get(route('dashboard'))->assertForbidden();
+        $this->actingAsAtOutlet($user)
+            ->post(route('reports.setoran.store'), [
+                'from' => '2026-09-01',
+                'to' => '2026-09-30',
+                'settled_on' => '2026-09-30',
+            ])
+            ->assertForbidden();
+
+        auth()->logout();
+
+        $this->post(route('login'), [
+            'email' => 'irma@test.local',
+            'password' => 'password',
+        ])->assertRedirect(route('reports.setoran'));
+    }
 }

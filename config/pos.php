@@ -38,6 +38,7 @@ return [
         'admin' => 'Admin',
         'cashier' => 'Cashier',
         'karyawan' => 'Karyawan',
+        'food' => 'Penjualan Makanan',
     ],
 
     'permissions' => [
@@ -67,6 +68,7 @@ return [
         'printers.view',
         'printers.manage',
         'reports.view',
+        'reports.food',
         'reports.export',
         'users.view',
         'users.manage',
@@ -91,6 +93,9 @@ return [
         ],
         'karyawan' => [
             'attendance.clock',
+        ],
+        'food' => [
+            'reports.food',
         ],
     ],
 

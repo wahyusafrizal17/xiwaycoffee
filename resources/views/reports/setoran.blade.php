@@ -24,10 +24,12 @@
                 <h1 class="mt-1 font-serif text-[1.75rem] font-semibold leading-none text-heading">Setoran makanan</h1>
                 <p class="mt-2 max-w-xl text-[13px] text-muted">Hitung bagian mitra, lalu catat saat cafe menyetor sekaligus.</p>
             </div>
-            <button type="button" class="btn-add" @click="formOpen = true" @if ($setoran <= 0) disabled @endif>
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/></svg>
-                Catat setoran
-            </button>
+            @if (auth()->user()->hasPermission('reports.view'))
+                <button type="button" class="btn-add" @click="formOpen = true" @if ($setoran <= 0) disabled @endif>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/></svg>
+                    Catat setoran
+                </button>
+            @endif
         </div>
 
         <div class="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -153,6 +155,7 @@
             </div>
         </div>
 
+        @if (auth()->user()->hasPermission('reports.view'))
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="formOpen" x-cloak @click.self="formOpen = false">
             <div class="crud-modal" @click.stop>
                 <form class="flex min-h-0 flex-1 flex-col" method="POST" action="{{ route('reports.setoran.store') }}">
@@ -205,5 +208,6 @@
                 </form>
             </div>
         </div>
+        @endif
     </div>
 @endsection

@@ -92,9 +92,38 @@ class EmployeeController extends Controller
         ]);
     }
 
+    public function mine(Request $request): View
+    {
+        $employee = $request->user()->employee;
+        abort_unless($employee, 404);
+
+        if ($request->filled('month')) {
+            return $this->slip($request, $employee);
+        }
+
+        $rows = $this->slipMonths($employee)->map(function (string $month) use ($request, $employee) {
+            $probe = Request::create('/', 'GET', ['month' => $month]);
+            $probe->setUserResolver(fn () => $request->user());
+            $row = $this->rows($probe, $employee)[1]->first();
+
+            return [
+                'month' => $month,
+                'label' => Carbon::createFromFormat('Y-m', $month)->locale('id')->translatedFormat('F Y'),
+                'worked' => $row['worked'] ?? 0,
+                'net' => $row['net'] ?? 0,
+            ];
+        });
+
+        return view('employees.slips', [
+            'rows' => $rows,
+        ]);
+    }
+
     public function slip(Request $request, Employee $employee): View
     {
-        abort_unless($request->user()->hasPermission('attendance.manage'), 403);
+        $user = $request->user();
+        $own = $user->employee?->is($employee);
+        abort_unless($user->hasPermission('attendance.manage') || ($own && $user->hasPermission('attendance.clock')), 403);
 
         $month = $this->month($request);
         $row = $this->rows($request, $employee)[1]->first();
@@ -177,5 +206,41 @@ class EmployeeController extends Controller
         $month = (string) $request->query('month', now()->format('Y-m'));
 
         return Carbon::hasFormat($month, 'Y-m') ? $month : now()->format('Y-m');
+    }
+
+    /**
+     * @return Collection<int, string>
+     */
+    protected function slipMonths(Employee $employee): Collection
+    {
+        $start = ($employee->created_at ?? now())->copy()->startOfMonth();
+        $firstDay = Attendance::query()->where('employee_id', $employee->id)->min('work_date');
+        if ($firstDay) {
+            $attendanceStart = Carbon::parse($firstDay)->startOfMonth();
+            if ($attendanceStart->lt($start)) {
+                $start = $attendanceStart;
+            }
+        }
+        $firstOverride = PayrollDay::query()->where('employee_id', $employee->id)->min('month');
+        if (is_string($firstOverride) && Carbon::hasFormat($firstOverride, 'Y-m')) {
+            $overrideStart = Carbon::createFromFormat('Y-m', $firstOverride)->startOfMonth();
+            if ($overrideStart->lt($start)) {
+                $start = $overrideStart;
+            }
+        }
+
+        $cursor = now()->startOfMonth();
+        if ($start->gt($cursor)) {
+            $start = $cursor->copy();
+        }
+
+        // ponytail: 24 months, paginate if a staff record runs longer than that
+        $months = collect();
+        while ($cursor->greaterThanOrEqualTo($start) && $months->count() < 24) {
+            $months->push($cursor->format('Y-m'));
+            $cursor = $cursor->copy()->subMonth();
+        }
+
+        return $months;
     }
 }

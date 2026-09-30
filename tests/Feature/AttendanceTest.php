@@ -287,6 +287,38 @@ class AttendanceTest extends TestCase
 
         $this->actingAs($this->user)->get(route('employees.payroll'))->assertForbidden();
 
+        $this->actingAs($this->user)
+            ->get(route('attendance.index'))
+            ->assertOk()
+            ->assertSee('Slip Gaji', false);
+
+        $this->actingAs($this->user)
+            ->get(route('employees.mine'))
+            ->assertOk()
+            ->assertSee('September 2026', false)
+            ->assertDontSee('SLIP GAJI', false);
+
+        $this->actingAs($this->user)
+            ->get(route('employees.mine', ['month' => '2026-09']))
+            ->assertOk()
+            ->assertSee('SLIP GAJI', false)
+            ->assertSee('261,538', false);
+
+        $other = User::query()->create([
+            'name' => 'Lain',
+            'email' => 'lain-gaji@test.local',
+            'password' => Hash::make('password'),
+            'is_active' => true,
+        ]);
+        $otherEmployee = Employee::query()->create([
+            'user_id' => $other->id,
+            'outlet_id' => $this->outlet->id,
+            'position' => 'Kasir',
+            'salary' => 1_000_000,
+            'is_active' => true,
+        ]);
+        $this->actingAs($this->user)->get(route('employees.slip', $otherEmployee))->assertForbidden();
+
         $this->actingAs($admin)
             ->get(route('employees.slip', [$this->employee, 'month' => '2026-09']))
             ->assertOk()
@@ -315,7 +347,8 @@ class AttendanceTest extends TestCase
             ->get(route('employees.index'))
             ->assertOk()
             ->assertSee('Management Karyawan', false)
-            ->assertSee('Zakki', false);
+            ->assertSee('Zakki', false)
+            ->assertDontSee('Slip Gaji', false);
     }
 
     public function test_slip_splits_components_and_keeps_bonus_off_prorata(): void

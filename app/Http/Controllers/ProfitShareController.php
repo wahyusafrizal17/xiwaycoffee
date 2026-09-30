@@ -151,7 +151,7 @@ class ProfitShareController extends Controller
 
     public function setoran(Request $request): View
     {
-        abort_unless($request->user()->hasPermission('reports.view'), 403);
+        abort_unless($this->canViewFood($request), 403);
 
         $filters = $request->all() + $this->reports->range($request->from, $request->to, $request->period);
         $filters['outlet_id'] = $filters['outlet_id'] ?? current_outlet_id();
@@ -195,5 +195,12 @@ class ProfitShareController extends Controller
         $user = $request->user();
 
         return $user->hasPermission('bop.manage') || $user->hasPermission('reports.view');
+    }
+
+    protected function canViewFood(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user->hasPermission('reports.view') || $user->hasPermission('reports.food');
     }
 }

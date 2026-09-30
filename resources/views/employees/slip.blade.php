@@ -64,7 +64,14 @@
         $status = $employee->is_active ? 'Karyawan' : 'Nonaktif';
     @endphp
     <div class="bar">
-        <a href="{{ route('employees.payroll', ['month' => $month]) }}">Kembali</a>
+        <form method="GET">
+            <input type="month" name="month" value="{{ $month }}" onchange="this.form.submit()">
+        </form>
+        @if (auth()->user()->hasPermission('attendance.manage'))
+            <a href="{{ route('employees.payroll', ['month' => $month]) }}">Kembali</a>
+        @else
+            <a href="{{ route('employees.mine') }}">Kembali</a>
+        @endif
         <button type="button" onclick="window.print()">Cetak</button>
     </div>
     <article class="sheet">

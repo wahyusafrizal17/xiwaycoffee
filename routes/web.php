@@ -79,6 +79,7 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
     Route::get('/karyawan/gaji', [EmployeeController::class, 'payroll'])->name('employees.payroll');
     Route::put('/karyawan/gaji/{employee}', [EmployeeController::class, 'updateDays'])->name('employees.payroll.update');
     Route::get('/karyawan/gaji/{employee}', [EmployeeController::class, 'slip'])->name('employees.slip');
+    Route::get('/slip-gaji', [EmployeeController::class, 'mine'])->name('employees.mine');
     Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn'])->name('attendance.clock-in');
     Route::post('/attendance/clock-out', [AttendanceController::class, 'clockOut'])->name('attendance.clock-out');
 

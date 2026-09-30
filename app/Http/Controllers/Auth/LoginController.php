@@ -34,6 +34,10 @@ class LoginController extends Controller
             return redirect()->intended(route('attendance.index'));
         }
 
+        if ($user->hasPermission('reports.food') && ! $user->hasPermission('dashboard.view')) {
+            return redirect()->intended(route('reports.setoran'));
+        }
+
         return redirect()->intended(route('dashboard'));
     }
 
