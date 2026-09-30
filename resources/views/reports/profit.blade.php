@@ -37,7 +37,7 @@
             <div>
                 <p class="stat-kicker">{{ $remainder < 0 ? 'Defisit' : 'Sisa bagi hasil' }}</p>
                 <p class="stat-value">{{ money($remainder) }}</p>
-                <p class="stat-hint">Omzet dikurangi BOP</p>
+                <p class="stat-hint">Omzet − charge − BOP</p>
             </div>
             <span class="stat-icon {{ $remainder < 0 ? 'bg-brand-soft text-brand' : 'bg-[#e8f1ff] text-[#3b82f6]' }}">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-3.3 0-6 1.8-6 4s2.7 4 6 4 6 1.8 6 4-2.7 4-6 4"/></svg>

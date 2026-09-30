@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\GenericExport;
 use App\Models\Outlet;
+use App\Services\DashboardService;
 use App\Services\ReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -20,7 +21,8 @@ class ReportController extends Controller
     public function sales(Request $request): View|BinaryFileResponse|Response
     {
         abort_unless($request->user()->hasPermission('reports.view'), 403);
-        $filters = $request->all() + $this->reports->range($request->from, $request->to, $request->period);
+
+        [$filters, $range] = $this->reportFilters($request);
         $rows = $this->reports->sales($filters);
 
         return $this->respond('reports.sales', $request, $filters, $rows, [
@@ -34,19 +36,24 @@ class ReportController extends Controller
             $order->created_at?->format('d/m/Y H:i'),
         ], 'sales', [
             'stats' => $this->reports->salesStats($filters),
+            'period' => $range['period'],
+            'range' => $range,
         ]);
     }
 
     public function products(Request $request): View|BinaryFileResponse|Response
     {
         abort_unless($request->user()->hasPermission('reports.view'), 403);
-        $filters = $request->all() + $this->reports->range($request->from, $request->to, $request->period);
+
+        [$filters, $range] = $this->reportFilters($request);
         $rows = $this->reports->productSales($filters);
 
         return $this->respond('reports.products', $request, $filters, $rows, [
             ['Produk', 'Qty', 'Total'],
         ], fn ($row) => [$row->name, $row->qty, $row->total], 'products', [
             'stats' => $this->reports->productSalesStats($filters),
+            'period' => $range['period'],
+            'range' => $range,
         ]);
     }
 
@@ -187,6 +194,14 @@ class ReportController extends Controller
             'outletId' => $outletId,
             'canSwitchOutlet' => $request->user()->canSwitchOutlet(),
         ]);
+    }
+
+    /**
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>}
+     */
+    protected function reportFilters(Request $request): array
+    {
+        return app(DashboardService::class)->periodFilters($request);
     }
 
     protected function respond(string $view, Request $request, array $filters, $rows, array $headings, callable $map, string $name, array $extra = [])

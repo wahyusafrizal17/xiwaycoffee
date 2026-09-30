@@ -99,6 +99,8 @@ class DashboardTest extends TestCase
             ->assertSee('Terapkan')
             ->assertSee('Pendapatan minuman')
             ->assertSee('Pendapatan makanan')
+            ->assertSee('Charge')
+            ->assertSee('tidak masuk bagi hasil')
             ->assertSee('Pendapatan cafe dari makanan')
             ->assertSee('Setoran makanan')
             ->assertSee('Bagi hasil')
@@ -107,6 +109,7 @@ class DashboardTest extends TestCase
             ->assertSee(money(15000))
             ->assertSee(money(1500))
             ->assertSee(money(13500))
+            ->assertSee(money(3630))
             ->assertSee(money(5000))
             ->assertSee('Wahyu')
             ->assertSee('Cash')
@@ -127,7 +130,7 @@ class DashboardTest extends TestCase
             ->get(route('dashboard', ['period' => 'today']))
             ->assertOk()
             ->assertSee('Pendapatan kotor')
-            ->assertSee('Pesanan berjalan')
+            ->assertSee('Jumlah charge')
             ->assertSee('Cash')
             ->assertSee('QRIS')
             ->assertDontSee('Bagi hasil')
@@ -175,6 +178,9 @@ class DashboardTest extends TestCase
         $this->assertEquals(20000.0, $metrics['food_sales']);
         $this->assertEquals(2000.0, $metrics['food_cafe']);
         $this->assertEquals(18000.0, $metrics['food_setoran']);
+        $this->assertEquals(2200.0, $metrics['service_fee']);
+        $this->assertEquals(4200.0, $metrics['sales']);
+        $this->assertEquals(2000.0, $metrics['share_base']);
         $this->assertEquals($metrics['gross'] - $metrics['bop'], $metrics['net']);
     }
 

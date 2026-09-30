@@ -157,7 +157,7 @@ class WaCloudService
             $lines[] = $this->invoicePad('Diskon', '-'.$fmt($order->discount_amount));
         }
         if ((float) $order->tax_amount > 0) {
-            $lines[] = $this->invoicePad('Biaya Layanan', $fmt($order->tax_amount));
+            $lines[] = $this->invoicePad('Charge', $fmt($order->tax_amount));
         }
         $lines[] = '━━━━━━━━━━━━━━━━━━━━';
         $lines[] = $this->invoicePad('*TOTAL', $fmt($order->grand_total).'*');

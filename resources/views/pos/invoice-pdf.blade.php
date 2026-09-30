@@ -125,7 +125,7 @@
             </div>
         @endif
         <div class="row">
-            <span class="label">Biaya Layanan</span>
+            <span class="label">Charge</span>
             <span class="value">{{ $fmt($order->tax_amount) }}</span>
         </div>
         <hr class="divider">

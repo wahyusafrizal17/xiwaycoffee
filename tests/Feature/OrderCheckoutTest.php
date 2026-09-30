@@ -217,4 +217,37 @@ class OrderCheckoutTest extends TestCase
         $this->assertStringContainsString($order->order_number, $html);
         $this->assertLessThanOrEqual(180, app(EscPosPrinter::class)->receiptHeightMm($order));
     }
+
+    public function test_charge_follows_the_settings_percent(): void
+    {
+        $cheap = Product::query()->create([
+            'sku' => 'PRD-CHEAP-CHARGE',
+            'name' => 'Air Mineral Kecil',
+            'category_id' => $this->sellableProduct->category_id,
+            'unit_id' => $this->sellableProduct->unit_id,
+            'type' => ProductType::Finished,
+            'price' => 10000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+            'station' => PrinterStation::Bar->value,
+        ]);
+
+        $this->actingAsAtOutlet($this->cashier);
+        $service = app(OrderService::class);
+
+        $small = $service->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $service->addItem($small, ['product_id' => $cheap->id, 'quantity' => 1]);
+        $this->assertEquals(1100.0, (float) $small->fresh()->tax_amount);
+
+        $large = $service->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $service->addItem($large, ['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
+        $this->assertEquals(3850.0, (float) $large->fresh()->tax_amount);
+    }
 }

@@ -124,12 +124,12 @@
         @endif
         <div class="stat-card !items-start">
             <div class="min-w-0 flex-1">
-                <p class="stat-kicker">Pesanan berjalan</p>
-                <p class="stat-value">{{ $metrics['pending_kitchen'] }}</p>
-                <p class="stat-hint">Pickup {{ $metrics['pending_pickup'] }} · Meja isi {{ $metrics['occupied_tables'] }}</p>
+                <p class="stat-kicker">Jumlah charge</p>
+                <p class="stat-value">{{ money($metrics['service_fee']) }}</p>
+                <p class="stat-hint">Masuk penuh ke cafe, di luar setoran makanan</p>
             </div>
             <span class="stat-icon bg-brand-soft text-brand">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-2.2 0-4 1.3-4 3s1.8 3 4 3 4 1.3 4 3-1.8 3-4 3m0-12V5m0 14v-2"/></svg>
             </span>
         </div>
     </div>
@@ -183,7 +183,7 @@
             <div class="card-header">
                 <div>
                     <h5 class="card-header-title">Breakdown penjualan</h5>
-                    <p class="card-header-subtitle">Minuman vs makanan {{ strtolower($periodLabel) }}.</p>
+                    <p class="card-header-subtitle">Minuman, makanan, dan charge {{ strtolower($periodLabel) }}.</p>
                 </div>
             </div>
             <div class="divide-y divide-[#f0ebe4] px-5 py-1 text-sm">
@@ -200,6 +200,13 @@
                         <p class="text-[12px] text-muted">Total penjualan makanan mitra</p>
                     </div>
                     <p class="tabular-nums font-semibold text-heading">{{ money($metrics['food_sales']) }}</p>
+                </div>
+                <div class="flex items-center justify-between gap-4 py-3.5">
+                    <div>
+                        <p class="font-medium text-heading">Charge</p>
+                        <p class="text-[12px] text-muted">Pemeliharaan sistem, tidak masuk bagi hasil</p>
+                    </div>
+                    <p class="tabular-nums font-semibold text-heading">{{ money($metrics['service_fee']) }}</p>
                 </div>
                 <div class="flex items-center justify-between gap-4 py-3.5">
                     <div>
@@ -229,7 +236,7 @@
             <div class="card-header">
                 <div>
                     <h5 class="card-header-title">Bagi hasil</h5>
-                    <p class="card-header-subtitle">Dari omzet cafe − BOP {{ money($metrics['share_base']) }}.</p>
+                    <p class="card-header-subtitle">Dari omzet cafe − charge − BOP {{ money($metrics['share_base']) }}.</p>
                 </div>
                 <a href="{{ route('reports.profit', ['period' => $period]) }}" class="text-[12px] font-medium text-brand hover:underline">Detail</a>
             </div>

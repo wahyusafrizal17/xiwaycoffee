@@ -3,16 +3,27 @@
 @section('breadcrumb', 'Reports')
 @section('content')
     @php
-        $period = $filters['period'] ?? null;
-        $fromLabel = filled($filters['from'] ?? null) ? \Illuminate\Support\Carbon::parse($filters['from'])->format('d/m/Y') : '—';
-        $toLabel = filled($filters['to'] ?? null) ? \Illuminate\Support\Carbon::parse($filters['to'])->format('d/m/Y') : '—';
-        $periodKeep = collect($filters)->only(['outlet_id', 'name', 'search'])->filter(fn ($value) => filled($value))->all();
-        $chip = 'inline-flex items-center rounded-lg px-3 py-1.5 text-[13px] font-medium';
-        $chipOn = 'bg-brand text-white';
-        $chipOff = 'bg-[#f5f5f5] text-muted hover:bg-[#ececec]';
+        $period = $period ?? 'day';
+        $range = $range ?? ['label' => '', 'from' => $filters['from'] ?? '', 'to' => $filters['to'] ?? ''];
+        $name = $filters['name'] ?? $filters['search'] ?? '';
+        $columnFilters = filled($name) ? ['name' => $name] : [];
+        $periodKeep = collect([
+            'period' => $period,
+            'date' => $range['date'] ?? null,
+            'month' => $range['month'] ?? null,
+            'year' => $range['year'] ?? null,
+            'from' => $period === 'range' ? ($range['from'] ?? null) : null,
+            'to' => $period === 'range' ? ($range['to'] ?? null) : null,
+            'outlet_id' => $filters['outlet_id'] ?? null,
+        ])->filter(fn ($value) => filled($value));
     @endphp
     @unless ($exporting ?? false)
         @include('reports._nav')
+        @include('reports._period_bar', [
+            'action' => route('reports.products'),
+            'columnFilters' => $columnFilters,
+            'showOutlet' => true,
+        ])
     @endunless
 
     <div class="mb-5 grid gap-4 md:grid-cols-3">
@@ -20,7 +31,7 @@
             <div>
                 <p class="stat-kicker">Total omzet</p>
                 <p class="stat-value">{{ money($stats['total'] ?? 0) }}</p>
-                <p class="stat-hint">{{ $fromLabel }} – {{ $toLabel }}</p>
+                <p class="stat-hint">{{ $range['label'] }}</p>
             </div>
             <span class="stat-icon bg-[#e8f1ff] text-[#3b82f6]">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 17l6-6 4 4 8-8M14 7h7v7"/></svg>
@@ -53,7 +64,7 @@
             <div class="card-header">
                 <div>
                     <h5 class="card-header-title">Laporan penjualan produk</h5>
-                    <p class="card-header-subtitle">Agregasi item order dibayar pada {{ $fromLabel }} – {{ $toLabel }}.</p>
+                    <p class="card-header-subtitle">Agregasi item order dibayar, {{ $range['label'] }}.</p>
                 </div>
                 <div class="card-header-actions">
                     @can('reports.export')
@@ -70,21 +81,10 @@
             </div>
 
             <form id="product-sales-filters" method="GET" action="{{ route('reports.products') }}">
-                <input type="hidden" name="period" value="{{ $period }}">
+                @foreach ($periodKeep as $key => $value)
+                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                @endforeach
             </form>
-            <div class="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3">
-                <a href="{{ route('reports.products', $periodKeep + ['period' => 'today']) }}" class="{{ $chip }} {{ $period === 'today' ? $chipOn : $chipOff }}">Hari ini</a>
-                <a href="{{ route('reports.products', $periodKeep + ['period' => 'week']) }}" class="{{ $chip }} {{ $period === 'week' ? $chipOn : $chipOff }}">Mingguan</a>
-                <a href="{{ route('reports.products', $periodKeep + ['period' => 'month']) }}" class="{{ $chip }} {{ $period === 'month' ? $chipOn : $chipOff }}">Bulanan</a>
-                <input form="product-sales-filters" class="input !w-40" type="date" name="from" value="{{ $filters['from'] ?? '' }}" onchange="this.form.period.value=''; this.form.submit()">
-                <input form="product-sales-filters" class="input !w-40" type="date" name="to" value="{{ $filters['to'] ?? '' }}" onchange="this.form.period.value=''; this.form.submit()">
-                <select form="product-sales-filters" class="input !w-44" name="outlet_id" onchange="this.form.submit()">
-                    <option value="">Semua outlet</option>
-                    @foreach ($outlets as $outlet)
-                        <option value="{{ $outlet->id }}" @selected((string) ($filters['outlet_id'] ?? '') === (string) $outlet->id)>{{ $outlet->name }}</option>
-                    @endforeach
-                </select>
-            </div>
         @endunless
 
         <div class="table-wrap">

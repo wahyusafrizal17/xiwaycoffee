@@ -163,7 +163,7 @@
                     <p class="text-[11px] text-[#c2410c]" x-show="discountHint()" x-text="discountHint()" x-cloak></p>
                 </div>
                 <div class="order-row text-muted">
-                    <span>Biaya Layanan</span>
+                    <span>Charge</span>
                     <span class="font-medium text-heading" x-text="formatMoney(order?.tax_amount || 0)"></span>
                 </div>
                 <div class="flex items-center justify-between rounded-xl bg-heading px-3.5 py-3 text-white">

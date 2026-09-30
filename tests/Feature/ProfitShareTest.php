@@ -64,7 +64,7 @@ class ProfitShareTest extends TestCase
             ->assertRedirect();
 
         $sales = (float) $order->grand_total;
-        $remainder = $sales - 10000;
+        $remainder = $sales - (float) $order->tax_amount - 10000;
 
         $this->actingAsAtOutlet($this->admin)
             ->get(route('reports.profit', ['period' => 'today']))

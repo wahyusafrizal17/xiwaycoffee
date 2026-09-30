@@ -67,12 +67,14 @@ class ProfitShareService
 
     public function summarize(array $filters): array
     {
-        $gross = (float) Order::query()
+        $orders = Order::query()
             ->where('payment_status', PaymentStatus::Paid->value)
             ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('outlet_id', $filters['outlet_id']))
             ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('created_at', '>=', $filters['from']))
-            ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('created_at', '<=', $filters['to']))
-            ->sum('grand_total');
+            ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('created_at', '<=', $filters['to']));
+
+        $gross = (float) (clone $orders)->sum('grand_total');
+        $serviceFee = (float) (clone $orders)->sum('tax_amount');
 
         $setoran = $this->foodSetoran($filters);
         $sales = round($gross - $setoran, 2);
@@ -87,12 +89,13 @@ class ProfitShareService
             ->get();
 
         $bop = (float) $expenses->sum('amount');
-        $remainder = round($sales - $bop, 2);
+        $remainder = round($sales - $serviceFee - $bop, 2);
 
         return [
             'sales' => $sales,
             'gross' => $gross,
             'food_setoran' => $setoran,
+            'service_fee' => round($serviceFee, 2),
             'bop' => $bop,
             'remainder' => $remainder,
             'shares' => $this->split($remainder, $this->partners()),

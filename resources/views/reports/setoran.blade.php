@@ -3,41 +3,28 @@
 @section('breadcrumb', 'Reports')
 @section('content')
     @php
-        $period = $filters['period'] ?? null;
-        $fromLabel = filled($filters['from'] ?? null) ? \Illuminate\Support\Carbon::parse($filters['from'])->format('d/m/Y') : '—';
-        $toLabel = filled($filters['to'] ?? null) ? \Illuminate\Support\Carbon::parse($filters['to'])->format('d/m/Y') : '—';
-        $periodKeep = collect($filters)->only(['outlet_id'])->filter(fn ($value) => filled($value))->all();
-        $chip = 'inline-flex items-center rounded-lg px-3 py-1.5 text-[13px] font-medium';
-        $chipOn = 'bg-brand text-white';
-        $chipOff = 'bg-[#f5f5f5] text-muted hover:bg-[#ececec]';
+        $period = $period ?? ($filters['period'] ?? 'day');
+        $range = $range ?? ['label' => '', 'from' => $filters['from'] ?? '', 'to' => $filters['to'] ?? ''];
+        $columnFilters = collect($filters)->only(['outlet_id'])->filter(fn ($value) => filled($value));
         $formError = $errors->any();
         $formOpen = $formError || request()->boolean('open');
         $previewOutlet = filled($filters['outlet_id'] ?? null) ? '&outlet_id='.urlencode((string) $filters['outlet_id']) : '';
     @endphp
 
     <div x-data="{ formOpen: {{ $formOpen ? 'true' : 'false' }} }" @keydown.escape.window="formOpen = false">
-        @include('reports._nav')
-
-        <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-            <div>
-                <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Mitra makanan</p>
-                <h1 class="mt-1 font-serif text-[1.75rem] font-semibold leading-none text-heading">Setoran makanan</h1>
-                <p class="mt-2 max-w-xl text-[13px] text-muted">Hitung bagian mitra, lalu catat saat cafe menyetor sekaligus.</p>
-            </div>
-            @if (auth()->user()->hasPermission('reports.view'))
-                <button type="button" class="btn-add" @click="formOpen = true" @if ($setoran <= 0) disabled @endif>
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/></svg>
-                    Catat setoran
-                </button>
-            @endif
+        <div class="no-print">
+            @include('reports._period_bar', [
+                'action' => route('reports.setoran'),
+                'columnFilters' => $columnFilters,
+            ])
         </div>
 
-        <div class="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="no-print mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div class="stat-card">
                 <div>
                     <p class="stat-kicker">Penjualan makanan</p>
                     <p class="stat-value">{{ money($sales) }}</p>
-                    <p class="stat-hint">{{ $fromLabel }} – {{ $toLabel }}</p>
+                    <p class="stat-hint">{{ $range['label'] }}</p>
                 </div>
             </div>
             <div class="stat-card">
@@ -63,23 +50,23 @@
             </div>
         </div>
 
-        <form id="setoran-filters" method="GET" action="{{ route('reports.setoran') }}">
-            <input type="hidden" name="period" value="{{ $period }}">
-            <input type="hidden" name="outlet_id" value="{{ $filters['outlet_id'] ?? '' }}">
-        </form>
-        <div class="mb-5 flex flex-wrap items-center gap-2">
-            <a href="{{ route('reports.setoran', $periodKeep + ['period' => 'today']) }}" class="{{ $chip }} {{ $period === 'today' ? $chipOn : $chipOff }}">Hari ini</a>
-            <a href="{{ route('reports.setoran', $periodKeep + ['period' => 'week']) }}" class="{{ $chip }} {{ $period === 'week' ? $chipOn : $chipOff }}">Mingguan</a>
-            <a href="{{ route('reports.setoran', $periodKeep + ['period' => 'month']) }}" class="{{ $chip }} {{ $period === 'month' ? $chipOn : $chipOff }}">Bulanan</a>
-            <input form="setoran-filters" class="input !w-40" type="date" name="from" value="{{ $filters['from'] ?? '' }}" onchange="this.form.period.value=''; this.form.submit()">
-            <input form="setoran-filters" class="input !w-40" type="date" name="to" value="{{ $filters['to'] ?? '' }}" onchange="this.form.period.value=''; this.form.submit()">
-        </div>
-
         <div class="mb-5 card overflow-hidden">
             <div class="card-header">
                 <div>
                     <h5 class="card-header-title">Rincian setoran</h5>
-                    <p class="card-header-subtitle">Makanan milik mitra pada periode terpilih.</p>
+                    <p class="card-header-subtitle">Makanan milik mitra, {{ $range['label'] }}.</p>
+                </div>
+                <div class="card-header-actions no-print">
+                    <button type="button" class="btn-pdf" onclick="window.print()">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 9V3h12v6M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v7H6v-7z"/></svg>
+                        Cetak setoran
+                    </button>
+                    @if (auth()->user()->hasPermission('reports.view'))
+                        <button type="button" class="btn-add" @click="formOpen = true" @if ($setoran <= 0) disabled @endif>
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/></svg>
+                            Catat setoran
+                        </button>
+                    @endif
                 </div>
             </div>
             <div class="table-wrap">
@@ -108,11 +95,20 @@
                             </tr>
                         @endforelse
                     </tbody>
+                    <tfoot class="setor-print-foot">
+                        <tr>
+                            <td class="font-semibold">Total</td>
+                            <td class="font-semibold">{{ rtrim(rtrim(number_format((float) $rows->sum('qty'), 3, ',', '.'), '0'), ',') }}</td>
+                            <td class="font-semibold">{{ money($sales) }}</td>
+                            <td class="font-semibold">{{ money($commission) }}</td>
+                            <td class="font-semibold">{{ money($setoran) }}</td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
 
-        <div class="card overflow-hidden">
+        <div class="no-print card overflow-hidden">
             <div class="card-header">
                 <div>
                     <h5 class="card-header-title">Riwayat setoran</h5>
@@ -156,7 +152,7 @@
         </div>
 
         @if (auth()->user()->hasPermission('reports.view'))
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="formOpen" x-cloak @click.self="formOpen = false">
+        <div class="no-print fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="formOpen" x-cloak @click.self="formOpen = false">
             <div class="crud-modal" @click.stop>
                 <form class="flex min-h-0 flex-1 flex-col" method="POST" action="{{ route('reports.setoran.store') }}">
                     @csrf
@@ -210,4 +206,13 @@
         </div>
         @endif
     </div>
+
+    <style>
+        .setor-print-foot { display: none; }
+        @media print {
+            aside, header, nav, .no-print { display: none !important; }
+            main { padding: 0 !important; }
+            .setor-print-foot { display: table-footer-group; }
+        }
+    </style>
 @endsection

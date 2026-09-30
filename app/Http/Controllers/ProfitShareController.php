@@ -8,6 +8,7 @@ use App\Enums\ExpensePaymentMethod;
 use App\Models\OperatingExpense;
 use App\Models\Outlet;
 use App\Services\BankAccountService;
+use App\Services\DashboardService;
 use App\Services\ProfitShareService;
 use App\Services\ReportService;
 use Illuminate\Http\RedirectResponse;
@@ -153,11 +154,13 @@ class ProfitShareController extends Controller
     {
         abort_unless($this->canViewFood($request), 403);
 
-        $filters = $request->all() + $this->reports->range($request->from, $request->to, $request->period);
+        [$filters, $range] = app(DashboardService::class)->periodFilters($request);
         $filters['outlet_id'] = $filters['outlet_id'] ?? current_outlet_id();
 
         return view('reports.setoran', [
             'filters' => $filters,
+            'range' => $range,
+            'period' => $range['period'],
             'outlets' => Outlet::query()->orderBy('name')->get(),
             ...$this->reports->foodSetoran($filters),
             ...$this->reports->foodSetoranBalance($filters['outlet_id'] ? (int) $filters['outlet_id'] : null),

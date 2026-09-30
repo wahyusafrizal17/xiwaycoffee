@@ -8,6 +8,7 @@ use App\Enums\TableStatus;
 use App\Models\DiningTable;
 use App\Models\Order;
 use App\Models\OrderItem;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -38,6 +39,42 @@ class DashboardService
         };
     }
 
+    /**
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>}
+     */
+    public function periodFilters(Request $request): array
+    {
+        $period = $request->string('period')->toString();
+        if ($period === 'today') {
+            $period = 'day';
+        }
+        if ($period === 'week') {
+            $period = 'range';
+            $request->merge([
+                'from' => $request->from ?: now()->startOfWeek()->toDateString(),
+                'to' => $request->to ?: now()->toDateString(),
+            ]);
+        }
+        if (! in_array($period, ['day', 'month', 'year', 'range'], true)) {
+            $period = ($request->filled('from') && $request->filled('to')) ? 'range' : 'day';
+        }
+
+        $range = $this->resolveRange([
+            'period' => $period,
+            'date' => $request->string('date')->toString() ?: null,
+            'month' => $request->string('month')->toString() ?: null,
+            'year' => $request->string('year')->toString() ?: null,
+            'from' => $request->string('from')->toString() ?: null,
+            'to' => $request->string('to')->toString() ?: null,
+        ]);
+        $filters = $request->all();
+        $filters['from'] = $range['from'];
+        $filters['to'] = $range['to'];
+        $filters['period'] = $range['period'];
+
+        return [$filters, $range];
+    }
+
     public function metrics(?int $outletId, array $range): array
     {
         $filters = [
@@ -53,21 +90,11 @@ class DashboardService
         $setoran = (float) $food['setoran'];
         $sales = round($gross - $setoran, 2);
         $bop = (float) $summary['bop'];
+        $serviceFee = round((float) (clone $this->validOrders($outletId, $range))->sum('tax_amount'), 2);
         $net = round($gross - $bop, 2);
-        $shareBase = round($sales - $bop, 2);
+        $shareBase = round($sales - $serviceFee - $bop, 2);
 
         $orderCount = (int) (clone $this->validOrders($outletId, $range))->count();
-
-        $pendingKitchen = Order::query()
-            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
-            ->whereIn('status', [OrderStatus::New->value, OrderStatus::Processing->value, OrderStatus::Preparing->value])
-            ->count();
-
-        $pendingPickup = Order::query()
-            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
-            ->where('order_type', 'pickup')
-            ->whereIn('status', [OrderStatus::New->value, OrderStatus::Processing->value, OrderStatus::Ready->value])
-            ->count();
 
         $tables = DiningTable::query()
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
@@ -99,8 +126,7 @@ class DashboardService
             'payments_match' => abs($paymentGap) < 1,
             'orders' => $orderCount,
             'aov' => $orderCount > 0 ? $gross / $orderCount : 0,
-            'pending_kitchen' => $pendingKitchen,
-            'pending_pickup' => $pendingPickup,
+            'service_fee' => $serviceFee,
             'occupied_tables' => (clone $tables)->where('status', TableStatus::Occupied->value)->count(),
             'available_tables' => (clone $tables)->where('status', TableStatus::Available->value)->count(),
         ];
