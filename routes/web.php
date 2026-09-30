@@ -13,6 +13,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CheckerController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EventDisplayController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InvestorController;
@@ -72,6 +73,11 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
 
     Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
     Route::get('/jadwal', [AttendanceController::class, 'schedule'])->name('schedules.index');
+    Route::get('/karyawan', [EmployeeController::class, 'index'])->name('employees.index');
+    Route::put('/karyawan/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
+    Route::get('/karyawan/rekap', [EmployeeController::class, 'recap'])->name('employees.recap');
+    Route::get('/karyawan/gaji', [EmployeeController::class, 'payroll'])->name('employees.payroll');
+    Route::get('/karyawan/gaji/{employee}', [EmployeeController::class, 'slip'])->name('employees.slip');
     Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn'])->name('attendance.clock-in');
     Route::post('/attendance/clock-out', [AttendanceController::class, 'clockOut'])->name('attendance.clock-out');
 

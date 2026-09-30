@@ -249,6 +249,57 @@ class AttendanceTest extends TestCase
         $this->assertNull($off->starts_at);
     }
 
+    public function test_payroll_slip_prorates_present_days_over_twenty_six(): void
+    {
+        $this->employee->update(['position' => 'Kasir', 'salary' => 1_700_000]);
+
+        foreach (range(1, 11) as $day) {
+            WorkShift::query()->create([
+                'employee_id' => $this->employee->id,
+                'work_date' => sprintf('2026-09-%02d', $day),
+                'starts_at' => '09:00',
+                'ends_at' => '17:00',
+            ]);
+        }
+
+        foreach (range(1, 4) as $day) {
+            Attendance::query()->create([
+                'employee_id' => $this->employee->id,
+                'outlet_id' => $this->outlet->id,
+                'work_date' => sprintf('2026-09-%02d', $day),
+                'clock_in_at' => sprintf('2026-09-%02d 08:20:00', $day),
+            ]);
+        }
+
+        $admin = User::query()->create([
+            'name' => 'Admin',
+            'email' => 'admin-gaji@test.local',
+            'password' => Hash::make('password'),
+            'is_active' => true,
+        ]);
+        $admin->roles()->sync([Role::query()->where('name', 'admin')->firstOrFail()->id]);
+        $admin->outlets()->sync([$this->outlet->id => ['is_default' => true]]);
+
+        $this->actingAs($this->user)->get(route('employees.payroll'))->assertForbidden();
+
+        $this->actingAs($admin)
+            ->get(route('employees.slip', [$this->employee, 'month' => '2026-09']))
+            ->assertOk()
+            ->assertSee('SLIP GAJI', false)
+            ->assertSee('PENERIMAAN', false)
+            ->assertSee('POTONGAN', false)
+            ->assertSee('TOTAL DITERIMA KARYAWAN', false)
+            ->assertSee('261,538', false)
+            ->assertSee('4/26 hari', false)
+            ->assertSee('# Tertulis : Dua Ratus Enam Puluh Satu Ribu Lima Ratus Tiga Puluh Delapan Rupiah', false);
+
+        $this->actingAs($admin)
+            ->get(route('employees.index'))
+            ->assertOk()
+            ->assertSee('Management Karyawan', false)
+            ->assertSee('Zakki', false);
+    }
+
     public function test_karyawan_lands_on_attendance_after_login(): void
     {
         $this->post(route('login'), [

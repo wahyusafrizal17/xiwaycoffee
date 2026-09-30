@@ -35,64 +35,82 @@
                             ['label' => 'Dashboard', 'route' => 'dashboard', 'perm' => 'dashboard.view', 'icon' => 'home'],
                             ['label' => 'POS', 'route' => 'pos.index', 'perm' => 'pos.access', 'icon' => 'pos'],
                             ['label' => 'Orders', 'route' => 'orders.index', 'perm' => 'orders.view', 'icon' => 'orders'],
-                            ['label' => 'Absensi', 'route' => 'attendance.index', 'perm' => 'attendance.clock', 'icon' => 'clipboard'],
-                            ['label' => 'Jadwal', 'route' => 'schedules.index', 'perm' => 'attendance.clock', 'icon' => 'clipboard'],
-                        ],
-                        'Produk & Inventory' => [
-                            ['label' => 'Products', 'route' => 'products.index', 'perm' => 'products.view', 'icon' => 'products'],
-                            ['label' => 'Categories', 'route' => 'categories.index', 'perm' => 'products.manage', 'icon' => 'folder'],
-                            ['label' => 'Inventory', 'route' => 'inventory.index', 'perm' => 'inventory.view', 'icon' => 'inventory', 'children' => [
-                                ['label' => 'Stock', 'route' => 'inventory.index', 'icon' => 'inventory'],
-                                ['label' => 'Movements', 'route' => 'inventory.movements', 'icon' => 'arrows'],
-                                ['label' => 'Stock Opname', 'route' => 'opnames.index', 'icon' => 'clipboard-check'],
-                                ['label' => 'Waste', 'route' => 'wastes.index', 'icon' => 'trash'],
+                            ['label' => 'Absensi', 'route' => 'attendance.index', 'perm' => 'attendance.clock', 'unless' => 'attendance.manage', 'icon' => 'clipboard'],
+                            ['label' => 'Jadwal', 'route' => 'schedules.index', 'perm' => 'attendance.clock', 'unless' => 'attendance.manage', 'icon' => 'clipboard'],
+                            ['label' => 'Management Karyawan', 'route' => 'employees.index', 'perm' => 'attendance.manage', 'icon' => 'user', 'children' => [
+                                ['label' => 'Rekap Absensi', 'route' => 'employees.recap', 'icon' => 'clipboard'],
+                                ['label' => 'Jadwal', 'route' => 'schedules.index', 'icon' => 'clipboard'],
+                                ['label' => 'Gaji', 'route' => 'employees.payroll', 'icon' => 'clipboard'],
+                                ['label' => 'Karyawan', 'route' => 'employees.index', 'icon' => 'user'],
                             ]],
-                            ['label' => 'Production', 'route' => 'production.index', 'perm' => 'production.view', 'icon' => 'clipboard'],
                         ],
-                        'Marketing' => [
+                        '' => [
+                            ['label' => 'Inventory', 'route' => 'products.index', 'perm' => 'products.view', 'icon' => 'inventory', 'children' => [
+                                ['label' => 'Produk', 'route' => 'products.index', 'perm' => 'products.view', 'icon' => 'products'],
+                                ['label' => 'Kategori', 'route' => 'categories.index', 'perm' => 'products.manage', 'icon' => 'folder'],
+                            ]],
                             ['label' => 'Marketing', 'route' => 'marketing.discounts', 'perm' => 'marketing.view', 'icon' => 'marketing', 'children' => [
-                                ['label' => 'Discounts', 'route' => 'marketing.discounts', 'icon' => 'tag'],
-                                ['label' => 'Bundles', 'route' => 'marketing.bundles', 'icon' => 'gift'],
+                                ['label' => 'Diskon', 'route' => 'marketing.discounts', 'perm' => 'marketing.view', 'icon' => 'tag'],
+                                ['label' => 'Bundle', 'route' => 'marketing.bundles', 'perm' => 'marketing.view', 'icon' => 'gift'],
+                                ['label' => 'Promo', 'route' => 'reports.promo', 'perm' => 'reports.view', 'icon' => 'megaphone'],
                             ]],
-                            ['label' => 'Promo', 'route' => 'reports.promo', 'perm' => 'reports.view', 'icon' => 'megaphone'],
-                        ],
-                        'Keuangan' => [
-                            ['label' => 'Rekening', 'route' => 'bank.index', 'perm' => 'reports.view', 'icon' => 'chart'],
-                            ['label' => 'Setoran Kas', 'route' => 'bank.deposits.create', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
-                            ['label' => 'BOP', 'route' => 'reports.expenses', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
-                            ['label' => 'Laba Rugi', 'route' => 'reports.laba-rugi', 'perm' => 'reports.view', 'icon' => 'chart'],
-                            ['label' => 'Investor', 'route' => 'investors.index', 'perm' => 'reports.view', 'icon' => 'user'],
-                        ],
-                        'Laporan' => [
-                            ['label' => 'Sales', 'route' => 'reports.sales', 'perm' => 'reports.view', 'icon' => 'chart'],
-                            ['label' => 'Products', 'route' => 'reports.products', 'perm' => 'reports.view', 'icon' => 'products'],
-                            ['label' => 'Inventory', 'route' => 'reports.inventory', 'perm' => 'reports.view', 'icon' => 'inventory'],
-                            ['label' => 'Setoran Makanan', 'route' => 'reports.setoran', 'perm' => 'reports.view', 'icon' => 'clipboard'],
-                        ],
-                        'Sistem' => [
-                            ['label' => 'Event Display', 'route' => 'event-display.edit', 'perm' => 'settings.manage', 'icon' => 'megaphone'],
+                            ['label' => 'Keuangan', 'route' => 'bank.index', 'perm' => 'reports.view', 'icon' => 'chart', 'children' => [
+                                ['label' => 'Rekening', 'route' => 'bank.index', 'perm' => 'reports.view', 'icon' => 'chart'],
+                                ['label' => 'Setoran Kas', 'route' => 'bank.deposits.create', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
+                                ['label' => 'BOP', 'route' => 'reports.expenses', 'perm' => 'bop.manage', 'icon' => 'clipboard'],
+                                ['label' => 'Laba Rugi', 'route' => 'reports.laba-rugi', 'perm' => 'reports.view', 'icon' => 'chart'],
+                                ['label' => 'Investor', 'route' => 'investors.index', 'perm' => 'reports.view', 'icon' => 'user'],
+                            ]],
+                            ['label' => 'Laporan', 'route' => 'reports.sales', 'perm' => 'reports.view', 'exact' => true, 'icon' => 'chart', 'children' => [
+                                ['label' => 'Penjualan', 'route' => 'reports.sales', 'perm' => 'reports.view', 'icon' => 'chart'],
+                                ['label' => 'Produk', 'route' => 'reports.products', 'perm' => 'reports.view', 'icon' => 'products'],
+                                ['label' => 'Setoran Makanan', 'route' => 'reports.setoran', 'perm' => 'reports.view', 'icon' => 'clipboard'],
+                            ]],
                             ['label' => 'Settings', 'route' => 'settings.index', 'perm' => 'settings.manage', 'icon' => 'settings', 'children' => [
-                                ['label' => 'General', 'route' => 'settings.index', 'icon' => 'settings'],
-                                ['label' => 'Outlets', 'route' => 'outlets.index', 'icon' => 'building'],
-                                ['label' => 'Users', 'route' => 'users.index', 'icon' => 'user'],
-                                ['label' => 'Audit Logs', 'route' => 'audit.index', 'icon' => 'document'],
+                                ['label' => 'General', 'route' => 'settings.index', 'perm' => 'settings.manage', 'icon' => 'settings'],
+                                ['label' => 'Outlet', 'route' => 'outlets.index', 'perm' => 'settings.manage', 'icon' => 'building'],
+                                ['label' => 'Users', 'route' => 'users.index', 'perm' => 'settings.manage', 'icon' => 'user'],
+                                ['label' => 'Audit Logs', 'route' => 'audit.index', 'perm' => 'settings.manage', 'icon' => 'document'],
+                                ['label' => 'Event Display', 'route' => 'event-display.edit', 'perm' => 'settings.manage', 'icon' => 'megaphone'],
                             ]],
                         ],
                     ];
                 @endphp
 
+                @php
+                    $canSee = function ($item) {
+                        $user = auth()->user();
+                        if (! empty($item['unless']) && $user->hasPermission($item['unless'])) {
+                            return false;
+                        }
+                        if ($user->hasPermission($item['perm'])) {
+                            return true;
+                        }
+                        foreach ($item['children'] ?? [] as $child) {
+                            if (! empty($child['perm']) && $user->hasPermission($child['perm'])) {
+                                return true;
+                            }
+                        }
+
+                        return false;
+                    };
+                @endphp
                 @foreach ($groups as $section => $items)
                     @php
-                        $visible = collect($items)->contains(fn ($item) => auth()->user()->hasPermission($item['perm']));
+                        $visible = collect($items)->contains($canSee);
                     @endphp
                     @if ($visible)
-                        <p class="nav-section" x-show="!collapsed">{{ $section }}</p>
+                        @if ($section !== '')
+                            <p class="nav-section" x-show="!collapsed">{{ $section }}</p>
+                        @endif
                         @foreach ($items as $item)
-                            @if (auth()->user()->hasPermission($item['perm']))
+                            @if ($canSee($item))
                                 @php
                                     $children = $item['children'] ?? [];
                                     $childRoutes = collect($children)->pluck('route')->all();
-                                    $parentPattern = str($item['route'])->beforeLast('.')->append('.*')->toString();
+                                    $parentPattern = empty($item['exact'])
+                                        ? str($item['route'])->beforeLast('.')->append('.*')->toString()
+                                        : $item['route'];
                                     $groupActive = $children
                                         ? request()->routeIs($parentPattern, $item['route'], ...$childRoutes)
                                         : request()->routeIs($item['route']);

@@ -6,7 +6,6 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\TableStatus;
 use App\Models\DiningTable;
-use App\Models\MonthlyTarget;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Support\Carbon;
@@ -48,26 +47,16 @@ class DashboardService
         ];
 
         $summary = $this->shares->summarize($filters);
-        $food = $this->reports->foodSetoran($filters);
+        $food = $this->excludeCancelledFood($this->reports->foodSetoran($filters), $filters);
         $drinks = $this->drinkSales($filters);
-        $foodCut = $this->foodHalfPriceCut($filters);
-        $drinkCut = $this->drinkPriceCut($filters);
-        $cafeRate = (float) config('pos.food_cafe_percent', 10) / 100;
-        $food['sales'] = round((float) $food['sales'] - $foodCut, 2);
-        $food['commission'] = round((float) $food['commission'] - ($foodCut * $cafeRate), 2);
-        $food['setoran'] = round((float) $food['setoran'] - ($foodCut * (1 - $cafeRate)), 2);
-        $drinks = round($drinks - $drinkCut, 2);
-        $summary['gross'] = round((float) $summary['gross'] - $foodCut - $drinkCut, 2);
-        $summary['sales'] = round((float) $summary['sales'] - ($foodCut * $cafeRate) - $drinkCut, 2);
-        $summary['remainder'] = round((float) $summary['sales'] - (float) $summary['bop'], 2);
-        $summary['shares'] = $this->shares->split($summary['remainder'], $this->shares->partners());
+        $gross = round((float) (clone $this->validOrders($outletId, $range))->sum('grand_total'), 2);
+        $setoran = (float) $food['setoran'];
+        $sales = round($gross - $setoran, 2);
+        $bop = (float) $summary['bop'];
+        $net = round($gross - $bop, 2);
+        $shareBase = round($sales - $bop, 2);
 
-        $orderCount = (int) Order::query()
-            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
-            ->where('payment_status', PaymentStatus::Paid->value)
-            ->whereDate('created_at', '>=', $range['from'])
-            ->whereDate('created_at', '<=', $range['to'])
-            ->count();
+        $orderCount = (int) (clone $this->validOrders($outletId, $range))->count();
 
         $pendingKitchen = Order::query()
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
@@ -84,28 +73,32 @@ class DashboardService
             ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
             ->where('is_active', true);
 
-        $target = $this->drinkTarget($outletId, $range);
         $paymentTotals = $this->paymentTotals($outletId, $range);
+        $paymentGap = round($paymentTotals['total'] - $gross, 2);
 
         return [
             'period' => $range['period'],
             'from' => $range['from'],
             'to' => $range['to'],
             'label' => $range['label'],
-            'gross' => (float) $summary['gross'],
+            'gross' => $gross,
             'drinks' => $drinks,
             'food_sales' => (float) $food['sales'],
             'food_cafe' => (float) $food['commission'],
-            'food_setoran' => (float) $food['setoran'],
-            'sales' => (float) $summary['sales'],
-            'bop' => (float) $summary['bop'],
-            'net' => (float) $summary['remainder'],
-            'shares' => $summary['shares'],
-            'target' => $target,
+            'food_setoran' => $setoran,
+            'sales' => $sales,
+            'bop' => $bop,
+            'net' => $net,
+            'share_base' => $shareBase,
+            'shares' => $this->shares->split($shareBase, $this->shares->partners()),
             'cash' => $paymentTotals['cash'],
             'qris' => $paymentTotals['qris'],
+            'other' => $paymentTotals['other'],
+            'payment_total' => $paymentTotals['total'],
+            'payment_gap' => $paymentGap,
+            'payments_match' => abs($paymentGap) < 1,
             'orders' => $orderCount,
-            'aov' => $orderCount > 0 ? (float) $summary['gross'] / $orderCount : 0,
+            'aov' => $orderCount > 0 ? $gross / $orderCount : 0,
             'pending_kitchen' => $pendingKitchen,
             'pending_pickup' => $pendingPickup,
             'occupied_tables' => (clone $tables)->where('status', TableStatus::Occupied->value)->count(),
@@ -145,73 +138,72 @@ class DashboardService
     }
 
     /**
-     * @return array{cash: float, qris: float}
+     * @return array{cash: float, qris: float, other: float, total: float}
      */
     protected function paymentTotals(?int $outletId, array $range): array
     {
         $rows = DB::table('payments')
             ->join('orders', 'orders.id', '=', 'payments.order_id')
             ->when($outletId, fn ($q) => $q->where('orders.outlet_id', $outletId))
-            ->whereDate('payments.created_at', '>=', $range['from'])
-            ->whereDate('payments.created_at', '<=', $range['to'])
-            ->whereIn('payments.method', ['cash', 'qris'])
+            ->where('orders.payment_status', PaymentStatus::Paid->value)
+            ->where('orders.status', '!=', OrderStatus::Cancelled->value)
+            ->whereDate('orders.created_at', '>=', $range['from'])
+            ->whereDate('orders.created_at', '<=', $range['to'])
             ->selectRaw('payments.method, SUM(payments.amount) as total')
             ->groupBy('payments.method')
             ->pluck('total', 'method');
 
+        $cash = (float) ($rows['cash'] ?? 0);
+        $qris = (float) ($rows['qris'] ?? 0);
+        $total = round((float) $rows->sum(), 2);
+
         return [
-            'cash' => (float) ($rows['cash'] ?? 0),
-            'qris' => (float) ($rows['qris'] ?? 0),
+            'cash' => $cash,
+            'qris' => $qris,
+            'other' => round($total - $cash - $qris, 2),
+            'total' => $total,
         ];
     }
 
     /**
-     * 20 Sep 2026: semua makanan mitra dihitung setengah harga.
-     * ponytail: satu tanggal tetap, pindah ke diskon order kalau promo jadi rutin.
+     * Order lunas yang tidak dibatalkan, pada tanggal order yang sama dengan kartu lain.
      */
-    protected function foodHalfPriceCut(array $filters): float
+    protected function validOrders(?int $outletId, array $range)
     {
-        $day = '2026-09-20';
-        if ((filled($filters['from'] ?? null) && $filters['from'] > $day) || (filled($filters['to'] ?? null) && $filters['to'] < $day)) {
-            return 0.0;
-        }
-
-        $sales = (float) OrderItem::query()
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->where('orders.payment_status', PaymentStatus::Paid->value)
-            ->where('order_items.consignment_commission', '>', 0)
-            ->whereDate('orders.created_at', $day)
-            ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
-            ->sum('order_items.total');
-
-        return round($sales / 2, 2);
+        return Order::query()
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
+            ->where('payment_status', PaymentStatus::Paid->value)
+            ->where('status', '!=', OrderStatus::Cancelled->value)
+            ->whereDate('created_at', '>=', $range['from'])
+            ->whereDate('created_at', '<=', $range['to']);
     }
 
     /**
-     * Minuman: 20 Sep 2026 harga 0, 21–27 Sep 2026 setengah harga.
-     * ponytail: tanggal tetap, pindah ke diskon order kalau promo jadi rutin.
+     * @param  array{sales: float, commission: float, setoran: float, rows: mixed}  $food
+     * @return array{sales: float, commission: float, setoran: float, rows: mixed}
      */
-    protected function drinkPriceCut(array $filters): float
+    protected function excludeCancelledFood(array $food, array $filters): array
     {
-        $from = $filters['from'] ?? null;
-        $to = $filters['to'] ?? null;
-        if ((filled($from) && $from > '2026-09-27') || (filled($to) && $to < '2026-09-20')) {
-            return 0.0;
+        $cancelled = (float) OrderItem::query()
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->where('orders.payment_status', PaymentStatus::Paid->value)
+            ->where('orders.status', OrderStatus::Cancelled->value)
+            ->where('order_items.consignment_commission', '>', 0)
+            ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
+            ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '>=', $filters['from']))
+            ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '<=', $filters['to']))
+            ->sum('order_items.total');
+
+        if ($cancelled <= 0) {
+            return $food;
         }
 
-        $cut = OrderItem::query()
-            ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->join('products', 'products.id', '=', 'order_items.product_id')
-            ->join('categories', 'categories.id', '=', 'products.category_id')
-            ->where('orders.payment_status', PaymentStatus::Paid->value)
-            ->whereIn('categories.name', drink_category_names())
-            ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
-            ->when(filled($from), fn ($q) => $q->whereDate('orders.created_at', '>=', $from))
-            ->when(filled($to), fn ($q) => $q->whereDate('orders.created_at', '<=', $to))
-            ->selectRaw("SUM(CASE WHEN DATE(orders.created_at) = '2026-09-20' THEN order_items.total WHEN DATE(orders.created_at) BETWEEN '2026-09-21' AND '2026-09-27' THEN order_items.total * 0.5 ELSE 0 END) as cut")
-            ->value('cut');
+        $rate = (float) config('pos.food_cafe_percent', 10) / 100;
+        $food['sales'] = round((float) $food['sales'] - $cancelled, 2);
+        $food['commission'] = round((float) $food['commission'] - ($cancelled * $rate), 2);
+        $food['setoran'] = round($food['sales'] - $food['commission'], 2);
 
-        return round((float) $cut, 2);
+        return $food;
     }
 
     protected function drinkSales(array $filters): float
@@ -221,53 +213,12 @@ class DashboardService
             ->join('products', 'products.id', '=', 'order_items.product_id')
             ->join('categories', 'categories.id', '=', 'products.category_id')
             ->where('orders.payment_status', PaymentStatus::Paid->value)
+            ->where('orders.status', '!=', OrderStatus::Cancelled->value)
             ->whereIn('categories.name', drink_category_names())
             ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
             ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '>=', $filters['from']))
             ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '<=', $filters['to']))
             ->sum('order_items.total');
-    }
-
-    /**
-     * Target omzet minuman vs realisasi bulan (sama konsep BOP / investors).
-     *
-     * @return array{amount: float, actual: float, progress: float, label: string, year: int, month: int}
-     */
-    protected function drinkTarget(?int $outletId, array $range): array
-    {
-        $anchor = Carbon::parse($range['month'] ?? $range['to'] ?? now()->toDateString());
-        $year = (int) $anchor->year;
-        $month = (int) $anchor->month;
-
-        $stored = MonthlyTarget::query()
-            ->where('outlet_id', $outletId)
-            ->where('year', $year)
-            ->where('month', $month)
-            ->value('amount');
-
-        $amount = (float) ($stored ?? monthly_bop());
-        $from = $anchor->copy()->startOfMonth()->toDateString();
-        $to = $anchor->copy()->endOfMonth();
-        if ($to->isFuture()) {
-            $to = Carbon::now()->startOfDay();
-        }
-
-        $monthFilters = [
-            'outlet_id' => $outletId,
-            'from' => $from,
-            'to' => $to->toDateString(),
-        ];
-        $actual = round($this->drinkSales($monthFilters) - $this->drinkPriceCut($monthFilters), 2);
-        $progress = $amount > 0 ? min(100, round($actual / $amount * 100, 1)) : 0.0;
-
-        return [
-            'amount' => $amount,
-            'actual' => $actual,
-            'progress' => $progress,
-            'label' => $anchor->copy()->startOfMonth()->locale('id')->translatedFormat('F Y'),
-            'year' => $year,
-            'month' => $month,
-        ];
     }
 
     /**

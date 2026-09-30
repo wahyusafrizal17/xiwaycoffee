@@ -209,7 +209,7 @@
                 <form id="cancel-order-form" method="POST" action="{{ route('pos.cancel', $order) }}">
                     @csrf
                     <input type="hidden" name="reason">
-                    <button id="cancel-order-btn" class="btn-ghost w-full text-brand hover:bg-brand-soft" style="border-color: #6f1715" type="button">Cancel order</button>
+                    <button id="cancel-order-btn" class="btn-ghost w-full text-brand hover:bg-brand-soft" style="border-color: #e8192c" type="button">Cancel order</button>
                 </form>
             @endif
         </div>

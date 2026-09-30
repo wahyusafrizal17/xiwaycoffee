@@ -36,7 +36,7 @@ class EmployeeSeeder extends Seeder
             ['name' => 'Zakki', 'email' => 'zakki@xiway.local', 'position' => 'Barista', 'salary' => 3_000_000],
             ['name' => 'Naurah', 'email' => 'naurah@xiway.local', 'position' => 'Assisten Barista', 'salary' => 1_700_000],
             ['name' => 'Ergina', 'email' => 'ergina@xiway.local', 'position' => 'Kasir', 'salary' => 1_700_000],
-            ['name' => 'Jimmy', 'email' => 'jimmy@xiway.local', 'position' => 'Waiters', 'salary' => 2_500_000],
+            ['name' => 'Jimmy', 'email' => 'jimmy@xiway.local', 'position' => 'Waiters', 'salary' => 2_000_000],
         ];
 
         foreach ($staff as $row) {

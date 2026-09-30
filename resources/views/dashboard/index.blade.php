@@ -78,26 +78,6 @@
         </div>
     </form>
 
-    @if ($showFinance)
-        @php $target = $metrics['target']; @endphp
-        <div class="mb-5 card overflow-hidden p-5">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Target omzet minuman</p>
-                    <h2 class="mt-1 font-serif text-xl font-semibold text-heading">{{ $target['label'] }}</h2>
-                    <p class="mt-1 text-[13px] text-muted">Minimal menutupi BOP {{ money($target['amount']) }}/bulan</p>
-                </div>
-                <div class="text-right">
-                    <p class="font-serif text-3xl font-semibold tabular-nums text-heading">{{ number_format($target['progress'], 1, ',', '.') }}%</p>
-                    <p class="mt-1 text-[12px] text-muted">{{ money($target['actual']) }} / {{ money($target['amount']) }}</p>
-                </div>
-            </div>
-            <div class="mt-4 h-2.5 overflow-hidden rounded-full bg-[#f0ebe4]">
-                <div class="h-full rounded-full bg-brand transition-all" style="width: {{ $target['progress'] }}%"></div>
-            </div>
-        </div>
-    @endif
-
     <div class="mb-5 grid gap-4 sm:grid-cols-2 {{ $showFinance ? 'xl:grid-cols-4' : 'xl:grid-cols-3' }}">
         <div class="stat-card !items-start">
             <div class="min-w-0 flex-1">
@@ -124,7 +104,7 @@
                 <div class="min-w-0 flex-1">
                     <p class="stat-kicker">Pendapatan bersih</p>
                     <p class="stat-value {{ $metrics['net'] < 0 ? 'text-brand' : '' }}">{{ money($metrics['net']) }}</p>
-                    <p class="stat-hint">Omzet cafe − BOP (siap bagi hasil)</p>
+                    <p class="stat-hint">Pendapatan kotor − BOP</p>
                 </div>
                 <span class="stat-icon {{ $metrics['net'] < 0 ? 'bg-brand-soft text-brand' : 'bg-[#e8f1ff] text-[#2563eb]' }}">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 7h6M9 11h6M9 15h4M5 5h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z"/></svg>
@@ -148,13 +128,13 @@
                 <p class="stat-value">{{ $metrics['pending_kitchen'] }}</p>
                 <p class="stat-hint">Pickup {{ $metrics['pending_pickup'] }} · Meja isi {{ $metrics['occupied_tables'] }}</p>
             </div>
-            <span class="stat-icon bg-[#f3e6e4] text-brand">
+            <span class="stat-icon bg-brand-soft text-brand">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
             </span>
         </div>
     </div>
 
-    <div class="mb-5 grid gap-4 sm:grid-cols-2">
+    <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="stat-card !items-start">
             <div class="min-w-0 flex-1">
                 <p class="stat-kicker">Cash</p>
@@ -175,7 +155,27 @@
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 3h2v3h-2v-3zm4-3h2v2h-2v-2zm-4 0h2v2h-2v-2zm4 3h2v3h-2v-3z"/></svg>
             </span>
         </div>
+        <div class="stat-card !items-start">
+            <div class="min-w-0 flex-1">
+                <p class="stat-kicker">Lainnya</p>
+                <p class="stat-value">{{ money($metrics['other']) }}</p>
+                <p class="stat-hint">Selain tunai dan QRIS</p>
+            </div>
+        </div>
+        <div class="stat-card !items-start">
+            <div class="min-w-0 flex-1">
+                <p class="stat-kicker">Total pembayaran</p>
+                <p class="stat-value">{{ money($metrics['payment_total']) }}</p>
+                <p class="stat-hint">Dibanding pendapatan kotor {{ money($metrics['gross']) }}</p>
+            </div>
+        </div>
     </div>
+
+    @if (! $metrics['payments_match'])
+        <div class="mb-5 rounded-xl border border-[#f5d0a9] bg-[#fff7ed] px-4 py-3 text-[13px] text-[#9a3412]">
+            Perlu rekonsiliasi. Total pembayaran {{ money($metrics['payment_total']) }}, pendapatan kotor {{ money($metrics['gross']) }}, selisih {{ money($metrics['payment_gap']) }}.
+        </div>
+    @endif
 
     @if ($showFinance)
     <div class="mb-5 grid gap-4 lg:grid-cols-2">
@@ -229,7 +229,7 @@
             <div class="card-header">
                 <div>
                     <h5 class="card-header-title">Bagi hasil</h5>
-                    <p class="card-header-subtitle">Dari pendapatan bersih {{ money($metrics['net']) }}.</p>
+                    <p class="card-header-subtitle">Dari omzet cafe − BOP {{ money($metrics['share_base']) }}.</p>
                 </div>
                 <a href="{{ route('reports.profit', ['period' => $period]) }}" class="text-[12px] font-medium text-brand hover:underline">Detail</a>
             </div>
@@ -331,11 +331,11 @@
                 datasets: [{
                     data: @json($charts['sales_trend']->pluck('total')->map(fn ($v) => (float) $v)),
                     backgroundColor: 'rgba(111,23,21,.10)',
-                    borderColor: '#6f1715',
+                    borderColor: '#e8192c',
                     fill: true,
                     tension: .35,
                     borderWidth: 2.5,
-                    pointBackgroundColor: '#6f1715',
+                    pointBackgroundColor: '#e8192c',
                     pointRadius: 3,
                     pointHoverRadius: 5,
                 }],

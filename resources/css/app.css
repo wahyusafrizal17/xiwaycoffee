@@ -16,9 +16,9 @@
 @theme {
     --font-sans: 'Fira Sans', ui-sans-serif, system-ui, sans-serif;
     --font-serif: 'Juana', ui-serif, Georgia, serif;
-    --color-brand: #6f1715;
-    --color-brand-dark: #591211;
-    --color-brand-soft: #f3e6e4;
+    --color-brand: #e8192c;
+    --color-brand-dark: #c41424;
+    --color-brand-soft: #fde8ea;
     --color-ink: #171717;
     --color-heading: #111111;
     --color-muted: #737373;
@@ -97,7 +97,7 @@
     }
 
     .btn-pdf {
-        @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand-soft px-3.5 py-2 text-[13px] font-medium text-brand transition hover:bg-[#e6d0cc];
+        @apply inline-flex items-center justify-center gap-2 rounded-lg bg-brand-soft px-3.5 py-2 text-[13px] font-medium text-brand transition hover:bg-[#f8d0d4];
     }
 
     .btn-import {
@@ -280,12 +280,12 @@
     }
 
     .nav-item-active {
-        @apply text-white shadow-[0_4px_16px_rgba(111,23,21,0.42)] hover:text-white;
-        background-image: linear-gradient(180deg, #7d1a18 0%, #591211 100%);
+        @apply text-white shadow-[0_4px_16px_rgba(232,25,44,0.42)] hover:text-white;
+        background-image: linear-gradient(180deg, #e8192c 0%, #c41424 100%);
     }
 
     .nav-item-active:hover {
-        background-image: linear-gradient(180deg, #7d1a18 0%, #591211 100%);
+        background-image: linear-gradient(180deg, #e8192c 0%, #c41424 100%);
     }
 
     .nav-group {
@@ -301,12 +301,12 @@
     }
 
     .nav-subitem-active {
-        @apply font-medium text-white shadow-[0_4px_16px_rgba(111,23,21,0.38)] hover:text-white;
-        background-image: linear-gradient(180deg, #7d1a18 0%, #591211 100%);
+        @apply font-medium text-white shadow-[0_4px_16px_rgba(232,25,44,0.38)] hover:text-white;
+        background-image: linear-gradient(180deg, #e8192c 0%, #c41424 100%);
     }
 
     .nav-subitem-active:hover {
-        background-image: linear-gradient(180deg, #7d1a18 0%, #591211 100%);
+        background-image: linear-gradient(180deg, #e8192c 0%, #c41424 100%);
     }
 
     .nav-section {

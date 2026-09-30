@@ -1,0 +1,150 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Attendance;
+use App\Models\Employee;
+use App\Models\WorkShift;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\View\View;
+
+class EmployeeController extends Controller
+{
+    public function index(Request $request): View
+    {
+        abort_unless($request->user()->hasPermission('attendance.manage'), 403);
+
+        $employees = Employee::query()
+            ->with('user')
+            ->when(current_outlet_id(), fn ($q) => $q->where('outlet_id', current_outlet_id()))
+            ->orderBy('position')
+            ->get();
+
+        return view('employees.index', [
+            'employees' => $employees,
+        ]);
+    }
+
+    public function update(Request $request, Employee $employee): RedirectResponse
+    {
+        abort_unless($request->user()->hasPermission('attendance.manage'), 403);
+
+        $data = $request->validate([
+            'position' => ['required', 'string', 'max:80'],
+            'salary' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        $employee->update($data);
+
+        return redirect()->route('employees.index')->with('success', 'Data karyawan diperbarui.');
+    }
+
+    public function recap(Request $request): View
+    {
+        abort_unless($request->user()->hasPermission('attendance.manage'), 403);
+
+        [$month, $rows] = $this->rows($request);
+
+        return view('employees.recap', [
+            'month' => $month,
+            'rows' => $rows,
+        ]);
+    }
+
+    public function payroll(Request $request): View
+    {
+        abort_unless($request->user()->hasPermission('attendance.manage'), 403);
+
+        [$month, $rows] = $this->rows($request);
+
+        return view('employees.payroll', [
+            'month' => $month,
+            'rows' => $rows,
+            'label' => Carbon::createFromFormat('Y-m', $month)->locale('id')->translatedFormat('F Y'),
+        ]);
+    }
+
+    public function slip(Request $request, Employee $employee): View
+    {
+        abort_unless($request->user()->hasPermission('attendance.manage'), 403);
+
+        $month = $this->month($request);
+        $row = $this->rows($request, $employee)[1]->first();
+        abort_unless($row, 404);
+
+        return view('employees.slip', [
+            'row' => $row,
+            'month' => $month,
+            'label' => Carbon::createFromFormat('Y-m', $month)->locale('id')->translatedFormat('F Y'),
+            'outlet' => $employee->outlet,
+        ]);
+    }
+
+    /**
+     * @return array{0: string, 1: Collection<int, array<string, mixed>>}
+     */
+    protected function rows(Request $request, ?Employee $only = null): array
+    {
+        $month = $this->month($request);
+        $start = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        $employees = Employee::query()
+            ->with(['user', 'outlet'])
+            ->when($only, fn ($q) => $q->whereKey($only->id))
+            ->when(! $only && current_outlet_id(), fn ($q) => $q->where('outlet_id', current_outlet_id()))
+            ->orderBy('position')
+            ->get();
+
+        $ids = $employees->pluck('id');
+        $shifts = WorkShift::query()
+            ->whereIn('employee_id', $ids)
+            ->whereDate('work_date', '>=', $start->toDateString())
+            ->whereDate('work_date', '<=', $end->toDateString())
+            ->get()
+            ->groupBy('employee_id');
+        $present = Attendance::query()
+            ->whereIn('employee_id', $ids)
+            ->whereNotNull('clock_in_at')
+            ->whereDate('work_date', '>=', $start->toDateString())
+            ->whereDate('work_date', '<=', $end->toDateString())
+            ->get()
+            ->groupBy('employee_id');
+
+        $rows = $employees->map(function (Employee $employee) use ($shifts, $present) {
+            $mine = $shifts->get($employee->id, collect());
+            $days = $present->get($employee->id, collect());
+            $scheduled = $mine->filter(fn ($shift) => filled($shift->starts_at))->count();
+            $off = $mine->filter(fn ($shift) => ! filled($shift->starts_at))->count();
+            $worked = $days->count();
+            $late = $days->where('is_late', true)->count();
+            $salary = (int) round((float) $employee->salary);
+            $daily = (int) round($salary / 26);
+            $gross = (int) round($salary * $worked / 26);
+
+            return [
+                'employee' => $employee,
+                'scheduled' => $scheduled,
+                'off' => $off,
+                'worked' => $worked,
+                'late' => $late,
+                'salary' => $salary,
+                'daily' => $daily,
+                'deduction' => 0,
+                'net' => $gross,
+            ];
+        });
+
+        return [$month, $rows];
+    }
+
+    protected function month(Request $request): string
+    {
+        $month = (string) $request->query('month', now()->format('Y-m'));
+
+        return Carbon::hasFormat($month, 'Y-m') ? $month : now()->format('Y-m');
+    }
+}

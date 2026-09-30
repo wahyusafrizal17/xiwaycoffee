@@ -35,7 +35,7 @@
     }
     .select2-container--default.select2-container--focus .select2-selection--single,
     .select2-container--default.select2-container--open .select2-selection--single {
-        border-color: #6f1715;
+        border-color: #e8192c;
         box-shadow: 0 0 0 4px rgba(111, 23, 21, 0.15);
     }
     .select2-dropdown {
@@ -51,10 +51,10 @@
         outline: none;
     }
     .select2-container--default .select2-search--dropdown .select2-search__field:focus {
-        border-color: #6f1715;
+        border-color: #e8192c;
     }
     .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
-        background: #6f1715;
+        background: #e8192c;
     }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>

@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentMethod;
 use App\Enums\PrinterStation;
 use App\Enums\ProductType;
 use App\Models\Category;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Services\DashboardService;
 use App\Services\OrderService;
@@ -115,9 +117,8 @@ class DashboardTest extends TestCase
         $this->actingAsAtOutlet($this->admin)
             ->get(route('dashboard', ['period' => 'month', 'month' => now()->format('Y-m')]))
             ->assertOk()
-            ->assertSee(now()->locale('id')->translatedFormat('F Y'))
-            ->assertSee('Target omzet minuman')
-            ->assertSee('%');
+            ->assertSee(strtolower(now()->locale('id')->translatedFormat('F Y')))
+            ->assertDontSee('Target omzet');
     }
 
     public function test_cashier_dashboard_hides_profit_share(): void
@@ -135,7 +136,7 @@ class DashboardTest extends TestCase
             ->assertDontSee('Wahyu');
     }
 
-    public function test_dashboard_halves_food_prices_on_20_september_2026(): void
+    public function test_dashboard_uses_recorded_prices_not_september_promo_cuts(): void
     {
         $food = Product::query()->create([
             'sku' => 'PRD-FOOD-HALF',
@@ -171,23 +172,24 @@ class DashboardTest extends TestCase
             'label' => '20 Sep 2026',
         ]);
 
-        $this->assertEquals(10000.0, $metrics['food_sales']);
-        $this->assertEquals(1000.0, $metrics['food_cafe']);
-        $this->assertEquals(9000.0, $metrics['food_setoran']);
+        $this->assertEquals(20000.0, $metrics['food_sales']);
+        $this->assertEquals(2000.0, $metrics['food_cafe']);
+        $this->assertEquals(18000.0, $metrics['food_setoran']);
+        $this->assertEquals($metrics['gross'] - $metrics['bop'], $metrics['net']);
     }
 
-    public function test_dashboard_adjusts_drink_prices_on_20_to_27_september_2026(): void
+    public function test_dashboard_keeps_paid_orders_and_reconciles_payments(): void
     {
         $drinkCategory = Category::query()->create([
             'name' => 'Coffee',
-            'slug' => 'coffee-promo',
+            'slug' => 'coffee-recon',
             'station' => PrinterStation::Bar->value,
             'sort_order' => 2,
             'is_active' => true,
         ]);
         $drink = Product::query()->create([
-            'sku' => 'PRD-DRINK-PROMO',
-            'name' => 'Sanger Promo',
+            'sku' => 'PRD-DRINK-RECON',
+            'name' => 'Sanger Recon',
             'category_id' => $drinkCategory->id,
             'unit_id' => $this->unitPcs->id,
             'type' => ProductType::Finished,
@@ -200,26 +202,72 @@ class DashboardTest extends TestCase
 
         $this->actingAsAtOutlet($this->cashier);
         $orders = app(OrderService::class);
-        foreach (['2026-09-20' => 0.0, '2026-09-24' => 10000.0, '2026-09-28' => 20000.0] as $date => $expected) {
-            $order = $orders->createDraft([
-                'outlet_id' => $this->outlet->id,
-                'order_type' => OrderType::Pickup->value,
-            ]);
-            $orders->addItem($order, ['product_id' => $drink->id, 'quantity' => 1]);
-            $order = $orders->checkout($order->fresh(), [
-                'method' => PaymentMethod::Cash->value,
-                'tendered' => 100000,
-            ]);
-            $order->forceFill(['created_at' => $date.' 12:00:00'])->save();
 
-            $metrics = app(DashboardService::class)->metrics($this->outlet->id, [
-                'period' => 'day',
-                'from' => $date,
-                'to' => $date,
-                'label' => $date,
-            ]);
+        $paid = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($paid, ['product_id' => $drink->id, 'quantity' => 1]);
+        $paid = $orders->checkout($paid->fresh(), [
+            'method' => PaymentMethod::Qris->value,
+            'tendered' => 100000,
+        ]);
+        $paid->forceFill(['created_at' => '2026-09-30 23:50:00'])->save();
 
-            $this->assertEquals($expected, $metrics['drinks']);
-        }
+        $cancelled = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($cancelled, ['product_id' => $drink->id, 'quantity' => 1]);
+        $cancelled = $orders->checkout($cancelled->fresh(), [
+            'method' => PaymentMethod::Cash->value,
+            'tendered' => 100000,
+        ]);
+        $cancelled->forceFill([
+            'status' => OrderStatus::Cancelled->value,
+            'created_at' => '2026-09-15 10:00:00',
+        ])->save();
+
+        $outside = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($outside, ['product_id' => $drink->id, 'quantity' => 1]);
+        $outside = $orders->checkout($outside->fresh(), [
+            'method' => PaymentMethod::Cash->value,
+            'tendered' => 100000,
+        ]);
+        $outside->forceFill(['created_at' => '2026-08-31 12:00:00'])->save();
+        $outside->payments()->update(['created_at' => '2026-09-02 08:00:00']);
+
+        Payment::query()->create([
+            'order_id' => $paid->id,
+            'user_id' => $this->cashier->id,
+            'method' => PaymentMethod::Qris->value,
+            'amount' => $paid->grand_total,
+            'tendered' => $paid->grand_total,
+            'change_amount' => 0,
+            'status' => 'paid',
+        ]);
+
+        $metrics = app(DashboardService::class)->metrics($this->outlet->id, [
+            'period' => 'month',
+            'from' => '2026-09-01',
+            'to' => '2026-09-30',
+            'label' => 'September 2026',
+        ]);
+
+        $this->assertEquals((float) $paid->grand_total, $metrics['gross']);
+        $this->assertSame(1, $metrics['orders']);
+        $this->assertEquals($metrics['gross'] - $metrics['bop'], $metrics['net']);
+        $this->assertEquals((float) $paid->grand_total * 2, $metrics['qris']);
+        $this->assertEquals(0.0, $metrics['cash']);
+        $this->assertEquals((float) $paid->grand_total * 2, $metrics['payment_total']);
+        $this->assertFalse($metrics['payments_match']);
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('dashboard', ['period' => 'month', 'month' => '2026-09']))
+            ->assertOk()
+            ->assertSee('Perlu rekonsiliasi', false);
     }
 }

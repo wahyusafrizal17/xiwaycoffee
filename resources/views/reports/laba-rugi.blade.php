@@ -151,7 +151,7 @@
                         {{ (float) $s['bop'] }},
                         {{ (float) $s['net'] }},
                     ],
-                    backgroundColor: ['#166534', '#c2410c', '#a16207', '#6f1715'],
+                    backgroundColor: ['#166534', '#c2410c', '#a16207', '#e8192c'],
                     borderRadius: 6,
                     borderWidth: 0,
                 }],

@@ -12,8 +12,8 @@
     </style>
     <style>
         :root {
-            --brand: #6f1715;
-            --brand-soft: #f3e6e4;
+            --brand: #e8192c;
+            --brand-soft: #fde8ea;
             --ink: #171717;
             --heading: #111111;
             --muted: #737373;
