@@ -30,7 +30,7 @@
                             <td>{{ $row['employee']->position }}</td>
                             <td>{{ $row['scheduled'] }} hari</td>
                             <td>{{ $row['off'] }} hari</td>
-                            <td>{{ $row['worked'] }} hari</td>
+                            <td>{{ $row['attended'] }} hari</td>
                             <td>{{ $row['late'] }} hari</td>
                         </tr>
                     @empty

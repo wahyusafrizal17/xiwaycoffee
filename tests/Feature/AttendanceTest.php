@@ -294,6 +294,19 @@ class AttendanceTest extends TestCase
             ->assertSee('# Tertulis : Dua Ratus Enam Puluh Satu Ribu Lima Ratus Tiga Puluh Delapan Rupiah', false);
 
         $this->actingAs($admin)
+            ->put(route('employees.payroll.update', $this->employee), [
+                'month' => '2026-09',
+                'days' => 10,
+            ])
+            ->assertRedirect(route('employees.payroll', ['month' => '2026-09']));
+
+        $this->actingAs($admin)
+            ->get(route('employees.slip', [$this->employee, 'month' => '2026-09']))
+            ->assertOk()
+            ->assertSee('10/26 hari', false)
+            ->assertSee('653,846', false);
+
+        $this->actingAs($admin)
             ->get(route('employees.index'))
             ->assertOk()
             ->assertSee('Management Karyawan', false)

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\Employee;
+use App\Models\PayrollDay;
 use App\Models\WorkShift;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,6 +41,23 @@ class EmployeeController extends Controller
         $employee->update($data);
 
         return redirect()->route('employees.index')->with('success', 'Data karyawan diperbarui.');
+    }
+
+    public function updateDays(Request $request, Employee $employee): RedirectResponse
+    {
+        abort_unless($request->user()->hasPermission('attendance.manage'), 403);
+
+        $data = $request->validate([
+            'month' => ['required', 'date_format:Y-m'],
+            'days' => ['required', 'integer', 'min:0', 'max:31'],
+        ]);
+
+        PayrollDay::query()->updateOrCreate(
+            ['employee_id' => $employee->id, 'month' => $data['month']],
+            ['days' => $data['days']],
+        );
+
+        return redirect()->route('employees.payroll', ['month' => $data['month']])->with('success', 'Hari masuk disimpan.');
     }
 
     public function recap(Request $request): View
@@ -113,13 +131,18 @@ class EmployeeController extends Controller
             ->whereDate('work_date', '<=', $end->toDateString())
             ->get()
             ->groupBy('employee_id');
+        $overrides = PayrollDay::query()
+            ->whereIn('employee_id', $ids)
+            ->where('month', $month)
+            ->pluck('days', 'employee_id');
 
-        $rows = $employees->map(function (Employee $employee) use ($shifts, $present) {
+        $rows = $employees->map(function (Employee $employee) use ($shifts, $present, $overrides) {
             $mine = $shifts->get($employee->id, collect());
             $days = $present->get($employee->id, collect());
             $scheduled = $mine->filter(fn ($shift) => filled($shift->starts_at))->count();
             $off = $mine->filter(fn ($shift) => ! filled($shift->starts_at))->count();
-            $worked = $days->count();
+            $attended = $days->count();
+            $worked = $overrides->has($employee->id) ? (int) $overrides[$employee->id] : $attended;
             $late = $days->where('is_late', true)->count();
             $salary = (int) round((float) $employee->salary);
             $daily = (int) round($salary / 26);
@@ -129,6 +152,7 @@ class EmployeeController extends Controller
                 'employee' => $employee,
                 'scheduled' => $scheduled,
                 'off' => $off,
+                'attended' => $attended,
                 'worked' => $worked,
                 'late' => $late,
                 'salary' => $salary,

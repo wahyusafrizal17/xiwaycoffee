@@ -30,7 +30,15 @@
                             <td class="font-medium text-heading">{{ $row['employee']->user?->name }}</td>
                             <td>{{ $row['employee']->position }}</td>
                             <td class="tabular-nums">{{ money($row['salary']) }}</td>
-                            <td>{{ $row['worked'] }} hari</td>
+                            <td>
+                                <form method="POST" action="{{ route('employees.payroll.update', $row['employee']) }}" class="flex items-center gap-2">
+                                    @csrf
+                                    @method('PUT')
+                                    <input type="hidden" name="month" value="{{ $month }}">
+                                    <input class="input !h-9 !w-20" type="number" name="days" min="0" max="31" value="{{ $row['worked'] }}" required>
+                                    <button class="text-[13px] font-medium text-brand" type="submit">Simpan</button>
+                                </form>
+                            </td>
                             <td class="tabular-nums font-medium text-heading">{{ money($row['net']) }}</td>
                             <td class="text-right">
                                 <a class="text-[13px] font-medium text-brand" href="{{ route('employees.slip', [$row['employee'], 'month' => $month]) }}" target="_blank">Slip</a>
