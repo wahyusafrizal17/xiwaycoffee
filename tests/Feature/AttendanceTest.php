@@ -212,8 +212,13 @@ class AttendanceTest extends TestCase
         $emails = ['zakki@xiway.local', 'naurah@xiway.local', 'ergina@xiway.local', 'jimmy@xiway.local'];
         $this->assertSame(4, User::query()->whereIn('email', $emails)->count());
         $this->assertDatabaseHas('employees', [
-            'position' => 'Barista',
+            'position' => 'Barista / Senior Crew',
+            'primary_position' => 'Bar',
             'salary' => 3000000,
+        ]);
+        $this->assertDatabaseHas('employees', [
+            'position' => 'Café Crew',
+            'primary_position' => 'Cashier',
         ]);
         $this->assertDatabaseHas('users', ['email' => 'jimmy@xiway.local']);
     }
@@ -311,6 +316,86 @@ class AttendanceTest extends TestCase
             ->assertOk()
             ->assertSee('Management Karyawan', false)
             ->assertSee('Zakki', false);
+    }
+
+    public function test_slip_splits_components_and_keeps_bonus_off_prorata(): void
+    {
+        $admin = User::query()->create([
+            'name' => 'Admin',
+            'email' => 'admin-komponen@test.local',
+            'password' => Hash::make('password'),
+            'is_active' => true,
+        ]);
+        $admin->roles()->sync([Role::query()->where('name', 'admin')->firstOrFail()->id]);
+        $admin->outlets()->sync([$this->outlet->id => ['is_default' => true]]);
+
+        $this->actingAs($admin)->put(route('employees.update', $this->employee), [
+            'position' => 'Kasir',
+            'base_salary' => 1_000_000,
+            'job_allowance' => 300_000,
+            'transport_allowance' => 200_000,
+            'cleanliness_allowance' => 200_000,
+            'sales_bonus' => 0,
+            'deduction' => 0,
+        ])->assertRedirect();
+
+        $this->employee->refresh();
+        $this->assertSame(1_700_000, (int) $this->employee->salary);
+
+        $this->actingAs($admin)->put(route('employees.payroll.update', $this->employee), [
+            'month' => '2026-09',
+            'days' => 26,
+        ])->assertRedirect();
+
+        $full = $this->actingAs($admin)->get(route('employees.slip', [$this->employee, 'month' => '2026-09']));
+        $full->assertOk()
+            ->assertSee('Gaji Pokok', false)
+            ->assertSee('Tunjangan Job', false)
+            ->assertSee('Tunjangan Transportasi', false)
+            ->assertSee('Tunjangan Kebersihan', false)
+            ->assertSee('Bonus Penjualan', false)
+            ->assertSee('1,000,000', false)
+            ->assertSee('1,700,000', false)
+            ->assertDontSee('Tunjangan Komunikasi', false);
+
+        $this->employee->update(['sales_bonus' => 250_000]);
+        $this->actingAs($admin)
+            ->get(route('employees.slip', [$this->employee, 'month' => '2026-09']))
+            ->assertOk()
+            ->assertSee('1,950,000', false)
+            ->assertSee('250,000', false);
+
+        $this->employee->update(['sales_bonus' => 0]);
+        $this->actingAs($admin)->put(route('employees.payroll.update', $this->employee), [
+            'month' => '2026-09',
+            'days' => 4,
+        ]);
+        $this->actingAs($admin)
+            ->get(route('employees.slip', [$this->employee, 'month' => '2026-09']))
+            ->assertOk()
+            ->assertSee('261,538', false)
+            ->assertSee('4/26 hari', false);
+
+        $this->employee->update(['sales_bonus' => 100_000]);
+        $this->actingAs($admin)
+            ->get(route('employees.slip', [$this->employee, 'month' => '2026-09']))
+            ->assertOk()
+            ->assertSee('100,000', false)
+            ->assertSee('361,538', false)
+            ->assertSee('# Tertulis : Tiga Ratus Enam Puluh Satu Ribu Lima Ratus Tiga Puluh Delapan Rupiah', false);
+
+        $this->employee->update(['sales_bonus' => 250_000, 'deduction' => 50_000]);
+        $this->actingAs($admin)->put(route('employees.payroll.update', $this->employee), [
+            'month' => '2026-09',
+            'days' => 26,
+        ]);
+        $this->actingAs($admin)
+            ->get(route('employees.slip', [$this->employee, 'month' => '2026-09']))
+            ->assertOk()
+            ->assertSee('1,950,000', false)
+            ->assertSee('50,000', false)
+            ->assertSee('1,900,000', false)
+            ->assertSee('# Tertulis : Satu Juta Sembilan Ratus Ribu Rupiah', false);
     }
 
     public function test_karyawan_lands_on_attendance_after_login(): void

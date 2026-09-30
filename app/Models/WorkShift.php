@@ -31,7 +31,7 @@ class WorkShift extends Model
         }
 
         $text = str_replace(':', '.', $this->starts_at).'-'.str_replace(':', '.', $this->ends_at);
-        if ($position === 'Barista' && $this->starts_at === '09:00' && $this->ends_at === '22:00') {
+        if (str_starts_with($position, 'Barista') && $this->starts_at === '09:00' && $this->ends_at === '22:00') {
             $text .= '*';
         }
 

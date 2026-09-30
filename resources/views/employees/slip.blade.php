@@ -35,6 +35,7 @@
         .sign-space { height: 88px; display: flex; align-items: center; justify-content: center; }
         .sign-space img { height: 78px; width: auto; }
         .who { margin: 0; }
+        .note { margin: 0 0 6px; }
         @media print {
             body { background: #fff; }
             .bar { display: none; }
@@ -80,20 +81,30 @@
                 <tr><td class="k">Periode</td><td class="c">:</td><td>{{ $label }}</td></tr>
                 <tr><td class="k">Karyawan</td><td class="c">:</td><td>{{ $employee->user?->name }}</td></tr>
                 <tr><td class="k">Jabatan</td><td class="c">:</td><td>{{ $employee->position }}</td></tr>
+                @if (filled($employee->primary_position))
+                    <tr><td class="k">Posisi</td><td class="c">:</td><td>{{ $employee->primary_position }}</td></tr>
+                @endif
                 <tr><td class="k">Status</td><td class="c">:</td><td>{{ $status }}</td></tr>
             </table>
         </div>
         <hr>
 
         <h2>PENERIMAAN</h2>
+        <p class="note">Gaji prorata ({{ $row['worked'] }}/26 hari)</p>
         <table class="lines">
+            @foreach ($row['lines'] as $label => $amount)
+                <tr>
+                    <td>- {{ $label }}</td>
+                    <td class="num"><span>{{ $money($amount) }}</span></td>
+                </tr>
+            @endforeach
             <tr>
-                <td>- Gaji Prorata ({{ $row['worked'] }}/26 hari)</td>
-                <td class="num"><span>{{ $money($row['net']) }}</span></td>
+                <td>- Bonus Penjualan</td>
+                <td class="num"><span>{{ $money($row['bonus']) }}</span></td>
             </tr>
             <tr class="total">
                 <td>Total Penerimaan</td>
-                <td class="num"><span>{{ $money($row['net']) }}</span></td>
+                <td class="num"><span>{{ $money($row['earnings']) }}</span></td>
             </tr>
         </table>
 
@@ -109,11 +120,11 @@
             </tr>
             <tr class="grand">
                 <td>TOTAL DITERIMA KARYAWAN</td>
-                <td class="num"><span>{{ $money($row['net'] - $row['deduction']) }}</span></td>
+                <td class="num"><span>{{ $money($row['net']) }}</span></td>
             </tr>
         </table>
 
-        <p class="words"># Tertulis : {{ ucwords(terbilang($row['net'] - $row['deduction'])) }} Rupiah</p>
+        <p class="words"># Tertulis : {{ ucwords(terbilang($row['net'])) }} Rupiah</p>
         <hr>
         <p class="place">{{ $city }}, {{ $issued->locale('id')->translatedFormat('j F Y') }}</p>
         <div class="signs">

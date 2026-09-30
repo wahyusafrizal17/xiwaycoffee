@@ -109,7 +109,11 @@ function terbilang(int $number): string
     if ($number === 0) {
         return 'nol';
     }
+
     $words = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
+    $join = function (string $head, int $rest): string {
+        return $rest === 0 ? $head : trim($head.' '.terbilang($rest));
+    };
 
     if ($number < 12) {
         return $words[$number];
@@ -118,22 +122,22 @@ function terbilang(int $number): string
         return terbilang($number - 10).' belas';
     }
     if ($number < 100) {
-        return trim(terbilang(intdiv($number, 10)).' puluh '.terbilang($number % 10));
+        return $join(terbilang(intdiv($number, 10)).' puluh', $number % 10);
     }
     if ($number < 200) {
-        return trim('seratus '.terbilang($number - 100));
+        return $join('seratus', $number - 100);
     }
     if ($number < 1000) {
-        return trim(terbilang(intdiv($number, 100)).' ratus '.terbilang($number % 100));
+        return $join(terbilang(intdiv($number, 100)).' ratus', $number % 100);
     }
     if ($number < 2000) {
-        return trim('seribu '.terbilang($number - 1000));
+        return $join('seribu', $number - 1000);
     }
     if ($number < 1000000) {
-        return trim(terbilang(intdiv($number, 1000)).' ribu '.terbilang($number % 1000));
+        return $join(terbilang(intdiv($number, 1000)).' ribu', $number % 1000);
     }
     if ($number < 1000000000) {
-        return trim(terbilang(intdiv($number, 1000000)).' juta '.terbilang($number % 1000000));
+        return $join(terbilang(intdiv($number, 1000000)).' juta', $number % 1000000);
     }
 
     return (string) $number;

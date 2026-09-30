@@ -33,10 +33,10 @@ class EmployeeSeeder extends Seeder
         $password = Hash::make('password');
 
         $staff = [
-            ['name' => 'Zakki', 'email' => 'zakki@xiway.local', 'position' => 'Barista', 'salary' => 3_000_000],
-            ['name' => 'Naurah', 'email' => 'naurah@xiway.local', 'position' => 'Assisten Barista', 'salary' => 1_700_000],
-            ['name' => 'Ergina', 'email' => 'ergina@xiway.local', 'position' => 'Kasir', 'salary' => 1_700_000],
-            ['name' => 'Jimmy', 'email' => 'jimmy@xiway.local', 'position' => 'Waiters', 'salary' => 2_000_000],
+            ['name' => 'Zakki', 'email' => 'zakki@xiway.local', 'position' => 'Barista / Senior Crew', 'primary_position' => 'Bar', 'salary' => 3_000_000],
+            ['name' => 'Naurah', 'email' => 'naurah@xiway.local', 'position' => 'Café Crew', 'primary_position' => 'Bar Support', 'salary' => 1_700_000],
+            ['name' => 'Ergina', 'email' => 'ergina@xiway.local', 'position' => 'Café Crew', 'primary_position' => 'Cashier', 'salary' => 1_700_000],
+            ['name' => 'Jimmy', 'email' => 'jimmy@xiway.local', 'position' => 'Café Crew', 'primary_position' => 'Service/Floor', 'salary' => 2_000_000],
         ];
 
         foreach ($staff as $row) {
@@ -57,6 +57,7 @@ class EmployeeSeeder extends Seeder
                 [
                     'outlet_id' => $outlet->id,
                     'position' => $row['position'],
+                    'primary_position' => $row['primary_position'],
                     'salary' => $row['salary'],
                     'is_active' => true,
                 ],

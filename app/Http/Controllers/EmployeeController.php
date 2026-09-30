@@ -35,8 +35,15 @@ class EmployeeController extends Controller
 
         $data = $request->validate([
             'position' => ['required', 'string', 'max:80'],
-            'salary' => ['required', 'numeric', 'min:0'],
+            'primary_position' => ['nullable', 'string', 'max:80'],
+            'base_salary' => ['required', 'numeric', 'min:0'],
+            'job_allowance' => ['required', 'numeric', 'min:0'],
+            'transport_allowance' => ['required', 'numeric', 'min:0'],
+            'cleanliness_allowance' => ['required', 'numeric', 'min:0'],
+            'sales_bonus' => ['required', 'numeric', 'min:0'],
+            'deduction' => ['required', 'numeric', 'min:0'],
         ]);
+        $data['salary'] = $data['base_salary'] + $data['job_allowance'] + $data['transport_allowance'] + $data['cleanliness_allowance'];
 
         $employee->update($data);
 
@@ -144,9 +151,7 @@ class EmployeeController extends Controller
             $attended = $days->count();
             $worked = $overrides->has($employee->id) ? (int) $overrides[$employee->id] : $attended;
             $late = $days->where('is_late', true)->count();
-            $salary = (int) round((float) $employee->salary);
-            $daily = (int) round($salary / 26);
-            $gross = (int) round($salary * $worked / 26);
+            $pay = $employee->pay($worked);
 
             return [
                 'employee' => $employee,
@@ -155,10 +160,12 @@ class EmployeeController extends Controller
                 'attended' => $attended,
                 'worked' => $worked,
                 'late' => $late,
-                'salary' => $salary,
-                'daily' => $daily,
-                'deduction' => 0,
-                'net' => $gross,
+                'salary' => $pay['monthly'],
+                'lines' => $pay['lines'],
+                'bonus' => $pay['bonus'],
+                'deduction' => $pay['deduction'],
+                'earnings' => $pay['earnings'],
+                'net' => $pay['received'],
             ];
         });
 
