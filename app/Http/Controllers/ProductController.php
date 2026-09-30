@@ -16,10 +16,14 @@ class ProductController extends Controller
 {
     public function index(Request $request): View
     {
-        abort_unless($request->user()->hasPermission('products.view'), 403);
+        $foodOnly = $this->foodOnly($request->user());
+        abort_unless($request->user()->hasPermission('products.view') || $foodOnly, 403);
 
         $filters = $request->only(['sku', 'name', 'category_id', 'type', 'status']);
         $query = Product::query()->with(['category', 'unit', 'variants', 'optionGroups.options']);
+        if ($foodOnly) {
+            $query->where('consignment_commission', '>', 0);
+        }
 
         if (filled($filters['sku'] ?? null)) {
             $query->where('sku', 'like', '%'.$filters['sku'].'%');
@@ -42,16 +46,28 @@ class ProductController extends Controller
         $focusProduct = $request->filled('product')
             ? Product::query()->with(['category', 'unit', 'variants', 'optionGroups.options'])->find($request->integer('product'))
             : null;
+        if ($focusProduct && $foodOnly) {
+            $this->assertFood($focusProduct);
+        }
+
+        $stats = $foodOnly
+            ? Product::query()->where('consignment_commission', '>', 0)
+            : Product::query();
 
         return view('products.index', [
             'products' => $query->latest()->paginate(20)->withQueryString(),
             'filters' => $filters,
-            'categories' => Category::query()->orderBy('name')->get(),
+            'categories' => Category::query()
+                ->when($foodOnly, fn ($q) => $q->whereHas('products', fn ($p) => $p->where('consignment_commission', '>', 0)))
+                ->orderBy('name')
+                ->get(),
             'units' => Unit::query()->orderBy('name')->get(),
+            'foodOnly' => $foodOnly,
+            'canWrite' => $request->user()->hasPermission('products.manage') || $foodOnly,
             'stats' => [
-                'total' => Product::query()->count(),
-                'sellable' => Product::query()->where('is_sellable', true)->where('is_active', true)->count(),
-                'inactive' => Product::query()->where('is_active', false)->count(),
+                'total' => (clone $stats)->count(),
+                'sellable' => (clone $stats)->where('is_sellable', true)->where('is_active', true)->count(),
+                'inactive' => (clone $stats)->where('is_active', false)->count(),
             ],
             'focusPayload' => $focusProduct?->toModalArray(),
         ]);
@@ -59,14 +75,15 @@ class ProductController extends Controller
 
     public function create(): RedirectResponse
     {
-        abort_unless(auth()->user()->hasPermission('products.manage'), 403);
+        $this->authorizeWrite(auth()->user());
 
         return redirect()->route('products.index', ['modal' => 'create']);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->hasPermission('products.manage'), 403);
+        $this->authorizeWrite($request->user());
+        $this->assertFoodCategory($request);
         $product = Product::query()->create($this->payload($request));
         $this->syncVariants($product, $request->input('variants', []));
         $this->syncOptionGroups($product, $request->input('option_groups', []));
@@ -77,14 +94,17 @@ class ProductController extends Controller
 
     public function edit(Product $product): RedirectResponse
     {
-        abort_unless(auth()->user()->hasPermission('products.manage'), 403);
+        $this->authorizeWrite(auth()->user());
+        $this->assertFood($product);
 
         return redirect()->route('products.index', ['modal' => 'edit', 'product' => $product->id]);
     }
 
     public function update(Request $request, Product $product): RedirectResponse
     {
-        abort_unless($request->user()->hasPermission('products.manage'), 403);
+        $this->authorizeWrite($request->user());
+        $this->assertFood($product);
+        $this->assertFoodCategory($request);
         $product->update($this->payload($request, $product));
         $this->syncVariants($product, $request->input('variants', []));
         $this->syncOptionGroups($product, $request->input('option_groups', []));
@@ -95,7 +115,8 @@ class ProductController extends Controller
 
     public function destroy(Product $product): RedirectResponse
     {
-        abort_unless(auth()->user()->hasPermission('products.manage'), 403);
+        $this->authorizeWrite(auth()->user());
+        $this->assertFood($product);
         $product->delete();
 
         return redirect()->route('products.index')->with('success', 'Produk dihapus.');
@@ -144,7 +165,7 @@ class ProductController extends Controller
             $data['image'] = $this->storeProductImage($request->file('image_file'));
         }
 
-        return $data;
+        return $this->lockFoodMenu($request, $data, $product);
     }
 
     protected function storeProductImage(UploadedFile $file): string
@@ -330,5 +351,58 @@ class ProductController extends Controller
             'is_active' => $request->boolean('is_active'),
             'is_recommended' => $request->boolean('is_recommended'),
         ];
+    }
+
+    protected function foodOnly($user): bool
+    {
+        return $user->hasPermission('products.food') && ! $user->hasPermission('products.manage');
+    }
+
+    protected function authorizeWrite($user): void
+    {
+        abort_unless($user->hasPermission('products.manage') || $this->foodOnly($user), 403);
+    }
+
+    protected function assertFood(Product $product): void
+    {
+        if ($this->foodOnly(auth()->user())) {
+            abort_unless((float) $product->consignment_commission > 0, 403);
+        }
+    }
+
+    protected function assertFoodCategory(Request $request): void
+    {
+        if (! $this->foodOnly($request->user()) || ! $request->filled('category_id')) {
+            return;
+        }
+
+        abort_unless(
+            Category::query()
+                ->whereKey($request->integer('category_id'))
+                ->whereHas('products', fn ($q) => $q->where('consignment_commission', '>', 0))
+                ->exists(),
+            403,
+        );
+    }
+
+    protected function lockFoodMenu(Request $request, array $data, ?Product $product): array
+    {
+        if (! $this->foodOnly($request->user())) {
+            return $data;
+        }
+
+        $data['consignment_commission'] = $product
+            ? $product->consignment_commission
+            : config('pos.food_commission', 2000);
+        $data['type'] = $product?->type?->value ?? 'finished';
+        $data['station'] = $product?->station ?? 'kitchen';
+        $data['cost'] = $product ? $product->cost : 0;
+        $data['is_stockable'] = false;
+        $data['bom_level'] = $product?->bom_level ?? 0;
+        $data['minimum_stock'] = $product?->minimum_stock ?? 0;
+        $data['reorder_level'] = $product?->reorder_level ?? 0;
+        $data['maximum_stock'] = $product?->maximum_stock ?? 0;
+
+        return $data;
     }
 }

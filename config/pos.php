@@ -59,6 +59,7 @@ return [
         'loyalty.manage',
         'products.view',
         'products.manage',
+        'products.food',
         'products.options',
         'inventory.view',
         'inventory.manage',
@@ -96,6 +97,7 @@ return [
         ],
         'food' => [
             'reports.food',
+            'products.food',
         ],
     ],
 

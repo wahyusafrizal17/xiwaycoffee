@@ -76,12 +76,12 @@
                     <p class="card-header-subtitle">Filter kolom memuat ulang otomatis saat nilai diubah.</p>
                 </div>
                 <div class="card-header-actions">
-                    @can('products.manage')
+                    @if ($canWrite)
                         <button type="button" class="btn-add" @click="openCreate()">
                             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/></svg>
                             Tambah produk
                         </button>
-                    @endcan
+                    @endif
                 </div>
             </div>
 
@@ -157,18 +157,18 @@
                                         <button type="button" class="table-action" title="Lihat" @click="openView({{ Js::from($row) }})">
                                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.3 12S6 6 12 6s9.7 6 9.7 6-3.7 6-9.7 6S2.3 12 2.3 12z"/><circle cx="12" cy="12" r="2.5" stroke-width="1.8"/></svg>
                                         </button>
-                                        @can('products.manage')
+                                        @if ($canWrite)
                                             <button type="button" class="table-action" title="Edit" @click="openEdit({{ Js::from($row) }})">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
                                             </button>
                                             <button type="button" class="table-action table-action-danger" title="Hapus" @click="confirmDelete({{ Js::from($row) }})">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M9 7V5h6v2m-7 0v12a1 1 0 001 1h6a1 1 0 001-1V7"/></svg>
                                             </button>
-                                        @elsecan('products.options')
+                                        @elseif (auth()->user()->hasPermission('products.options'))
                                             <button type="button" class="table-action" title="Kelola opsi" @click="openOptions({{ Js::from($row) }})">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M4 12h10M4 17h16"/></svg>
                                             </button>
-                                        @endcan
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
@@ -268,16 +268,16 @@
                         </div>
                     </div>
                 </div>
-                @can('products.manage')
+                @if ($canWrite)
                     <div class="crud-modal-footer">
                         <button type="button" class="btn-ghost" @click="confirmDelete(viewing)">Hapus</button>
                         <button type="button" class="btn-add" @click="openEdit(viewing)">Edit</button>
                     </div>
-                @elsecan('products.options')
+                @elseif (auth()->user()->hasPermission('products.options'))
                     <div class="crud-modal-footer">
                         <button type="button" class="btn-add" @click="openOptions(viewing)">Kelola opsi</button>
                     </div>
-                @endcan
+                @endif
             </div>
         </div>
 
@@ -372,7 +372,7 @@
             @endcannot
         @endcan
 
-        @can('products.manage')
+        @if ($canWrite)
             <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="formOpen" x-cloak @click.self="formOpen = false">
                 <div class="crud-modal !max-w-[720px]">
                     <form class="flex min-h-0 flex-1 flex-col" method="POST" enctype="multipart/form-data" :action="formMode === 'edit' ? form.update_url : storeUrl">
@@ -425,6 +425,7 @@
                                     </select>
                                     @error('unit_id')<p class="mt-1 text-sm text-red-600" x-show="serverFormError" x-cloak>{{ $message }}</p>@enderror
                                 </div>
+                                @unless ($foodOnly)
                                 <div>
                                     <label class="label">Tipe</label>
                                     <select name="type" class="input" required x-model="form.type">
@@ -437,6 +438,9 @@
                                     <label class="label">Level BOM</label>
                                     <input class="input" type="number" name="bom_level" min="0" max="4" x-model="form.bom_level">
                                 </div>
+                                @else
+                                    <input type="hidden" name="type" value="finished">
+                                @endunless
 
                                 <p class="sm:col-span-2 mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Harga &amp; stok</p>
                                 <div>
@@ -444,15 +448,16 @@
                                     <input class="input" type="number" step="0.01" min="0" name="price" required x-model="form.price">
                                     @error('price')<p class="mt-1 text-sm text-red-600" x-show="serverFormError" x-cloak>{{ $message }}</p>@enderror
                                 </div>
+                                @unless ($foodOnly)
                                 <div>
                                     <label class="label">HPP</label>
                                     <input class="input" type="number" step="0.01" min="0" name="cost" x-model="form.cost" :readonly="(form.recipe || []).length > 0">
                                     <p class="mt-1 text-[11px] text-muted" x-show="(form.recipe || []).length" x-cloak>Dihitung otomatis dari resep di menu BOM.</p>
                                 </div>
                                 <div>
-                                    <label class="label">Komisi cafe (makanan mitra)</label>
+                                    <label class="label">Makanan mitra</label>
                                     <input class="input" type="number" step="0.01" min="0" name="consignment_commission" x-model="form.consignment_commission">
-                                    <p class="mt-1 text-[11px] text-muted">Isi 0 untuk minuman cafe. Makanan mitra biasanya {{ money(config('pos.food_commission')) }} per porsi.</p>
+                                    <p class="mt-1 text-[11px] text-muted">Isi lebih dari 0 untuk makanan mitra. Bagian cafe {{ (int) config('pos.food_cafe_percent', 10) }}% dihitung dari penjualan.</p>
                                 </div>
                                 <div>
                                     <label class="label">Minimum stok</label>
@@ -475,6 +480,9 @@
                                         <option value="cashier">Kasir</option>
                                     </select>
                                 </div>
+                                @else
+                                    <p class="sm:col-span-2 text-[12px] text-muted">Bagian cafe {{ (int) config('pos.food_cafe_percent', 10) }}% dihitung otomatis dari penjualan.</p>
+                                @endunless
                                 <div>
                                     <label class="label">Prep (menit)</label>
                                     <input class="input" type="number" min="0" name="prep_minutes" x-model="form.prep_minutes">
@@ -495,11 +503,13 @@
                                         <input type="checkbox" class="h-4 w-4 rounded border-line" x-model="form.is_sellable">
                                         Dapat dijual
                                     </label>
+                                    @unless ($foodOnly)
                                     <label class="flex items-center gap-2.5 text-sm">
                                         <input type="hidden" name="is_stockable" :value="form.is_stockable ? 1 : 0">
                                         <input type="checkbox" class="h-4 w-4 rounded border-line" x-model="form.is_stockable">
                                         Pantau stok
                                     </label>
+                                    @endunless
                                     <label class="flex items-center gap-2.5 text-sm">
                                         <input type="hidden" name="is_recommended" :value="form.is_recommended ? 1 : 0">
                                         <input type="checkbox" class="h-4 w-4 rounded border-line" x-model="form.is_recommended">
@@ -621,7 +631,7 @@
                     </form>
                 </div>
             </div>
-        @endcan
+        @endif
     </div>
 @endsection
 

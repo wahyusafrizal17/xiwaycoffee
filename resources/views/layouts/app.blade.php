@@ -33,6 +33,7 @@
                     $groups = [
                         'Operasional' => [
                             ['label' => 'Dashboard', 'route' => 'dashboard', 'perm' => 'dashboard.view', 'icon' => 'home'],
+                            ['label' => 'Produk Makanan', 'route' => 'products.index', 'perm' => 'products.food', 'unless' => 'products.manage', 'icon' => 'products'],
                             ['label' => 'POS', 'route' => 'pos.index', 'perm' => 'pos.access', 'icon' => 'pos'],
                             ['label' => 'Orders', 'route' => 'orders.index', 'perm' => 'orders.view', 'icon' => 'orders'],
                             ['label' => 'Absensi', 'route' => 'attendance.index', 'perm' => 'attendance.clock', 'unless' => 'attendance.manage', 'icon' => 'clipboard'],
