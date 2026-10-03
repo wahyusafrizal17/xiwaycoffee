@@ -274,16 +274,15 @@ class OrderService
         }
 
         $taxable = max(0, $subtotal - $discount);
-        $tax = round($taxable * ((float) $order->tax_rate / 100), 2);
         $pointsValue = (float) $order->points_value;
-        $grand = max(0, $taxable + $tax + (float) $order->service_charge - $pointsValue);
+        $grand = max(0, $taxable + (float) $order->service_charge - $pointsValue);
 
         $maxPrep = $order->items->loadMissing('product')->max(fn ($item) => $item->product?->prep_minutes ?? 10);
 
         $order->update([
             'subtotal' => $subtotal,
             'discount_amount' => $discount,
-            'tax_amount' => $tax,
+            'tax_amount' => 0,
             'grand_total' => $grand,
             'estimated_ready_at' => now()->addMinutes((int) $maxPrep),
         ]);

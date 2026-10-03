@@ -124,10 +124,12 @@
                 <span class="value">-{{ $fmt($order->discount_amount) }}</span>
             </div>
         @endif
-        <div class="row">
-            <span class="label">Charge</span>
-            <span class="value">{{ $fmt($order->tax_amount) }}</span>
-        </div>
+        @if ((float) $order->tax_amount > 0)
+            <div class="row">
+                <span class="label">Charge</span>
+                <span class="value">{{ $fmt($order->tax_amount) }}</span>
+            </div>
+        @endif
         <hr class="divider">
         <div class="row total-row">
             <span class="label">Total</span>

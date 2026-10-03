@@ -98,7 +98,8 @@ class OrderCheckoutTest extends TestCase
 
         $expectedSubtotal = 35000 * 2;
         $this->assertEquals($expectedSubtotal, (float) $order->subtotal);
-        $this->assertEquals($expectedSubtotal + round($expectedSubtotal * 0.11, 2), (float) $order->grand_total);
+        $this->assertEquals($expectedSubtotal, (float) $order->grand_total);
+        $this->assertEquals(0.0, (float) $order->tax_amount);
         $this->assertEquals($stockBefore, (float) Inventory::query()
             ->where('outlet_id', $this->outlet->id)
             ->where('product_id', $this->sellableProduct->id)
@@ -218,7 +219,7 @@ class OrderCheckoutTest extends TestCase
         $this->assertLessThanOrEqual(180, app(EscPosPrinter::class)->receiptHeightMm($order));
     }
 
-    public function test_charge_follows_the_settings_percent(): void
+    public function test_checkout_does_not_add_a_charge(): void
     {
         $cheap = Product::query()->create([
             'sku' => 'PRD-CHEAP-CHARGE',
@@ -241,13 +242,15 @@ class OrderCheckoutTest extends TestCase
             'order_type' => OrderType::Pickup->value,
         ]);
         $service->addItem($small, ['product_id' => $cheap->id, 'quantity' => 1]);
-        $this->assertEquals(1100.0, (float) $small->fresh()->tax_amount);
+        $this->assertEquals(0.0, (float) $small->fresh()->tax_amount);
+        $this->assertEquals(10000.0, (float) $small->fresh()->grand_total);
 
         $large = $service->createDraft([
             'outlet_id' => $this->outlet->id,
             'order_type' => OrderType::Pickup->value,
         ]);
         $service->addItem($large, ['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
-        $this->assertEquals(3850.0, (float) $large->fresh()->tax_amount);
+        $this->assertEquals(0.0, (float) $large->fresh()->tax_amount);
+        $this->assertEquals(35000.0, (float) $large->fresh()->grand_total);
     }
 }

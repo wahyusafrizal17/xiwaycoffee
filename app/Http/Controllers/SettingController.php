@@ -11,12 +11,10 @@ use Illuminate\View\View;
 class SettingController extends Controller
 {
     protected array $keys = [
-        'tax_rate',
         'service_charge',
     ];
 
     protected array $defaults = [
-        'tax_rate' => 10,
         'service_charge' => 0,
     ];
 
@@ -32,7 +30,6 @@ class SettingController extends Controller
         return view('settings.index', [
             'settings' => $settings,
             'stats' => [
-                'tax_rate' => (float) $settings['tax_rate'],
                 'service_charge' => (float) $settings['service_charge'],
             ],
         ]);
@@ -42,11 +39,7 @@ class SettingController extends Controller
     {
         abort_unless($request->user()->hasPermission('settings.manage'), 403);
         $data = $request->validate([
-            'tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'service_charge' => ['nullable', 'numeric', 'min:0'],
-        ], [
-            'tax_rate.required' => 'Tarif charge wajib diisi.',
-            'tax_rate.max' => 'Tarif charge maksimal 100%.',
         ]);
 
         foreach ($data as $key => $value) {

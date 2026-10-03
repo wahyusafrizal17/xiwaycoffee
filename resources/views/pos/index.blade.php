@@ -162,7 +162,7 @@
                     </select>
                     <p class="text-[11px] text-[#c2410c]" x-show="discountHint()" x-text="discountHint()" x-cloak></p>
                 </div>
-                <div class="order-row text-muted">
+                <div class="order-row text-muted" x-show="Number(order?.tax_amount || 0) > 0" x-cloak>
                     <span>Charge</span>
                     <span class="font-medium text-heading" x-text="formatMoney(order?.tax_amount || 0)"></span>
                 </div>
