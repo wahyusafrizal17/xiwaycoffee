@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class EventDisplayController extends Controller
 {
@@ -63,6 +64,14 @@ class EventDisplayController extends Controller
             ->with('success', 'Gambar event diperbarui.');
     }
 
+    public function file(): BinaryFileResponse
+    {
+        $path = setting(self::SETTING_KEY);
+        abort_unless(is_string($path) && $path !== '' && Storage::disk('public')->exists($path), 404);
+
+        return response()->file(Storage::disk('public')->path($path));
+    }
+
     public function imageUrl(): string
     {
         $path = setting(self::SETTING_KEY);
@@ -72,8 +81,12 @@ class EventDisplayController extends Controller
                 return $path;
             }
 
+            if (is_file(public_path($path))) {
+                return asset($path);
+            }
+
             if (Storage::disk('public')->exists($path)) {
-                return asset('storage/'.$path);
+                return route('event-display.file');
             }
         }
 

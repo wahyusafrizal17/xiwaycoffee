@@ -43,7 +43,11 @@ class EventDisplayTest extends TestCase
 
         $this->get(route('event-display.show'))
             ->assertOk()
-            ->assertSee(asset('storage/'.$path), false);
+            ->assertSee(route('event-display.file'), false);
+
+        $this->get(route('event-display.file'))
+            ->assertOk()
+            ->assertHeader('content-type', 'image/jpeg');
     }
 
     public function test_cashier_cannot_manage_event_display(): void
