@@ -41,6 +41,10 @@ class ProfitShareController extends Controller
         $query = OperatingExpense::query()
             ->with('user')
             ->when($outletId, fn ($q, $id) => $q->where('outlet_id', $id))
+            ->when(
+                ! $request->user()->hasPermission('reports.view'),
+                fn ($q) => $q->where('user_id', $request->user()->id),
+            )
             ->when($date, fn ($q) => $q->whereDate('spent_on', $date))
             ->when(! $date && $from, fn ($q) => $q->whereDate('spent_on', '>=', $from))
             ->when(! $date && $to, fn ($q) => $q->whereDate('spent_on', '<=', $to))

@@ -89,39 +89,7 @@
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 17l6-6 4 4 8-8M14 7h7v7"/></svg>
             </span>
         </div>
-        @if ($showFinance)
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">BOP</p>
-                    <p class="stat-value">{{ money($metrics['bop']) }}</p>
-                    <p class="stat-hint">Biaya operasional tercatat</p>
-                </div>
-                <span class="stat-icon bg-[#fff3e8] text-[#c2410c]">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-2.2 0-4 1.3-4 3s1.8 3 4 3 4 1.3 4 3-1.8 3-4 3m0-12V5m0 14v-2"/></svg>
-                </span>
-            </div>
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Pendapatan bersih</p>
-                    <p class="stat-value {{ $metrics['net'] < 0 ? 'text-brand' : '' }}">{{ money($metrics['net']) }}</p>
-                    <p class="stat-hint">Pendapatan kotor − BOP</p>
-                </div>
-                <span class="stat-icon {{ $metrics['net'] < 0 ? 'bg-brand-soft text-brand' : 'bg-[#e8f1ff] text-[#2563eb]' }}">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 7h6M9 11h6M9 15h4M5 5h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z"/></svg>
-                </span>
-            </div>
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Jumlah charge</p>
-                    <p class="stat-value">{{ money($metrics['service_fee']) }}</p>
-                    <p class="stat-hint">Masuk penuh ke cafe, di luar setoran makanan</p>
-                </div>
-                <span class="stat-icon bg-brand-soft text-brand">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-2.2 0-4 1.3-4 3s1.8 3 4 3 4 1.3 4 3-1.8 3-4 3m0-12V5m0 14v-2"/></svg>
-                </span>
-            </div>
-        @else
-            <div class="stat-card !items-start">
+        <div class="stat-card !items-start">
                 <div class="min-w-0 flex-1">
                     <p class="stat-kicker">Pendapatan minuman</p>
                     <p class="stat-value">{{ money($metrics['drinks']) }}</p>
@@ -154,8 +122,32 @@
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </span>
             </div>
-        @endif
     </div>
+
+    @if ($showFinance)
+        <div class="mb-5 grid gap-4 sm:grid-cols-2">
+            <div class="stat-card !items-start">
+                <div class="min-w-0 flex-1">
+                    <p class="stat-kicker">BOP</p>
+                    <p class="stat-value">{{ money($metrics['bop']) }}</p>
+                    <p class="stat-hint">Biaya operasional tercatat</p>
+                </div>
+                <span class="stat-icon bg-[#fff3e8] text-[#c2410c]">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-2.2 0-4 1.3-4 3s1.8 3 4 3 4 1.3 4 3-1.8 3-4 3m0-12V5m0 14v-2"/></svg>
+                </span>
+            </div>
+            <div class="stat-card !items-start">
+                <div class="min-w-0 flex-1">
+                    <p class="stat-kicker">Pendapatan bersih</p>
+                    <p class="stat-value {{ $metrics['net'] < 0 ? 'text-brand' : '' }}">{{ money($metrics['net']) }}</p>
+                    <p class="stat-hint">Pendapatan kotor − BOP</p>
+                </div>
+                <span class="stat-icon {{ $metrics['net'] < 0 ? 'bg-brand-soft text-brand' : 'bg-[#e8f1ff] text-[#2563eb]' }}">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 7h6M9 11h6M9 15h4M5 5h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z"/></svg>
+                </span>
+            </div>
+        </div>
+    @endif
 
     <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <div class="stat-card !items-start">
@@ -199,7 +191,7 @@
             <div class="card-header">
                 <div>
                     <h5 class="card-header-title">Breakdown penjualan</h5>
-                    <p class="card-header-subtitle">Minuman, makanan, dan charge {{ strtolower($periodLabel) }}.</p>
+                    <p class="card-header-subtitle">Minuman dan makanan {{ strtolower($periodLabel) }}.</p>
                 </div>
             </div>
             <div class="divide-y divide-[#f0ebe4] px-5 py-1 text-sm">
@@ -216,13 +208,6 @@
                         <p class="text-[12px] text-muted">Total penjualan makanan mitra</p>
                     </div>
                     <p class="tabular-nums font-semibold text-heading">{{ money($metrics['food_sales']) }}</p>
-                </div>
-                <div class="flex items-center justify-between gap-4 py-3.5">
-                    <div>
-                        <p class="font-medium text-heading">Charge</p>
-                        <p class="text-[12px] text-muted">Pemeliharaan sistem, tidak masuk bagi hasil</p>
-                    </div>
-                    <p class="tabular-nums font-semibold text-heading">{{ money($metrics['service_fee']) }}</p>
                 </div>
                 <div class="flex items-center justify-between gap-4 py-3.5">
                     <div>

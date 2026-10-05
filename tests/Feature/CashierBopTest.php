@@ -133,6 +133,38 @@ class CashierBopTest extends TestCase
         $this->assertEquals(ExpenseCategory::Wifi->label(), 'Internet & Telekomunikasi');
     }
 
+    public function test_cashier_sees_only_their_own_bop(): void
+    {
+        OperatingExpense::query()->create([
+            'outlet_id' => $this->outlet->id,
+            'user_id' => $this->admin->id,
+            'spent_on' => now()->toDateString(),
+            'category' => ExpenseCategory::Rent->value,
+            'amount' => 45000000,
+            'notes' => 'Sewa dari admin',
+        ]);
+        OperatingExpense::query()->create([
+            'outlet_id' => $this->outlet->id,
+            'user_id' => $this->cashier->id,
+            'spent_on' => now()->toDateString(),
+            'category' => ExpenseCategory::Ingredients->value,
+            'amount' => 25000,
+            'notes' => 'Es batu kasir',
+        ]);
+
+        $this->actingAs($this->cashier)
+            ->get(route('reports.expenses'))
+            ->assertOk()
+            ->assertSee('Es batu kasir')
+            ->assertDontSee('Sewa dari admin');
+
+        $this->actingAs($this->admin)
+            ->get(route('reports.expenses'))
+            ->assertOk()
+            ->assertSee('Es batu kasir')
+            ->assertSee('Sewa dari admin');
+    }
+
     public function test_cashier_cannot_open_other_reports(): void
     {
         $this->actingAs($this->cashier)
