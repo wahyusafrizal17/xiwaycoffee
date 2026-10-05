@@ -66,12 +66,20 @@ class OrderService
         $this->assertMutable($order);
 
         return DB::transaction(function () use ($order, $payload) {
-            $product = Product::query()->with(['optionGroups.options', 'category'])->findOrFail($payload['product_id']);
+            $bundle = ! empty($payload['bundle_id'])
+                ? Bundle::query()->with('items.product')->find($payload['bundle_id'])
+                : null;
+            $picks = collect($payload['bundle_picks'] ?? [])->map(fn ($id) => (int) $id)->filter()->unique()->sort()->values()->all();
+            if ($bundle) {
+                $this->assertBundlePicks($bundle, $picks);
+                $anchor = $bundle->items->first(fn ($item) => ! filled($item->choice_group))
+                    ?? $bundle->items->first(fn ($item) => in_array((int) $item->product_id, $picks, true));
+                $product = Product::query()->with(['optionGroups.options', 'category'])->findOrFail($anchor->product_id);
+            } else {
+                $product = Product::query()->with(['optionGroups.options', 'category'])->findOrFail($payload['product_id']);
+            }
             $variant = ! empty($payload['product_variant_id'])
                 ? ProductVariant::query()->find($payload['product_variant_id'])
-                : null;
-            $bundle = ! empty($payload['bundle_id'])
-                ? Bundle::query()->find($payload['bundle_id'])
                 : null;
 
             $selectedOptions = $bundle
@@ -86,6 +94,16 @@ class OrderService
             $price = $base + $optionTotal;
 
             $name = $bundle?->name ?? $product->name;
+            if ($bundle) {
+                $chosen = $bundle->items
+                    ->filter(fn ($item) => filled($item->choice_group) && in_array((int) $item->product_id, $picks, true))
+                    ->map(fn ($item) => $item->product?->name)
+                    ->filter()
+                    ->implode(', ');
+                if ($chosen !== '') {
+                    $name .= ' · '.$chosen;
+                }
+            }
             if ($variant) {
                 $name = "{$product->name} ({$variant->name})";
             }
@@ -107,10 +125,11 @@ class OrderService
                     fn ($q) => $q->where(fn ($inner) => $inner->whereNull('notes')->orWhere('notes', '')),
                 )
                 ->get()
-                ->first(function (OrderItem $item) use ($optionIds) {
+                ->first(function (OrderItem $item) use ($optionIds, $picks) {
                     $existingIds = $item->options->pluck('product_option_id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+                    $existingPicks = collect($item->bundle_picks ?? [])->map(fn ($id) => (int) $id)->sort()->values()->all();
 
-                    return $existingIds === $optionIds;
+                    return $existingIds === $optionIds && $existingPicks === $picks;
                 });
 
             if ($existing) {
@@ -126,6 +145,7 @@ class OrderService
                 'product_id' => $product->id,
                 'product_variant_id' => $variant?->id,
                 'bundle_id' => $bundle?->id,
+                'bundle_picks' => $picks ?: null,
                 'name' => $name,
                 'quantity' => $qty,
                 'unit_price' => $price,
@@ -151,6 +171,22 @@ class OrderService
 
             return $item->fresh(['options']);
         });
+    }
+
+    /**
+     * @param  list<int>  $picks
+     */
+    protected function assertBundlePicks(Bundle $bundle, array $picks): void
+    {
+        $groups = $bundle->items->filter(fn ($item) => filled($item->choice_group))->groupBy('choice_group');
+        foreach ($groups as $name => $choices) {
+            $chosen = $choices->filter(fn ($item) => in_array((int) $item->product_id, $picks, true));
+            if ($chosen->count() !== 1) {
+                throw ValidationException::withMessages([
+                    'bundle_picks' => 'Pilih satu '.$name.'.',
+                ]);
+            }
+        }
     }
 
     /**
@@ -416,6 +452,29 @@ class OrderService
             $order = $order->fresh(['items.product', 'customer']);
 
             foreach ($order->items as $item) {
+                if ($item->bundle_id) {
+                    $item->loadMissing('bundle.items.product');
+                    $picks = collect($item->bundle_picks ?? [])->map(fn ($id) => (int) $id);
+                    foreach ($item->bundle?->items ?? [] as $bundleItem) {
+                        if (filled($bundleItem->choice_group) && ! $picks->contains((int) $bundleItem->product_id)) {
+                            continue;
+                        }
+                        if ($bundleItem->product?->is_stockable) {
+                            $this->inventory->decrease(
+                                $order->outlet_id,
+                                $bundleItem->product_id,
+                                (float) $bundleItem->quantity * (float) $item->quantity,
+                                StockMovementType::Sale,
+                                'Bundle '.$order->order_number,
+                                $order,
+                                $order->order_number,
+                            );
+                        }
+                    }
+
+                    continue;
+                }
+
                 if ($item->product?->is_stockable) {
                     $batchId = $this->inventory->consumeBatches(
                         $order->outlet_id,
@@ -437,23 +496,6 @@ class OrderService
                         $order->order_number,
                         $batchId,
                     );
-                }
-
-                if ($item->bundle_id) {
-                    $item->loadMissing('bundle.items');
-                    foreach ($item->bundle?->items ?? [] as $bundleItem) {
-                        if ($bundleItem->product?->is_stockable) {
-                            $this->inventory->decrease(
-                                $order->outlet_id,
-                                $bundleItem->product_id,
-                                (float) $bundleItem->quantity * (float) $item->quantity,
-                                StockMovementType::Sale,
-                                'Bundle '.$order->order_number,
-                                $order,
-                                $order->order_number,
-                            );
-                        }
-                    }
                 }
             }
 

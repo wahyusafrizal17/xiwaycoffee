@@ -138,15 +138,19 @@ class MarketingController extends Controller
         abort_unless($request->user()->hasPermission('marketing.manage'), 403);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
+            'campaign' => ['nullable', 'string', 'max:80'],
             'sku' => ['nullable', 'string', 'max:40'],
             'price' => ['required', 'numeric', 'min:0'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'start_time' => ['nullable'],
             'end_time' => ['nullable'],
+            'weekdays_only' => ['nullable', 'boolean'],
+            'requirement' => ['nullable', 'string', 'max:160'],
             'items' => ['required', 'array', 'min:2'],
             'items.*.product_id' => ['required', 'exists:products,id'],
             'items.*.quantity' => ['required', 'numeric', 'min:1'],
+            'items.*.choice_group' => ['nullable', 'string', 'max:40'],
             'outlet_ids' => ['nullable', 'array'],
             'outlet_ids.*' => ['integer', 'exists:outlets,id'],
         ], [
@@ -160,7 +164,12 @@ class MarketingController extends Controller
         ]);
 
         $data['sku'] = filled($data['sku'] ?? null) ? $data['sku'] : null;
-        $items = $data['items'];
+        $data['weekdays_only'] = $request->boolean('weekdays_only');
+        $items = collect($data['items'])->map(function (array $item) {
+            $item['choice_group'] = filled($item['choice_group'] ?? null) ? $item['choice_group'] : null;
+
+            return $item;
+        })->all();
         $outletIds = $data['outlet_ids'] ?? [];
         unset($data['items'], $data['outlet_ids']);
 

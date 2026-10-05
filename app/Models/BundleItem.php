@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AppliesFillableAttribute;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Concerns\AppliesFillableAttribute;
 
-#[Fillable(['bundle_id', 'product_id', 'quantity'])]
+#[Fillable(['bundle_id', 'product_id', 'quantity', 'choice_group'])]
 class BundleItem extends Model
 {
     use AppliesFillableAttribute;

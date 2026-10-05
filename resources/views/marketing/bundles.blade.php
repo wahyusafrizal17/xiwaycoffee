@@ -11,6 +11,7 @@
         ]))->map(fn ($item) => [
             'product_id' => (string) data_get($item, 'product_id', ''),
             'quantity' => (float) data_get($item, 'quantity', 1) ?: 1,
+            'choice_group' => (string) data_get($item, 'choice_group', ''),
         ])->values()->all();
         if (count($formItems) < 2) {
             $formItems[] = ['product_id' => '', 'quantity' => 1];
@@ -108,6 +109,9 @@
                                 <td class="col-no">{{ $bundles->firstItem() + $loop->index }}</td>
                                 <td>
                                     <button type="button" class="font-semibold hover:underline" @click="openView({{ Js::from($row) }})">{{ $bundle->name }}</button>
+                                    @if ($bundle->campaign)
+                                        <p class="text-[12px] text-muted">{{ $bundle->campaign }}</p>
+                                    @endif
                                 </td>
                                 <td>{{ $bundle->sku ?: '—' }}</td>
                                 <td class="font-semibold">{{ money($bundle->price) }}</td>
@@ -196,6 +200,18 @@
                             <dt class="text-[12px] text-muted">Outlet</dt>
                             <dd class="mt-0.5 font-medium" x-text="viewing?.outlets_label || '—'"></dd>
                         </div>
+                        <div>
+                            <dt class="text-[12px] text-muted">Harga normal</dt>
+                            <dd class="mt-0.5 font-medium" x-text="viewing?.normal_label || '—'"></dd>
+                        </div>
+                        <div>
+                            <dt class="text-[12px] text-muted">Hari</dt>
+                            <dd class="mt-0.5 font-medium" x-text="viewing?.weekdays_label || '—'"></dd>
+                        </div>
+                        <div class="sm:col-span-2" x-show="viewing?.requirement">
+                            <dt class="text-[12px] text-muted">Syarat</dt>
+                            <dd class="mt-0.5 font-medium" x-text="viewing?.requirement"></dd>
+                        </div>
                     </dl>
 
                     <div class="mt-5">
@@ -204,7 +220,7 @@
                             <template x-for="(item, index) in (viewing?.items || [])" :key="index">
                                 <div class="flex items-center justify-between bg-white px-4 py-2.5 text-sm">
                                     <span class="font-medium" x-text="item.name"></span>
-                                    <span class="text-muted" x-text="'× ' + item.quantity"></span>
+                                    <span class="text-muted" x-text="(item.choice_group ? item.choice_group + ' · ' : '') + '× ' + item.quantity"></span>
                                 </div>
                             </template>
                         </div>
@@ -241,8 +257,13 @@
                             <div class="mt-5 grid gap-4 sm:grid-cols-2">
                                 <div class="sm:col-span-2">
                                     <label class="label">Nama</label>
-                                    <input class="input" name="name" required maxlength="120" value="{{ old('name') }}" placeholder="Contoh: Paket Hemat A">
+                                    <input class="input" name="name" required maxlength="120" value="{{ old('name') }}" placeholder="Contoh: Combo 2">
                                     @error('name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label class="label">Nama promo</label>
+                                    <input class="input" name="campaign" maxlength="80" value="{{ old('campaign') }}" placeholder="Contoh: After School">
+                                    <p class="mt-1.5 text-[12px] text-muted">Combo dengan nama promo yang sama dikelompokkan di kasir.</p>
                                 </div>
                                 <div>
                                     <label class="label">SKU</label>
@@ -272,6 +293,17 @@
                                     <input class="input" type="time" name="end_time" value="{{ old('end_time') }}">
                                 </div>
                                 <div class="sm:col-span-2">
+                                    <label class="flex items-center gap-2 text-sm font-medium text-heading">
+                                        <input type="checkbox" name="weekdays_only" value="1" class="rounded border-line text-brand focus:ring-brand/20" @checked(old('weekdays_only'))>
+                                        Hari kerja saja
+                                    </label>
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label class="label">Syarat</label>
+                                    <input class="input" name="requirement" maxlength="160" value="{{ old('requirement') }}" placeholder="Tunjukkan seragam / kartu pelajar">
+                                    <p class="mt-1.5 text-[12px] text-muted">Kasir mengonfirmasi syarat ini sebelum paket masuk order.</p>
+                                </div>
+                                <div class="sm:col-span-2">
                                     <label class="label">Outlet</label>
                                     <div class="max-h-36 space-y-0.5 overflow-y-auto rounded-lg border border-line bg-[#fafafa] p-2">
                                         @forelse ($outlets as $outlet)
@@ -288,14 +320,14 @@
                                 <div class="sm:col-span-2">
                                     <div class="mb-2 flex items-center justify-between">
                                         <label class="label mb-0">Produk dalam paket</label>
-                                        <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="items.push({ product_id: '', quantity: 1 })">Tambah item</button>
+                                        <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="items.push({ product_id: '', quantity: 1, choice_group: '' })">Tambah item</button>
                                     </div>
-                                    <p class="mb-3 text-[12px] text-muted">Minimal dua produk.</p>
+                                    <p class="mb-3 text-[12px] text-muted">Minimal dua produk. Isi grup yang sama bila kasir harus memilih salah satu, misalnya snack.</p>
                                     @error('items')<p class="mb-2 text-sm text-red-600">{{ $message }}</p>@enderror
                                     <div class="space-y-2">
                                         <template x-for="(item, index) in items" :key="index">
                                             <div class="grid grid-cols-12 items-center gap-2">
-                                                <div class="col-span-8 min-w-0">
+                                                <div class="col-span-5 min-w-0">
                                                     <select class="input js-product-select" :name="`items[${index}][product_id]`" x-model="item.product_id" required>
                                                         <option value="">Pilih produk</option>
                                                         @foreach ($products as $product)
@@ -303,7 +335,8 @@
                                                         @endforeach
                                                     </select>
                                                 </div>
-                                                <input class="input col-span-3" type="number" min="1" step="1" :name="`items[${index}][quantity]`" x-model="item.quantity" required>
+                                                <input class="input col-span-2" type="number" min="1" step="1" :name="`items[${index}][quantity]`" x-model="item.quantity" required>
+                                                <input class="input col-span-4" type="text" maxlength="40" :name="`items[${index}][choice_group]`" x-model="item.choice_group" placeholder="Grup atau">
                                                 <button type="button" class="btn-ghost col-span-1 !px-2" @click="items.length > 2 && items.splice(index, 1)">×</button>
                                             </div>
                                         </template>

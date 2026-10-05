@@ -151,6 +151,8 @@ class PosController extends Controller
             'product_id' => ['required', 'exists:products,id'],
             'product_variant_id' => ['nullable', 'exists:product_variants,id'],
             'bundle_id' => ['nullable', 'exists:bundles,id'],
+            'bundle_picks' => ['nullable', 'array'],
+            'bundle_picks.*' => ['integer', 'exists:products,id'],
             'quantity' => ['nullable', 'numeric', 'min:0.01'],
             'notes' => ['nullable', 'string', 'max:255'],
             'option_ids' => ['nullable', 'array'],

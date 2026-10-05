@@ -30,16 +30,23 @@
             </div>
             <div class="grid flex-1 auto-rows-min grid-cols-1 gap-2 overflow-y-auto p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 @foreach ($bundles as $bundle)
-                    <article class="menu-card" x-show="(!category || category === 'bundle') && productMatch({{ Js::from(strtolower($bundle->name)) }})" @click="beginAdd({{ $bundle->product_id ?? $bundle->items->first()?->product_id }}, null, {{ $bundle->id }})">
+                    @php [$normalMin, $normalMax] = $bundle->normalBounds(); @endphp
+                    <article class="menu-card" x-show="(!category || category === 'bundle') && productMatch({{ Js::from(strtolower(trim(($bundle->campaign ? $bundle->campaign.' ' : '').$bundle->name))) }})" @click="beginBundle({{ $bundle->id }})">
                         <div class="menu-card-visual">
                             <img src="{{ $bundle->product?->imageUrl() ?? asset('images/menu/placeholder.svg') }}" alt="{{ $bundle->name }}" class="menu-card-photo" loading="lazy">
                         </div>
                         <div class="menu-card-body">
                             <div class="menu-card-meta">
-                                <span class="menu-card-badge">Package</span>
+                                <span class="menu-card-badge">{{ $bundle->campaign ?: 'Paket' }}</span>
                             </div>
                             <h3 class="line-clamp-2 text-[14px] font-semibold leading-snug text-heading">{{ $bundle->name }}</h3>
+                            @if ($normalMin > (float) $bundle->price)
+                                <p class="text-[12px] text-muted line-through">{{ $normalMax > $normalMin ? money($normalMin).' – '.money($normalMax) : money($normalMin) }}</p>
+                            @endif
                             <p class="text-[14px] font-semibold tracking-tight text-heading">{{ money($bundle->price) }}</p>
+                            @if ($bundle->requirement)
+                                <p class="text-[11px] text-muted">{{ $bundle->requirement }}</p>
+                            @endif
                         </div>
                     </article>
                 @endforeach
@@ -247,6 +254,38 @@
         </div>
     </div>
 
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" x-show="bundleOpen" x-cloak x-transition.opacity.duration.150ms @click.self="!busy && (bundleOpen = false)">
+        <div class="pay-modal !max-w-[480px]" x-show="bundleOpen">
+            <div class="pay-modal-hero">
+                <p class="text-[11px] font-medium uppercase tracking-[0.16em] text-white/45" x-text="bundleDraft?.campaign || 'Paket'"></p>
+                <p class="mt-0.5 text-[15px] font-semibold text-white" x-text="bundleDraft?.name || ''"></p>
+            </div>
+            <div class="max-h-[55vh] space-y-5 overflow-y-auto px-6 py-5">
+                <template x-for="group in (bundleDraft?.groups || [])" :key="group.name">
+                    <div>
+                        <p class="mb-2.5 text-[12px] font-semibold text-heading" x-text="'Pilih ' + group.name"></p>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="opt in group.options" :key="opt.product_id">
+                                <button type="button" class="pos-opt-chip" :class="Number(bundlePicks[group.name]) === Number(opt.product_id) ? 'pos-opt-chip-active' : 'pos-opt-chip-idle'" @click="bundlePicks[group.name] = Number(opt.product_id)">
+                                    <span x-text="opt.name"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+                <label class="flex items-start gap-2.5 rounded-xl border border-[#ebe7e2] bg-[#faf9f7] px-3 py-2.5 text-sm" x-show="bundleDraft?.requirement">
+                    <input type="checkbox" class="mt-0.5 rounded border-line text-brand focus:ring-brand/20" x-model="bundleConfirmed">
+                    <span x-text="bundleDraft?.requirement"></span>
+                </label>
+                <p class="text-xs font-medium text-brand" x-show="bundleNotice" x-text="bundleNotice"></p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 border-t border-[#f0ece7] px-6 py-4">
+                <button type="button" class="btn-ghost !rounded-xl" @click="bundleOpen = false">Batal</button>
+                <button type="button" class="btn-brand !rounded-xl" @click="confirmBundle()" :disabled="busy">Tambah ke order</button>
+            </div>
+        </div>
+    </div>
+
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4" x-show="payOpen" x-cloak x-transition.opacity.duration.150ms @click.self="!busy && (payOpen = false)">
         <div class="pay-modal relative" x-show="payOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 translate-y-2 scale-[0.98]" x-transition:enter-end="opacity-100 translate-y-0 scale-100">
             <div class="pay-modal-hero">
@@ -395,6 +434,11 @@ function posApp() {
         discount_id: '', method: 'cash', tendered: 0, payOpen: false, openHeld: false, busy: false, busyLabel: '', notice: '',
         cartOpen: false,
         optionOpen: false,
+        bundleOpen: false,
+        bundleDraft: null,
+        bundlePicks: {},
+        bundleConfirmed: false,
+        bundleNotice: '',
         optionProduct: null,
         optionVariantId: null,
         optionBundleId: null,
@@ -413,6 +457,7 @@ function posApp() {
         placeholder: @json(asset('images/menu/placeholder.svg')),
         discountCatalog: @json($discountCatalog),
         productCatalog: @json($productCatalog),
+        bundleCatalog: @json($bundles->map(fn ($bundle) => $bundle->toPosArray())->values()),
         init() {
             window.addEventListener('online', () => { this.online = true; this.flushQueue(); });
             window.addEventListener('offline', () => { this.online = false; });
@@ -578,7 +623,7 @@ function posApp() {
             localStorage.removeItem('pos_offline_queue');
             for (const action of items) {
                 if (action.type === 'add') {
-                    await this.addProduct(action.product_id, action.variant_id, action.bundle_id, true, action.option_ids || [], action.quantity || 1);
+                    await this.addProduct(action.product_id, action.variant_id, action.bundle_id, true, action.option_ids || [], action.quantity || 1, action.bundle_picks || []);
                 }
             }
         },
@@ -678,18 +723,53 @@ function posApp() {
             this.optionOpen = false;
             this.addProduct(productId, variantId, null, false, optionIds, quantity);
         },
-        async addProduct(productId, variantId, bundleId, fromQueue = false, optionIds = [], quantity = 1) {
+        beginBundle(bundleId) {
+            const bundle = (this.bundleCatalog || []).find((row) => Number(row.id) === Number(bundleId));
+            if (!bundle || this.busy) return;
+            const groups = bundle.groups || [];
+            if (!groups.length && !bundle.requirement) {
+                return this.addProduct(bundle.product_id, null, bundle.id);
+            }
+            this.bundleDraft = bundle;
+            this.bundlePicks = {};
+            groups.forEach((group) => {
+                this.bundlePicks[group.name] = Number(group.options?.[0]?.product_id || 0);
+            });
+            this.bundleConfirmed = false;
+            this.bundleNotice = '';
+            this.bundleOpen = true;
+        },
+        confirmBundle() {
+            const bundle = this.bundleDraft;
+            if (!bundle) return;
+            if (bundle.requirement && !this.bundleConfirmed) {
+                this.bundleNotice = 'Konfirmasi syarat paket terlebih dahulu.';
+                return;
+            }
+            const picks = [];
+            for (const group of (bundle.groups || [])) {
+                const picked = Number(this.bundlePicks[group.name] || 0);
+                if (!(group.options || []).some((opt) => Number(opt.product_id) === picked)) {
+                    this.bundleNotice = 'Pilih ' + group.name + '.';
+                    return;
+                }
+                picks.push(picked);
+            }
+            this.bundleOpen = false;
+            this.addProduct(bundle.product_id, null, bundle.id, false, [], 1, picks);
+        },
+        async addProduct(productId, variantId, bundleId, fromQueue = false, optionIds = [], quantity = 1, bundlePicks = []) {
             if (this.busy && !fromQueue) return;
             try {
                 await this.runBusy('Menambah item…', async () => {
                     await this.ensureOrder();
                     this.order = await this.request(`/pos/${this.order.id}/items`, { method: 'POST', headers: await this.csrf(), body: JSON.stringify({
-                        product_id: productId, product_variant_id: variantId, bundle_id: bundleId, quantity: quantity || 1, option_ids: optionIds || []
+                        product_id: productId, product_variant_id: variantId, bundle_id: bundleId, quantity: quantity || 1, option_ids: optionIds || [], bundle_picks: bundlePicks || []
                     })});
                     this.persistDraft();
                 });
             } catch (e) {
-                if (!fromQueue) this.queue({ type: 'add', product_id: productId, variant_id: variantId, bundle_id: bundleId, option_ids: optionIds || [], quantity: quantity || 1 });
+                if (!fromQueue) this.queue({ type: 'add', product_id: productId, variant_id: variantId, bundle_id: bundleId, option_ids: optionIds || [], quantity: quantity || 1, bundle_picks: bundlePicks || [] });
                 this.notice = e.message || 'Gagal menambah item.';
             }
         },

@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\AppliesFillableAttribute;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Concerns\AppliesFillableAttribute;
 
 #[Fillable([
-    'order_id', 'product_id', 'product_variant_id', 'bundle_id', 'batch_id', 'name',
+    'order_id', 'product_id', 'product_variant_id', 'bundle_id', 'bundle_picks', 'batch_id', 'name',
     'quantity', 'unit_price', 'discount_amount', 'tax_amount', 'total', 'consignment_commission',
     'notes', 'station', 'status', 'confirmed_by', 'confirmed_at',
 ])]
@@ -29,6 +29,7 @@ class OrderItem extends Model
             'tax_amount' => 'decimal:2',
             'total' => 'decimal:2',
             'consignment_commission' => 'decimal:2',
+            'bundle_picks' => 'array',
             'confirmed_at' => 'datetime',
         ];
     }
