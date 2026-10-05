@@ -67,7 +67,7 @@ class Bundle extends Model
             return 'Nonaktif';
         }
 
-        $today = now()->toDateString();
+        $today = now('Asia/Jakarta')->toDateString();
 
         if ($this->start_date && $today < $this->start_date->toDateString()) {
             return 'Terjadwal';
@@ -128,8 +128,9 @@ class Bundle extends Model
             return false;
         }
 
-        $today = now()->toDateString();
-        $time = now()->format('H:i:s');
+        $now = now('Asia/Jakarta');
+        $today = $now->toDateString();
+        $time = $now->format('H:i:s');
 
         if ($this->start_date && $today < $this->start_date->toDateString()) {
             return false;
@@ -137,10 +138,12 @@ class Bundle extends Model
         if ($this->end_date && $today > $this->end_date->toDateString()) {
             return false;
         }
-        if ($this->start_time && $time < $this->start_time) {
+        $start = $this->clockSeconds($this->start_time);
+        $end = $this->clockSeconds($this->end_time);
+        if ($start && $time < $start) {
             return false;
         }
-        if ($this->end_time && $time > $this->end_time) {
+        if ($end && $time > $end) {
             return false;
         }
 
@@ -149,6 +152,13 @@ class Bundle extends Model
         }
 
         return true;
+    }
+
+    private function clockSeconds(mixed $time): ?string
+    {
+        $label = $this->clockLabel($time);
+
+        return $label === null ? null : $label.':00';
     }
 
     private function clockLabel(mixed $time): ?string

@@ -16,6 +16,9 @@
             <div class="flex flex-col gap-2.5 border-b border-[#f0ece7] px-3 py-2.5 sm:flex-row sm:items-center">
                 <div class="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     <button type="button" class="pos-chip" :class="!category ? 'pos-chip-active' : 'pos-chip-idle'" @click="category = null">Semua</button>
+                    @if ($bundles->isNotEmpty())
+                        <button type="button" class="pos-chip" :class="category === 'bundle' ? 'pos-chip-active' : 'pos-chip-idle'" @click="category = 'bundle'">Paket</button>
+                    @endif
                     @foreach ($categories as $category)
                         <button type="button" class="pos-chip" :class="category == {{ $category->id }} ? 'pos-chip-active' : 'pos-chip-idle'" @click="category = {{ $category->id }}">{{ $category->name }}</button>
                     @endforeach
@@ -26,6 +29,20 @@
                 </div>
             </div>
             <div class="grid flex-1 auto-rows-min grid-cols-1 gap-2 overflow-y-auto p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                @foreach ($bundles as $bundle)
+                    <article class="menu-card" x-show="(!category || category === 'bundle') && productMatch({{ Js::from(strtolower($bundle->name)) }})" @click="beginAdd({{ $bundle->product_id ?? $bundle->items->first()?->product_id }}, null, {{ $bundle->id }})">
+                        <div class="menu-card-visual">
+                            <img src="{{ $bundle->product?->imageUrl() ?? asset('images/menu/placeholder.svg') }}" alt="{{ $bundle->name }}" class="menu-card-photo" loading="lazy">
+                        </div>
+                        <div class="menu-card-body">
+                            <div class="menu-card-meta">
+                                <span class="menu-card-badge">Package</span>
+                            </div>
+                            <h3 class="line-clamp-2 text-[14px] font-semibold leading-snug text-heading">{{ $bundle->name }}</h3>
+                            <p class="text-[14px] font-semibold tracking-tight text-heading">{{ money($bundle->price) }}</p>
+                        </div>
+                    </article>
+                @endforeach
                 @foreach ($products as $product)
                     @php
                         $hasOptions = $product->optionGroups->contains(fn ($g) => $g->options->contains(fn ($o) => $o->is_active));
@@ -54,20 +71,6 @@
                                     @endforeach
                                 </div>
                             @endif
-                        </div>
-                    </article>
-                @endforeach
-                @foreach ($bundles as $bundle)
-                    <article class="menu-card" x-show="!category || category == {{ $bundle->product?->category_id ?? 0 }}" @click="beginAdd({{ $bundle->product_id ?? $bundle->items->first()?->product_id }}, null, {{ $bundle->id }})">
-                        <div class="menu-card-visual">
-                            <img src="{{ $bundle->product?->imageUrl() ?? asset('images/menu/placeholder.svg') }}" alt="{{ $bundle->name }}" class="menu-card-photo" loading="lazy">
-                        </div>
-                        <div class="menu-card-body">
-                            <div class="menu-card-meta">
-                                <span class="menu-card-badge">Package</span>
-                            </div>
-                            <h3 class="line-clamp-2 text-[14px] font-semibold leading-snug text-heading">{{ $bundle->name }}</h3>
-                            <p class="text-[14px] font-semibold tracking-tight text-heading">{{ money($bundle->price) }}</p>
                         </div>
                     </article>
                 @endforeach

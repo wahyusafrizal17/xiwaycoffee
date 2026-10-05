@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
+use App\Models\Bundle;
 use App\Services\OrderService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\SeedsPosFixture;
 use Tests\TestCase;
@@ -39,6 +41,31 @@ class AuthorizationTest extends TestCase
             ->assertRedirect(route('marketing.bundles'));
 
         $this->assertDatabaseHas('bundles', ['name' => 'Paket Hemat']);
+
+        $this->actingAsAtOutlet($this->cashier)
+            ->get(route('pos.index'))
+            ->assertOk()
+            ->assertSee('Paket Hemat')
+            ->assertSee("category === 'bundle'", false);
+    }
+
+    public function test_bundle_scheduled_for_jakarta_today_shows_on_pos(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-05 18:30:00', 'UTC'));
+
+        Bundle::query()->create([
+            'name' => 'Paket Malam',
+            'price' => 10000,
+            'is_active' => true,
+            'start_date' => '2026-10-06',
+            'start_time' => '01:00:00',
+            'end_time' => '02:00:00',
+        ]);
+
+        $this->actingAsAtOutlet($this->cashier)
+            ->get(route('pos.index'))
+            ->assertOk()
+            ->assertSee('Paket Malam');
     }
 
     public function test_cashier_cannot_create_bundle(): void
