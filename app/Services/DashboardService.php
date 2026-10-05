@@ -85,7 +85,7 @@ class DashboardService
 
         $summary = $this->shares->summarize($filters);
         $food = $this->excludeCancelledFood($this->reports->foodSetoran($filters), $filters);
-        $drinks = $this->drinkSales($filters);
+        [$drinks, $drinkCups] = $this->drinkSales($filters);
         $gross = round((float) (clone $this->validOrders($outletId, $range))->sum('grand_total'), 2);
         $setoran = (float) $food['setoran'];
         $sales = round($gross - $setoran, 2);
@@ -102,6 +102,9 @@ class DashboardService
 
         $paymentTotals = $this->paymentTotals($outletId, $range);
         $paymentGap = round($paymentTotals['total'] - $gross, 2);
+        $drinkDailyTarget = (int) config('pos.drink_daily_target', 150);
+        $days = max(1, (int) Carbon::parse($range['from'])->startOfDay()->diffInDays(Carbon::parse($range['to'])->startOfDay()) + 1);
+        $drinkTarget = $drinkDailyTarget * $days;
 
         return [
             'period' => $range['period'],
@@ -127,6 +130,10 @@ class DashboardService
             'orders' => $orderCount,
             'aov' => $orderCount > 0 ? $gross / $orderCount : 0,
             'service_fee' => $serviceFee,
+            'drink_cups' => $drinkCups,
+            'drink_daily_target' => $drinkDailyTarget,
+            'drink_target' => $drinkTarget,
+            'drink_target_percent' => $drinkTarget > 0 ? (int) round($drinkCups / $drinkTarget * 100) : 0,
             'occupied_tables' => (clone $tables)->where('status', TableStatus::Occupied->value)->count(),
             'available_tables' => (clone $tables)->where('status', TableStatus::Available->value)->count(),
         ];
@@ -232,9 +239,12 @@ class DashboardService
         return $food;
     }
 
-    protected function drinkSales(array $filters): float
+    /**
+     * @return array{0: float, 1: float}
+     */
+    protected function drinkSales(array $filters): array
     {
-        return (float) OrderItem::query()
+        $row = OrderItem::query()
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->join('products', 'products.id', '=', 'order_items.product_id')
             ->join('categories', 'categories.id', '=', 'products.category_id')
@@ -244,7 +254,10 @@ class DashboardService
             ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
             ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '>=', $filters['from']))
             ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '<=', $filters['to']))
-            ->sum('order_items.total');
+            ->selectRaw('COALESCE(SUM(order_items.total), 0) as sales, COALESCE(SUM(order_items.quantity), 0) as cups')
+            ->first();
+
+        return [(float) $row->sales, (float) $row->cups];
     }
 
     /**

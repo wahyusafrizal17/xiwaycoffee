@@ -78,7 +78,7 @@
         </div>
     </form>
 
-    <div class="mb-5 grid gap-4 sm:grid-cols-2 {{ $showFinance ? 'xl:grid-cols-4' : 'xl:grid-cols-3' }}">
+    <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="stat-card !items-start">
             <div class="min-w-0 flex-1">
                 <p class="stat-kicker">Pendapatan kotor</p>
@@ -110,31 +110,54 @@
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 7h6M9 11h6M9 15h4M5 5h14a1 1 0 011 1v12a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z"/></svg>
                 </span>
             </div>
+            <div class="stat-card !items-start">
+                <div class="min-w-0 flex-1">
+                    <p class="stat-kicker">Jumlah charge</p>
+                    <p class="stat-value">{{ money($metrics['service_fee']) }}</p>
+                    <p class="stat-hint">Masuk penuh ke cafe, di luar setoran makanan</p>
+                </div>
+                <span class="stat-icon bg-brand-soft text-brand">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-2.2 0-4 1.3-4 3s1.8 3 4 3 4 1.3 4 3-1.8 3-4 3m0-12V5m0 14v-2"/></svg>
+                </span>
+            </div>
         @else
             <div class="stat-card !items-start">
                 <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Meja tersedia</p>
-                    <p class="stat-value">{{ $metrics['available_tables'] }}</p>
-                    <p class="stat-hint">Isi {{ $metrics['occupied_tables'] }}</p>
+                    <p class="stat-kicker">Pendapatan minuman</p>
+                    <p class="stat-value">{{ money($metrics['drinks']) }}</p>
+                    <p class="stat-hint">Penjualan minuman pada periode ini</p>
                 </div>
                 <span class="stat-icon bg-[#e8f1ff] text-[#2563eb]">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>
                 </span>
             </div>
-        @endif
-        <div class="stat-card !items-start">
-            <div class="min-w-0 flex-1">
-                <p class="stat-kicker">Jumlah charge</p>
-                <p class="stat-value">{{ money($metrics['service_fee']) }}</p>
-                <p class="stat-hint">Masuk penuh ke cafe, di luar setoran makanan</p>
+            <div class="stat-card !items-start">
+                <div class="min-w-0 flex-1">
+                    <p class="stat-kicker">Pendapatan makanan</p>
+                    <p class="stat-value">{{ money($metrics['food_sales']) }}</p>
+                    <p class="stat-hint">Penjualan makanan pada periode ini</p>
+                </div>
+                <span class="stat-icon bg-[#fff3e8] text-[#c2410c]">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>
+                </span>
             </div>
-            <span class="stat-icon bg-brand-soft text-brand">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-2.2 0-4 1.3-4 3s1.8 3 4 3 4 1.3 4 3-1.8 3-4 3m0-12V5m0 14v-2"/></svg>
-            </span>
-        </div>
+            <div class="stat-card !items-start">
+                <div class="min-w-0 flex-1">
+                    <p class="stat-kicker">Target minuman</p>
+                    <p class="stat-value {{ $metrics['drink_target_percent'] >= 100 ? 'text-[#166534]' : '' }}">{{ $metrics['drink_target_percent'] }}%</p>
+                    <p class="stat-hint">{{ qty($metrics['drink_cups']) }} dari {{ qty($metrics['drink_target']) }} cup · target {{ $metrics['drink_daily_target'] }} cup/hari</p>
+                    <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-brand-soft">
+                        <div class="h-full rounded-full {{ $metrics['drink_target_percent'] >= 100 ? 'bg-[#166534]' : 'bg-brand' }}" style="width: {{ min(100, (int) $metrics['drink_target_percent']) }}%"></div>
+                    </div>
+                </div>
+                <span class="stat-icon {{ $metrics['drink_target_percent'] >= 100 ? 'bg-[#eef6f0] text-[#166534]' : 'bg-brand-soft text-brand' }}">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+            </div>
+        @endif
     </div>
 
-    <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <div class="stat-card !items-start">
             <div class="min-w-0 flex-1">
                 <p class="stat-kicker">Cash</p>
@@ -154,13 +177,6 @@
             <span class="stat-icon bg-[#e8f1ff] text-[#2563eb]">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 3h2v3h-2v-3zm4-3h2v2h-2v-2zm-4 0h2v2h-2v-2zm4 3h2v3h-2v-3z"/></svg>
             </span>
-        </div>
-        <div class="stat-card !items-start">
-            <div class="min-w-0 flex-1">
-                <p class="stat-kicker">Lainnya</p>
-                <p class="stat-value">{{ money($metrics['other']) }}</p>
-                <p class="stat-hint">Selain tunai dan QRIS</p>
-            </div>
         </div>
         <div class="stat-card !items-start">
             <div class="min-w-0 flex-1">

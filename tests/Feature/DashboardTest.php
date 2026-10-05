@@ -116,6 +116,17 @@ class DashboardTest extends TestCase
             ->assertDontSee('Metode bayar')
             ->assertDontSee('>Kategori</h2>', false);
 
+        $today = app(DashboardService::class)->metrics($this->outlet->id, [
+            'period' => 'day',
+            'from' => now()->toDateString(),
+            'to' => now()->toDateString(),
+            'label' => 'hari ini',
+        ]);
+        $this->assertEquals(18000.0, $today['drinks']);
+        $this->assertEquals(15000.0, $today['food_sales']);
+        $this->assertEquals(1.0, $today['drink_cups']);
+        $this->assertEquals(1, $today['drink_target_percent']);
+
         $this->actingAsAtOutlet($this->admin)
             ->get(route('dashboard', ['period' => 'month', 'month' => now()->format('Y-m')]))
             ->assertOk()
@@ -129,9 +140,16 @@ class DashboardTest extends TestCase
             ->get(route('dashboard', ['period' => 'today']))
             ->assertOk()
             ->assertSee('Pendapatan kotor')
-            ->assertSee('Jumlah charge')
+            ->assertSee('Pendapatan minuman')
+            ->assertSee('Pendapatan makanan')
+            ->assertSee('Target minuman')
+            ->assertSee('0%')
+            ->assertSee('width: 0%', false)
+            ->assertDontSee('Meja tersedia')
+            ->assertDontSee('Jumlah charge')
             ->assertSee('Cash')
             ->assertSee('QRIS')
+            ->assertDontSee('Selain tunai dan QRIS')
             ->assertDontSee('Bagi hasil')
             ->assertDontSee('Pendapatan bersih')
             ->assertDontSee('Breakdown penjualan')

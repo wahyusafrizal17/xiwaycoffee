@@ -21,6 +21,7 @@ return [
 
     'food_commission' => 2000,
     'food_cafe_percent' => 10,
+    'drink_daily_target' => 150,
 
     // Fixed operating costs. Target omzet minuman = monthly total (cover BOP; HPP tuned later).
     'bop' => [
