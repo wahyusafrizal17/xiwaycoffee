@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Reward;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class MarketingController extends Controller
@@ -136,10 +137,49 @@ class MarketingController extends Controller
     public function storeBundle(Request $request): RedirectResponse
     {
         abort_unless($request->user()->hasPermission('marketing.manage'), 403);
+        [$data, $items, $outletIds] = $this->bundleFields($request);
+
+        $bundle = Bundle::query()->create($data + ['is_active' => true]);
+        foreach ($items as $item) {
+            $bundle->items()->create($item);
+        }
+        $bundle->outlets()->sync($outletIds);
+
+        return redirect()->route('marketing.bundles')->with('success', 'Bundle dibuat.');
+    }
+
+    public function updateBundle(Request $request, Bundle $bundle): RedirectResponse
+    {
+        abort_unless($request->user()->hasPermission('marketing.manage'), 403);
+        [$data, $items, $outletIds] = $this->bundleFields($request, $bundle);
+
+        $bundle->update($data);
+        $bundle->items()->delete();
+        foreach ($items as $item) {
+            $bundle->items()->create($item);
+        }
+        $bundle->outlets()->sync($outletIds);
+
+        return redirect()->route('marketing.bundles')->with('success', 'Bundle diperbarui.');
+    }
+
+    public function toggleBundle(Request $request, Bundle $bundle): RedirectResponse
+    {
+        abort_unless($request->user()->hasPermission('marketing.manage'), 403);
+        $bundle->update(['is_active' => ! $bundle->is_active]);
+
+        return back()->with('success', 'Status bundle diperbarui.');
+    }
+
+    /**
+     * @return array{0: array<string, mixed>, 1: list<array<string, mixed>>, 2: list<int>}
+     */
+    protected function bundleFields(Request $request, ?Bundle $bundle = null): array
+    {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'campaign' => ['nullable', 'string', 'max:80'],
-            'sku' => ['nullable', 'string', 'max:40'],
+            'sku' => ['nullable', 'string', 'max:40', Rule::unique('bundles', 'sku')->ignore($bundle?->id)],
             'price' => ['required', 'numeric', 'min:0'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
@@ -160,6 +200,7 @@ class MarketingController extends Controller
             'items.min' => 'Minimal dua produk dalam bundle.',
             'items.*.product_id.required' => 'Pilih produk untuk setiap baris.',
             'items.*.quantity.required' => 'Isi jumlah item.',
+            'sku.unique' => 'SKU sudah dipakai.',
             'end_date.after_or_equal' => 'Tanggal selesai harus pada atau setelah tanggal mulai.',
         ]);
 
@@ -173,21 +214,7 @@ class MarketingController extends Controller
         $outletIds = $data['outlet_ids'] ?? [];
         unset($data['items'], $data['outlet_ids']);
 
-        $bundle = Bundle::query()->create($data + ['is_active' => true]);
-        foreach ($items as $item) {
-            $bundle->items()->create($item);
-        }
-        $bundle->outlets()->sync($outletIds);
-
-        return redirect()->route('marketing.bundles')->with('success', 'Bundle dibuat.');
-    }
-
-    public function toggleBundle(Request $request, Bundle $bundle): RedirectResponse
-    {
-        abort_unless($request->user()->hasPermission('marketing.manage'), 403);
-        $bundle->update(['is_active' => ! $bundle->is_active]);
-
-        return back()->with('success', 'Status bundle diperbarui.');
+        return [$data, $items, $outletIds];
     }
 
     public function rewards(Request $request): View

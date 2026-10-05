@@ -49,6 +49,53 @@ class AuthorizationTest extends TestCase
             ->assertSee("category === 'bundle'", false);
     }
 
+    public function test_admin_can_update_bundle(): void
+    {
+        $bundle = Bundle::query()->create([
+            'name' => 'Paket Lama',
+            'price' => 50000,
+            'is_active' => true,
+        ]);
+        $bundle->items()->create(['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
+        $bundle->items()->create(['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('marketing.bundles'))
+            ->assertOk()
+            ->assertSee('Edit');
+
+        $this->actingAsAtOutlet($this->admin)
+            ->put(route('marketing.bundles.update', $bundle), [
+                'name' => 'Paket Baru',
+                'campaign' => 'After School',
+                'price' => 40000,
+                'weekdays_only' => 1,
+                'items' => [
+                    ['product_id' => $this->sellableProduct->id, 'quantity' => 2],
+                    ['product_id' => $this->sellableProduct->id, 'quantity' => 1, 'choice_group' => 'snack'],
+                ],
+            ])
+            ->assertRedirect(route('marketing.bundles'));
+
+        $bundle->refresh();
+        $this->assertSame('Paket Baru', $bundle->name);
+        $this->assertSame('After School', $bundle->campaign);
+        $this->assertTrue($bundle->weekdays_only);
+        $this->assertSame(2, $bundle->items()->count());
+        $this->assertSame('snack', $bundle->items()->whereNotNull('choice_group')->value('choice_group'));
+
+        $this->actingAsAtOutlet($this->cashier)
+            ->put(route('marketing.bundles.update', $bundle), [
+                'name' => 'Paket Kasir',
+                'price' => 1000,
+                'items' => [
+                    ['product_id' => $this->sellableProduct->id, 'quantity' => 1],
+                    ['product_id' => $this->sellableProduct->id, 'quantity' => 1],
+                ],
+            ])
+            ->assertForbidden();
+    }
+
     public function test_bundle_scheduled_for_jakarta_today_shows_on_pos(): void
     {
         $this->travelTo(Carbon::parse('2026-10-05 18:30:00', 'UTC'));

@@ -181,6 +181,7 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
     Route::post('/marketing/discounts/{discount}/toggle', [MarketingController::class, 'toggleDiscount'])->name('marketing.discounts.toggle');
     Route::get('/marketing/bundles', [MarketingController::class, 'bundles'])->name('marketing.bundles');
     Route::post('/marketing/bundles', [MarketingController::class, 'storeBundle'])->name('marketing.bundles.store');
+    Route::put('/marketing/bundles/{bundle}', [MarketingController::class, 'updateBundle'])->name('marketing.bundles.update');
     Route::post('/marketing/bundles/{bundle}/toggle', [MarketingController::class, 'toggleBundle'])->name('marketing.bundles.toggle');
 
     Route::get('/loyalty', [LoyaltyController::class, 'index'])->name('loyalty.index');

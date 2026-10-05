@@ -4,18 +4,34 @@
 @section('content')
     @php
         $formError = $errors->any();
-        $oldOutlets = array_map('strval', (array) old('outlet_ids', []));
-        $formItems = collect((array) old('items', [
-            ['product_id' => '', 'quantity' => 1],
-            ['product_id' => '', 'quantity' => 1],
+        $oldItems = collect((array) old('items', [
+            ['product_id' => '', 'quantity' => 1, 'choice_group' => ''],
+            ['product_id' => '', 'quantity' => 1, 'choice_group' => ''],
         ]))->map(fn ($item) => [
             'product_id' => (string) data_get($item, 'product_id', ''),
             'quantity' => (float) data_get($item, 'quantity', 1) ?: 1,
             'choice_group' => (string) data_get($item, 'choice_group', ''),
         ])->values()->all();
-        if (count($formItems) < 2) {
-            $formItems[] = ['product_id' => '', 'quantity' => 1];
+        if (count($oldItems) < 2) {
+            $oldItems[] = ['product_id' => '', 'quantity' => 1, 'choice_group' => ''];
         }
+        $editingId = old('editing_id');
+        $oldForm = $formError ? [
+            'id' => $editingId,
+            'update_url' => $editingId ? route('marketing.bundles.update', $editingId) : '',
+            'name' => old('name', ''),
+            'campaign' => old('campaign', ''),
+            'sku' => old('sku', ''),
+            'price' => old('price', ''),
+            'start_date' => old('start_date', ''),
+            'end_date' => old('end_date', ''),
+            'start_time' => old('start_time', ''),
+            'end_time' => old('end_time', ''),
+            'weekdays_only' => (bool) old('weekdays_only'),
+            'requirement' => old('requirement', ''),
+            'outlet_ids' => array_map('strval', (array) old('outlet_ids', [])),
+            'items' => $oldItems,
+        ] : null;
     @endphp
     <div x-data="bundlePage()" @keydown.escape.window="closeTop()">
         <div class="mb-5 grid gap-4 md:grid-cols-3">
@@ -128,6 +144,9 @@
                                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.3 12S6 6 12 6s9.7 6 9.7 6-3.7 6-9.7 6S2.3 12 2.3 12z"/><circle cx="12" cy="12" r="2.5" stroke-width="1.8"/></svg>
                                         </button>
                                         @can('marketing.manage')
+                                            <button type="button" class="table-action" title="Edit" @click="openEdit({{ Js::from($row) }})">
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                                            </button>
                                             <form method="POST" action="{{ route('marketing.bundles.toggle', $bundle) }}">
                                                 @csrf
                                                 <button type="submit" class="table-action {{ $bundle->is_active ? '' : 'table-action-danger' }}" title="{{ $bundle->is_active ? 'Nonaktifkan' : 'Aktifkan' }}">
@@ -229,6 +248,7 @@
                 @can('marketing.manage')
                     <div class="crud-modal-footer">
                         <button type="button" class="btn-ghost" @click="viewOpen = false">Tutup</button>
+                        <button type="button" class="btn-ghost" @click="openEdit(viewing)">Edit</button>
                         <form method="POST" :action="viewing?.toggle_url">
                             @csrf
                             <button class="btn-add" type="submit" x-text="viewing?.is_active ? 'Nonaktifkan' : 'Aktifkan'"></button>
@@ -241,12 +261,14 @@
         @can('marketing.manage')
             <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="formOpen" x-cloak @click.self="formOpen = false">
                 <div class="crud-modal">
-                    <form class="flex min-h-0 flex-1 flex-col" method="POST" action="{{ route('marketing.bundles.store') }}">
+                    <form class="flex min-h-0 flex-1 flex-col" method="POST" :action="formMode === 'edit' ? form.update_url : '{{ route('marketing.bundles.store') }}'">
                         @csrf
+                        <template x-if="formMode === 'edit'"><input type="hidden" name="_method" value="PUT"></template>
+                        <input type="hidden" name="editing_id" :value="form.id || ''">
                         <div class="crud-modal-body">
                             <div class="flex items-start justify-between gap-3">
                                 <div>
-                                    <h3 class="text-lg font-semibold text-heading">Tambah Bundle</h3>
+                                    <h3 class="text-lg font-semibold text-heading" x-text="formMode === 'edit' ? 'Edit Bundle' : 'Tambah Bundle'"></h3>
                                     <p class="mt-1 text-[13px] text-muted">Paket aktif akan muncul di kasir sesuai periode dan outlet.</p>
                                 </div>
                                 <button type="button" class="modal-close" @click="formOpen = false">
@@ -257,50 +279,50 @@
                             <div class="mt-5 grid gap-4 sm:grid-cols-2">
                                 <div class="sm:col-span-2">
                                     <label class="label">Nama</label>
-                                    <input class="input" name="name" required maxlength="120" value="{{ old('name') }}" placeholder="Contoh: Combo 2">
+                                    <input class="input" name="name" required maxlength="120" x-model="form.name" placeholder="Contoh: Combo 2">
                                     @error('name')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                                 </div>
                                 <div class="sm:col-span-2">
                                     <label class="label">Nama promo</label>
-                                    <input class="input" name="campaign" maxlength="80" value="{{ old('campaign') }}" placeholder="Contoh: After School">
+                                    <input class="input" name="campaign" maxlength="80" x-model="form.campaign" placeholder="Contoh: After School">
                                     <p class="mt-1.5 text-[12px] text-muted">Combo dengan nama promo yang sama dikelompokkan di kasir.</p>
                                 </div>
                                 <div>
                                     <label class="label">SKU</label>
-                                    <input class="input" name="sku" maxlength="40" value="{{ old('sku') }}" placeholder="Opsional">
+                                    <input class="input" name="sku" maxlength="40" x-model="form.sku" placeholder="Opsional">
                                     @error('sku')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                                 </div>
                                 <div>
                                     <label class="label">Harga paket</label>
-                                    <input class="input" type="number" step="0.01" min="0" name="price" required value="{{ old('price') }}" placeholder="0">
+                                    <input class="input" type="number" step="0.01" min="0" name="price" required x-model="form.price" placeholder="0">
                                     @error('price')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                                 </div>
                                 <div>
                                     <label class="label">Mulai</label>
-                                    <input class="input" type="date" name="start_date" value="{{ old('start_date') }}">
+                                    <input class="input" type="date" name="start_date" x-model="form.start_date">
                                 </div>
                                 <div>
                                     <label class="label">Selesai</label>
-                                    <input class="input" type="date" name="end_date" value="{{ old('end_date') }}">
+                                    <input class="input" type="date" name="end_date" x-model="form.end_date">
                                     @error('end_date')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                                 </div>
                                 <div>
                                     <label class="label">Jam mulai</label>
-                                    <input class="input" type="time" name="start_time" value="{{ old('start_time') }}">
+                                    <input class="input" type="time" name="start_time" x-model="form.start_time">
                                 </div>
                                 <div>
                                     <label class="label">Jam selesai</label>
-                                    <input class="input" type="time" name="end_time" value="{{ old('end_time') }}">
+                                    <input class="input" type="time" name="end_time" x-model="form.end_time">
                                 </div>
                                 <div class="sm:col-span-2">
                                     <label class="flex items-center gap-2 text-sm font-medium text-heading">
-                                        <input type="checkbox" name="weekdays_only" value="1" class="rounded border-line text-brand focus:ring-brand/20" @checked(old('weekdays_only'))>
+                                        <input type="checkbox" name="weekdays_only" value="1" class="rounded border-line text-brand focus:ring-brand/20" x-model="form.weekdays_only">
                                         Hari kerja saja
                                     </label>
                                 </div>
                                 <div class="sm:col-span-2">
                                     <label class="label">Syarat</label>
-                                    <input class="input" name="requirement" maxlength="160" value="{{ old('requirement') }}" placeholder="Tunjukkan seragam / kartu pelajar">
+                                    <input class="input" name="requirement" maxlength="160" x-model="form.requirement" placeholder="Tunjukkan seragam / kartu pelajar">
                                     <p class="mt-1.5 text-[12px] text-muted">Kasir mengonfirmasi syarat ini sebelum paket masuk order.</p>
                                 </div>
                                 <div class="sm:col-span-2">
@@ -308,7 +330,7 @@
                                     <div class="max-h-36 space-y-0.5 overflow-y-auto rounded-lg border border-line bg-[#fafafa] p-2">
                                         @forelse ($outlets as $outlet)
                                             <label class="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-white">
-                                                <input type="checkbox" name="outlet_ids[]" value="{{ $outlet->id }}" class="rounded border-line text-brand focus:ring-brand/20" @checked(in_array((string) $outlet->id, $oldOutlets, true))>
+                                                <input type="checkbox" name="outlet_ids[]" value="{{ $outlet->id }}" class="rounded border-line text-brand focus:ring-brand/20" x-model="form.outlet_ids">
                                                 {{ $outlet->name }}
                                             </label>
                                         @empty
@@ -320,12 +342,12 @@
                                 <div class="sm:col-span-2">
                                     <div class="mb-2 flex items-center justify-between">
                                         <label class="label mb-0">Produk dalam paket</label>
-                                        <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="items.push({ product_id: '', quantity: 1, choice_group: '' })">Tambah item</button>
+                                        <button type="button" class="btn-ghost !px-3 !py-1.5 text-xs" @click="form.items.push({ product_id: '', quantity: 1, choice_group: '' })">Tambah item</button>
                                     </div>
                                     <p class="mb-3 text-[12px] text-muted">Minimal dua produk. Isi grup yang sama bila kasir harus memilih salah satu, misalnya snack.</p>
                                     @error('items')<p class="mb-2 text-sm text-red-600">{{ $message }}</p>@enderror
                                     <div class="space-y-2">
-                                        <template x-for="(item, index) in items" :key="index">
+                                        <template x-for="(item, index) in form.items" :key="index">
                                             <div class="grid grid-cols-12 items-center gap-2">
                                                 <div class="col-span-5 min-w-0">
                                                     <select class="input js-product-select" :name="`items[${index}][product_id]`" x-model="item.product_id" required>
@@ -337,7 +359,7 @@
                                                 </div>
                                                 <input class="input col-span-2" type="number" min="1" step="1" :name="`items[${index}][quantity]`" x-model="item.quantity" required>
                                                 <input class="input col-span-4" type="text" maxlength="40" :name="`items[${index}][choice_group]`" x-model="item.choice_group" placeholder="Grup atau">
-                                                <button type="button" class="btn-ghost col-span-1 !px-2" @click="items.length > 2 && items.splice(index, 1)">×</button>
+                                                <button type="button" class="btn-ghost col-span-1 !px-2" @click="form.items.length > 2 && form.items.splice(index, 1)">×</button>
                                             </div>
                                         </template>
                                     </div>
@@ -361,14 +383,52 @@
     <script>
         function bundlePage() {
             const formError = @json($formError);
-            const formItems = @json($formItems);
+            const oldForm = @json($oldForm);
+            const emptyForm = () => ({
+                id: null,
+                update_url: '',
+                name: '',
+                campaign: '',
+                sku: '',
+                price: '',
+                start_date: '',
+                end_date: '',
+                start_time: '',
+                end_time: '',
+                weekdays_only: false,
+                requirement: '',
+                outlet_ids: [],
+                items: [
+                    { product_id: '', quantity: 1, choice_group: '' },
+                    { product_id: '', quantity: 1, choice_group: '' },
+                ],
+            });
 
             return {
                 formOpen: formError,
+                formMode: oldForm?.id ? 'edit' : 'create',
                 viewOpen: false,
                 viewing: null,
-                items: formItems,
+                form: oldForm ? { ...emptyForm(), ...oldForm } : emptyForm(),
                 openCreate() {
+                    this.formMode = 'create';
+                    this.form = emptyForm();
+                    this.viewOpen = false;
+                    this.formOpen = true;
+                },
+                openEdit(row) {
+                    if (! row) return;
+                    this.formMode = 'edit';
+                    this.form = {
+                        ...emptyForm(),
+                        ...row,
+                        items: (row.items || []).map((item) => ({
+                            product_id: String(item.product_id || ''),
+                            quantity: Number(item.quantity) || 1,
+                            choice_group: item.choice_group || '',
+                        })),
+                        outlet_ids: (row.outlet_ids || []).map(String),
+                    };
                     this.viewOpen = false;
                     this.formOpen = true;
                 },
