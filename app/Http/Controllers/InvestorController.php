@@ -61,14 +61,16 @@ class InvestorController extends Controller
     protected function drinkSalesForMonth(?int $outletId, int $year, int $month): float
     {
         return (float) OrderItem::query()
-            ->whereHas('order', function ($q) use ($outletId, $year, $month) {
-                $q->where('payment_status', PaymentStatus::Paid->value)
-                    ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
-                    ->whereYear('created_at', $year)
-                    ->whereMonth('created_at', $month);
-            })
-            ->whereHas('product.category', fn ($q) => $q->whereIn('name', drink_category_names()))
-            ->sum('total');
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
+            ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
+            ->leftJoin('bundles', 'bundles.id', '=', 'order_items.bundle_id')
+            ->where('orders.payment_status', PaymentStatus::Paid->value)
+            ->when($outletId, fn ($q) => $q->where('orders.outlet_id', $outletId))
+            ->whereYear('orders.created_at', $year)
+            ->whereMonth('orders.created_at', $month)
+            ->selectRaw('COALESCE(SUM('.order_item_drink_amount_sql().'), 0) as sales')
+            ->value('sales');
     }
 
     public function store(Request $request): RedirectResponse

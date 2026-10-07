@@ -102,7 +102,7 @@ class DashboardService
 
         $paymentTotals = $this->paymentTotals($outletId, $range);
         $paymentGap = round($paymentTotals['total'] - $gross, 2);
-        $drinkDailyTarget = (int) config('pos.drink_daily_target', 150);
+        $drinkDailyTarget = (int) config('pos.drink_daily_target', 50);
         $days = max(1, (int) Carbon::parse($range['from'])->startOfDay()->diffInDays(Carbon::parse($range['to'])->startOfDay()) + 1);
         $drinkTarget = $drinkDailyTarget * $days;
 
@@ -219,13 +219,14 @@ class DashboardService
     {
         $cancelled = (float) OrderItem::query()
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('bundles', 'bundles.id', '=', 'order_items.bundle_id')
             ->where('orders.payment_status', PaymentStatus::Paid->value)
             ->where('orders.status', OrderStatus::Cancelled->value)
-            ->where('order_items.consignment_commission', '>', 0)
             ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
             ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '>=', $filters['from']))
             ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '<=', $filters['to']))
-            ->sum('order_items.total');
+            ->selectRaw('COALESCE(SUM('.order_item_food_amount_sql().'), 0) as sales')
+            ->value('sales');
 
         if ($cancelled <= 0) {
             return $food;
@@ -246,15 +247,15 @@ class DashboardService
     {
         $row = OrderItem::query()
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->join('products', 'products.id', '=', 'order_items.product_id')
-            ->join('categories', 'categories.id', '=', 'products.category_id')
+            ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
+            ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
+            ->leftJoin('bundles', 'bundles.id', '=', 'order_items.bundle_id')
             ->where('orders.payment_status', PaymentStatus::Paid->value)
             ->where('orders.status', '!=', OrderStatus::Cancelled->value)
-            ->whereIn('categories.name', drink_category_names())
             ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
             ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '>=', $filters['from']))
             ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '<=', $filters['to']))
-            ->selectRaw('COALESCE(SUM(order_items.total), 0) as sales, COALESCE(SUM(order_items.quantity), 0) as cups')
+            ->selectRaw('COALESCE(SUM('.order_item_drink_amount_sql().'), 0) as sales, COALESCE(SUM('.order_item_drink_cups_sql().'), 0) as cups')
             ->first();
 
         return [(float) $row->sales, (float) $row->cups];

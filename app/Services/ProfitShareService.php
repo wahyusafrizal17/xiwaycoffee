@@ -105,18 +105,18 @@ class ProfitShareService
 
     public function foodSetoran(array $filters): float
     {
-        $items = OrderItem::query()
-            ->where('consignment_commission', '>', 0)
-            ->whereHas('order', function ($order) use ($filters) {
-                $order->where('payment_status', PaymentStatus::Paid->value)
-                    ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('outlet_id', $filters['outlet_id']))
-                    ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('created_at', '>=', $filters['from']))
-                    ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('created_at', '<=', $filters['to']));
-            })
-            ->get(['total']);
+        $sales = (float) OrderItem::query()
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('bundles', 'bundles.id', '=', 'order_items.bundle_id')
+            ->where('orders.payment_status', PaymentStatus::Paid->value)
+            ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
+            ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '>=', $filters['from']))
+            ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '<=', $filters['to']))
+            ->selectRaw('COALESCE(SUM('.order_item_food_amount_sql().'), 0) as sales')
+            ->value('sales');
 
         $cafe = (float) config('pos.food_cafe_percent', 10) / 100;
 
-        return round($items->sum(fn (OrderItem $item) => (float) $item->total * (1 - $cafe)), 2);
+        return round($sales * (1 - $cafe), 2);
     }
 }

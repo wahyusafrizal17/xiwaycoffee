@@ -100,7 +100,8 @@ class DashboardTest extends TestCase
             ->assertSee('Pendapatan minuman')
             ->assertSee('Pendapatan makanan')
             ->assertSee('Target minuman')
-            ->assertSee('width: 1%', false)
+            ->assertSee('target 50 cup/hari', false)
+            ->assertSee('width: 2%', false)
             ->assertDontSee('Jumlah charge')
             ->assertDontSee('>Charge</p>', false)
             ->assertDontSee('tidak masuk bagi hasil')
@@ -128,7 +129,7 @@ class DashboardTest extends TestCase
         $this->assertEquals(18000.0, $today['drinks']);
         $this->assertEquals(15000.0, $today['food_sales']);
         $this->assertEquals(1.0, $today['drink_cups']);
-        $this->assertEquals(1, $today['drink_target_percent']);
+        $this->assertEquals(2, $today['drink_target_percent']);
 
         $this->actingAsAtOutlet($this->admin)
             ->get(route('dashboard', ['period' => 'month', 'month' => now()->format('Y-m')]))

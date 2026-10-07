@@ -23,6 +23,7 @@
             'campaign' => old('campaign', ''),
             'sku' => old('sku', ''),
             'price' => old('price', ''),
+            'drink_share' => old('drink_share', ''),
             'start_date' => old('start_date', ''),
             'end_date' => old('end_date', ''),
             'start_time' => old('start_time', ''),
@@ -223,6 +224,10 @@
                             <dt class="text-[12px] text-muted">Harga normal</dt>
                             <dd class="mt-0.5 font-medium" x-text="viewing?.normal_label || '—'"></dd>
                         </div>
+                        <div x-show="viewing?.drink_share_label" x-cloak>
+                            <dt class="text-[12px] text-muted">Pembagian</dt>
+                            <dd class="mt-0.5 font-medium" x-text="(viewing?.drink_share_label || '') + ' minuman · ' + (viewing?.food_share_label || '') + ' makanan'"></dd>
+                        </div>
                         <div>
                             <dt class="text-[12px] text-muted">Hari</dt>
                             <dd class="mt-0.5 font-medium" x-text="viewing?.weekdays_label || '—'"></dd>
@@ -296,6 +301,14 @@
                                     <label class="label">Harga paket</label>
                                     <input class="input" type="number" step="0.01" min="0" name="price" required x-model="form.price" placeholder="0">
                                     @error('price')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label class="label">Bagian minuman</label>
+                                    <input class="input" type="number" step="0.01" min="0" name="drink_share" x-model="form.drink_share" placeholder="Kosongkan jika tidak dibagi">
+                                    <p class="mt-1.5 text-[12px] text-muted" x-show="form.drink_share !== '' && form.drink_share !== null" x-cloak>
+                                        Makanan <span x-text="'Rp ' + new Intl.NumberFormat('id-ID').format(Math.max(0, Number(form.price || 0) - Number(form.drink_share || 0)))"></span>.
+                                    </p>
+                                    @error('drink_share')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                                 </div>
                                 <div>
                                     <label class="label">Mulai</label>
@@ -391,6 +404,7 @@
                 campaign: '',
                 sku: '',
                 price: '',
+                drink_share: '',
                 start_date: '',
                 end_date: '',
                 start_time: '',

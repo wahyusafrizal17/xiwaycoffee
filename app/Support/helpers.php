@@ -93,6 +93,41 @@ function drink_category_names(): array
     return config('pos.bop.drink_categories', ['Coffee', 'Non Coffee', 'Fit Tea', 'Xiway Main']);
 }
 
+function order_item_drink_amount_sql(): string
+{
+    $names = collect(drink_category_names())
+        ->map(fn (string $name) => "'".str_replace("'", "''", $name)."'")
+        ->implode(', ');
+    $share = 'bundles.drink_share';
+
+    return "CASE
+        WHEN {$share} IS NOT NULL AND order_items.unit_price > 0 THEN order_items.total * {$share} / order_items.unit_price
+        WHEN categories.name IN ({$names}) THEN order_items.total
+        ELSE 0 END";
+}
+
+function order_item_drink_cups_sql(): string
+{
+    $names = collect(drink_category_names())
+        ->map(fn (string $name) => "'".str_replace("'", "''", $name)."'")
+        ->implode(', ');
+
+    return 'CASE
+        WHEN bundles.drink_share > 0 THEN order_items.quantity
+        WHEN bundles.drink_share IS NULL AND categories.name IN ('.$names.') THEN order_items.quantity
+        ELSE 0 END';
+}
+
+function order_item_food_amount_sql(): string
+{
+    $share = 'bundles.drink_share';
+
+    return "CASE
+        WHEN {$share} IS NOT NULL AND order_items.unit_price > 0 THEN order_items.total - (order_items.total * {$share} / order_items.unit_price)
+        WHEN order_items.consignment_commission > 0 THEN order_items.total
+        ELSE 0 END";
+}
+
 function points_per_amount(): int
 {
     return (int) setting('points_earn_per_amount', 10000);

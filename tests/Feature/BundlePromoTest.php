@@ -6,8 +6,10 @@ use App\Enums\PaymentMethod;
 use App\Enums\PrinterStation;
 use App\Enums\ProductType;
 use App\Models\Bundle;
+use App\Models\Category;
 use App\Models\Inventory;
 use App\Models\Product;
+use App\Services\DashboardService;
 use App\Services\OrderService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -97,12 +99,65 @@ class BundlePromoTest extends TestCase
         $this->assertEquals(10, $this->stock($nugget));
     }
 
-    protected function menu(string $name, int $price): Product
+    public function test_bundle_price_splits_into_drink_and_food(): void
+    {
+        $drinkCategory = Category::query()->create([
+            'name' => 'Non Coffee',
+            'slug' => 'non-coffee',
+            'station' => PrinterStation::Bar->value,
+            'sort_order' => 3,
+            'is_active' => true,
+        ]);
+        $tea = $this->menu('Lychee Tea', 15000, $drinkCategory->id);
+        $rice = $this->menu('Nasi Telur', 17000);
+        $rice->update(['consignment_commission' => 2000]);
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('marketing.bundles.store'), [
+                'name' => 'Combo 1',
+                'price' => 25000,
+                'drink_share' => 10000,
+                'items' => [
+                    ['product_id' => $rice->id, 'quantity' => 1],
+                    ['product_id' => $tea->id, 'quantity' => 1],
+                ],
+            ])
+            ->assertRedirect();
+
+        $bundle = Bundle::query()->where('name', 'Combo 1')->first();
+        $orders = app(OrderService::class);
+        $order = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => 'pickup',
+        ]);
+        $orders->addItem($order, [
+            'bundle_id' => $bundle->id,
+            'quantity' => 1,
+        ]);
+        $orders->checkout($order->fresh(), [
+            'method' => PaymentMethod::Cash->value,
+            'tendered' => 25000,
+        ]);
+
+        $metrics = app(DashboardService::class)->metrics($this->outlet->id, [
+            'period' => 'day',
+            'from' => now()->toDateString(),
+            'to' => now()->toDateString(),
+            'label' => 'hari ini',
+        ]);
+
+        $this->assertEquals(10000, $metrics['drinks']);
+        $this->assertEquals(15000, $metrics['food_sales']);
+        $this->assertEquals(1500, $metrics['food_cafe']);
+        $this->assertEquals(13500, $metrics['food_setoran']);
+    }
+
+    protected function menu(string $name, int $price, ?int $categoryId = null): Product
     {
         $product = Product::query()->create([
             'sku' => 'PRD-'.str($name)->slug(),
             'name' => $name,
-            'category_id' => $this->foodCategory->id,
+            'category_id' => $categoryId ?? $this->foodCategory->id,
             'unit_id' => $this->unitPcs->id,
             'type' => ProductType::Finished,
             'price' => $price,

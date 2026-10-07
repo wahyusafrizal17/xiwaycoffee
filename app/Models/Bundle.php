@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['name', 'campaign', 'sku', 'product_id', 'price', 'start_date', 'end_date', 'start_time', 'end_time', 'weekdays_only', 'requirement', 'is_active'])]
+#[Fillable(['name', 'campaign', 'sku', 'product_id', 'price', 'drink_share', 'start_date', 'end_date', 'start_time', 'end_time', 'weekdays_only', 'requirement', 'is_active'])]
 class Bundle extends Model
 {
     use AppliesFillableAttribute, SoftDeletes;
@@ -19,6 +19,7 @@ class Bundle extends Model
     {
         return [
             'price' => 'decimal:2',
+            'drink_share' => 'decimal:2',
             'start_date' => 'date',
             'end_date' => 'date',
             'weekdays_only' => 'boolean',
@@ -110,6 +111,9 @@ class Bundle extends Model
             'sku' => $this->sku ?: '',
             'price' => (float) $this->price,
             'price_label' => money($this->price),
+            'drink_share' => $this->drink_share === null ? '' : (float) $this->drink_share,
+            'drink_share_label' => $this->drink_share === null ? '' : money($this->drink_share),
+            'food_share_label' => $this->drink_share === null ? '' : money(max(0, (float) $this->price - (float) $this->drink_share)),
             'normal_label' => $this->normalLabel(),
             'items_count' => $this->items->count(),
             'items_count_label' => $this->items->count().' item',

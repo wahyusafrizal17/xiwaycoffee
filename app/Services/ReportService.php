@@ -378,16 +378,18 @@ class ReportService
 
     public function foodSetoran(array $filters): array
     {
+        $food = order_item_food_amount_sql();
         $rows = OrderItem::query()
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('bundles', 'bundles.id', '=', 'order_items.bundle_id')
             ->where('orders.payment_status', PaymentStatus::Paid->value)
-            ->where('order_items.consignment_commission', '>', 0)
+            ->whereRaw("({$food}) > 0")
             ->when(filled($filters['outlet_id'] ?? null), fn ($q) => $q->where('orders.outlet_id', $filters['outlet_id']))
             ->when(filled($filters['from'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '>=', $filters['from']))
             ->when(filled($filters['to'] ?? null), fn ($q) => $q->whereDate('orders.created_at', '<=', $filters['to']))
             ->selectRaw('order_items.name as name')
             ->selectRaw('SUM(order_items.quantity) as qty')
-            ->selectRaw('SUM(order_items.total) as sales')
+            ->selectRaw("SUM({$food}) as sales")
             ->groupBy('order_items.name')
             ->orderBy('order_items.name')
             ->get()

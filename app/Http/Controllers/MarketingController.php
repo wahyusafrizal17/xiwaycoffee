@@ -181,6 +181,7 @@ class MarketingController extends Controller
             'campaign' => ['nullable', 'string', 'max:80'],
             'sku' => ['nullable', 'string', 'max:40', Rule::unique('bundles', 'sku')->ignore($bundle?->id)],
             'price' => ['required', 'numeric', 'min:0'],
+            'drink_share' => ['nullable', 'numeric', 'min:0', 'lte:price'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'start_time' => ['nullable'],
@@ -196,6 +197,7 @@ class MarketingController extends Controller
         ], [
             'name.required' => 'Nama wajib diisi.',
             'price.required' => 'Harga wajib diisi.',
+            'drink_share.lte' => 'Bagian minuman tidak boleh lebih dari harga paket.',
             'items.required' => 'Minimal dua produk dalam bundle.',
             'items.min' => 'Minimal dua produk dalam bundle.',
             'items.*.product_id.required' => 'Pilih produk untuk setiap baris.',
@@ -205,6 +207,7 @@ class MarketingController extends Controller
         ]);
 
         $data['sku'] = filled($data['sku'] ?? null) ? $data['sku'] : null;
+        $data['drink_share'] = $request->filled('drink_share') ? $data['drink_share'] : null;
         $data['weekdays_only'] = $request->boolean('weekdays_only');
         $items = collect($data['items'])->map(function (array $item) {
             $item['choice_group'] = filled($item['choice_group'] ?? null) ? $item['choice_group'] : null;
