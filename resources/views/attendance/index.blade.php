@@ -7,7 +7,7 @@
             <div>
                 <p class="stat-kicker">Batas tepat waktu</p>
                 <p class="stat-value">{{ $offToday ? 'OFF' : $clockInBy }}</p>
-                <p class="stat-hint">{{ $offToday ? 'Hari ini OFF. Tidak perlu absen.' : '30 menit sebelum jadwal masuk' }}</p>
+                <p class="stat-hint">{{ $offToday ? 'Hari ini OFF. Tidak perlu absen.' : 'Telat jika absen lewat jam ini.' }}</p>
             </div>
         </div>
         @if ($employee)

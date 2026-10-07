@@ -69,19 +69,17 @@ class AttendanceService
 
     public function isLate(Employee $employee, ?Carbon $at = null): bool
     {
-        $at = $at ?? now();
+        $at = ($at ?? now())->timezone('Asia/Jakarta');
         $shift = WorkShift::query()
             ->where('employee_id', $employee->id)
             ->whereDate('work_date', $at->toDateString())
             ->first();
 
-        if ($shift && ! $shift->starts_at) {
-            return false;
+        if ($shift) {
+            return $shift->lateAt($at);
         }
 
-        $cutoff = $shift?->starts_at
-            ? Carbon::parse($at->toDateString().' '.$shift->starts_at)->subMinutes(30)
-            : Carbon::parse($at->toDateString().' '.config('pos.attendance.late_after', '08:30'));
+        $cutoff = Carbon::parse($at->toDateString().' '.config('pos.attendance.late_after', '08:30'), 'Asia/Jakarta');
 
         return $at->greaterThan($cutoff);
     }

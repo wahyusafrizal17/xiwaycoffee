@@ -6,6 +6,7 @@ use App\Models\Concerns\AppliesFillableAttribute;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 #[Fillable(['employee_id', 'work_date', 'starts_at', 'ends_at'])]
 class WorkShift extends Model
@@ -36,5 +37,17 @@ class WorkShift extends Model
         }
 
         return $text;
+    }
+
+    public function lateAt(?Carbon $clockIn): bool
+    {
+        if (! $this->starts_at || ! $clockIn) {
+            return false;
+        }
+
+        $local = $clockIn->copy()->timezone('Asia/Jakarta');
+        $cutoff = Carbon::parse($local->toDateString().' '.$this->starts_at, 'Asia/Jakarta');
+
+        return $local->greaterThan($cutoff);
     }
 }

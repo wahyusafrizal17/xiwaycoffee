@@ -58,7 +58,7 @@ class AttendanceController extends Controller
         $clockInBy = config('pos.attendance.late_after', '08:30');
         $offToday = false;
         if ($todayShift?->starts_at) {
-            $clockInBy = Carbon::parse($todayShift->starts_at)->subMinutes(30)->format('H:i');
+            $clockInBy = Carbon::parse($todayShift->starts_at)->format('H:i');
         } elseif ($todayShift) {
             $offToday = true;
             $clockInBy = null;

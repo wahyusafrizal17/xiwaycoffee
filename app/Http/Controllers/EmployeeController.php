@@ -179,13 +179,18 @@ class EmployeeController extends Controller
             $off = $mine->filter(fn ($shift) => ! filled($shift->starts_at))->count();
             $attended = $days->count();
             $worked = $overrides->has($employee->id) ? (int) $overrides[$employee->id] : $attended;
-            $late = $days->where('is_late', true)->count();
             $pay = $employee->pay($worked);
-            $cells = $days->keyBy(fn ($attendance) => $attendance->work_date->day)->map(fn ($attendance) => [
-                'in' => $attendance->clock_in_at?->timezone('Asia/Jakarta')->format('H:i'),
-                'out' => $attendance->clock_out_at?->timezone('Asia/Jakarta')->format('H:i'),
-                'late' => (bool) $attendance->is_late,
-            ]);
+            $shiftsByDay = $mine->keyBy(fn ($shift) => $shift->work_date->day);
+            $cells = $days->keyBy(fn ($attendance) => $attendance->work_date->day)->map(function ($attendance) use ($shiftsByDay) {
+                $shift = $shiftsByDay->get($attendance->work_date->day);
+
+                return [
+                    'in' => $attendance->clock_in_at?->timezone('Asia/Jakarta')->format('H:i'),
+                    'out' => $attendance->clock_out_at?->timezone('Asia/Jakarta')->format('H:i'),
+                    'late' => $shift ? $shift->lateAt($attendance->clock_in_at) : (bool) $attendance->is_late,
+                ];
+            });
+            $late = $cells->where('late', true)->count();
             $offDays = $mine->filter(fn ($shift) => ! filled($shift->starts_at))->map(fn ($shift) => $shift->work_date->day)->all();
             $dueDays = $mine->filter(fn ($shift) => filled($shift->starts_at))->map(fn ($shift) => $shift->work_date->day)->all();
 

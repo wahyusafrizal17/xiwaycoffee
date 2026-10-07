@@ -14,6 +14,7 @@ use Database\Seeders\RoleSeeder;
 use Database\Seeders\WorkShiftSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -96,17 +97,17 @@ class AttendanceTest extends TestCase
         ]);
     }
 
-    public function test_shift_clock_in_is_late_after_thirty_minutes_before_start(): void
+    public function test_morning_shift_is_late_after_9_and_afternoon_after_14(): void
     {
+        $service = app(AttendanceService::class);
         WorkShift::query()->create([
             'employee_id' => $this->employee->id,
-            'work_date' => now()->toDateString(),
+            'work_date' => '2026-10-07',
             'starts_at' => '09:00',
             'ends_at' => '17:00',
         ]);
 
-        $service = app(AttendanceService::class);
-        $this->travelTo(now()->setTime(8, 30));
+        $this->travelTo(Carbon::parse('2026-10-07 09:00:00', 'Asia/Jakarta'));
         $onTime = $service->clockIn(
             $this->employee,
             -6.8721000,
@@ -116,8 +117,7 @@ class AttendanceTest extends TestCase
         $this->assertFalse($onTime->is_late);
 
         $onTime->delete();
-        $this->travelTo(now()->setTime(8, 31));
-
+        $this->travelTo(Carbon::parse('2026-10-07 09:01:00', 'Asia/Jakarta'));
         try {
             $service->clockIn(
                 $this->employee,
@@ -130,15 +130,12 @@ class AttendanceTest extends TestCase
             $this->assertArrayHasKey('late_reason', $e->errors());
         }
 
-        $late = $service->clockIn(
-            $this->employee,
-            -6.8721000,
-            107.5425000,
-            UploadedFile::fake()->image('selfie.jpg'),
-            'Macet',
-        );
-        $this->assertTrue($late->is_late);
-        $this->assertSame('Macet', $late->late_reason);
+        $shift = WorkShift::query()->first();
+        $shift->update(['starts_at' => '14:00', 'ends_at' => '22:00']);
+        $this->travelTo(Carbon::parse('2026-10-07 14:00:00', 'Asia/Jakarta'));
+        $this->assertFalse($service->isLate($this->employee));
+        $this->travelTo(Carbon::parse('2026-10-07 14:01:00', 'Asia/Jakarta'));
+        $this->assertTrue($service->isLate($this->employee));
     }
 
     public function test_off_day_does_not_require_clock_in(): void
@@ -191,7 +188,7 @@ class AttendanceTest extends TestCase
         $this->assertSame(80, (int) $this->outlet->geo_radius_m);
 
         $this->employee->refresh();
-        $this->travelTo(now()->setTime(8, 0));
+        $this->travelTo(Carbon::parse(now()->toDateString().' 08:00:00', 'Asia/Jakarta'));
         $service = app(AttendanceService::class);
 
         try {
@@ -450,6 +447,25 @@ class AttendanceTest extends TestCase
             'clock_out_at' => '2026-10-06 10:02:00',
             'is_late' => true,
         ]);
+        Attendance::query()->create([
+            'employee_id' => $this->employee->id,
+            'outlet_id' => $this->outlet->id,
+            'work_date' => '2026-10-03',
+            'clock_in_at' => '2026-10-03 07:01:00',
+            'is_late' => false,
+        ]);
+        WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-06',
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
+        ]);
+        WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-03',
+            'starts_at' => '14:00',
+            'ends_at' => '22:00',
+        ]);
         WorkShift::query()->create([
             'employee_id' => $this->employee->id,
             'work_date' => '2026-10-04',
@@ -472,6 +488,7 @@ class AttendanceTest extends TestCase
             ->assertOk()
             ->assertSee('Zakki')
             ->assertSee('08:15')
+            ->assertSee('14:01')
             ->assertSee('17:02')
             ->assertSee('Telat')
             ->assertSee('recap-time">L</span>', false)
@@ -480,6 +497,7 @@ class AttendanceTest extends TestCase
 
         $this->assertSame(1, substr_count($html, 'class="recap-off"'));
         $this->assertSame(1, substr_count($html, 'class="recap-miss"'));
+        $this->assertSame(1, substr_count($html, 'class="recap-late"'));
     }
 
     public function test_karyawan_lands_on_attendance_after_login(): void
