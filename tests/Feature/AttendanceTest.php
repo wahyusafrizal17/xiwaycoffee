@@ -474,7 +474,7 @@ class AttendanceTest extends TestCase
             ->assertSee('08:15')
             ->assertSee('17:02')
             ->assertSee('Telat')
-            ->assertSee('class="recap-off"', false)
+            ->assertSee('recap-time">L</span>', false)
             ->assertSee('class="recap-miss"', false)
             ->getContent();
 

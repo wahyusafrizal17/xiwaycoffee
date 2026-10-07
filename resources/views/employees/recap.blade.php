@@ -67,6 +67,8 @@
                                         <span class="recap-time">{{ $cell['in'] }}</span>
                                         <span class="recap-time">{{ $cell['out'] ?: '—' }}</span>
                                         @if ($cell['late'])<span class="recap-flag">Telat</span>@endif
+                                    @elseif ($off)
+                                        <span class="recap-time">L</span>
                                     @endif
                                 </td>
                             @endforeach
