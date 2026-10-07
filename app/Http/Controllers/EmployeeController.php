@@ -186,6 +186,8 @@ class EmployeeController extends Controller
                 'out' => $attendance->clock_out_at?->timezone('Asia/Jakarta')->format('H:i'),
                 'late' => (bool) $attendance->is_late,
             ]);
+            $offDays = $mine->filter(fn ($shift) => ! filled($shift->starts_at))->map(fn ($shift) => $shift->work_date->day)->all();
+            $dueDays = $mine->filter(fn ($shift) => filled($shift->starts_at))->map(fn ($shift) => $shift->work_date->day)->all();
 
             return [
                 'employee' => $employee,
@@ -195,6 +197,8 @@ class EmployeeController extends Controller
                 'worked' => $worked,
                 'late' => $late,
                 'cells' => $cells,
+                'off_days' => $offDays,
+                'due_days' => $dueDays,
                 'salary' => $pay['monthly'],
                 'lines' => $pay['lines'],
                 'bonus' => $pay['bonus'],

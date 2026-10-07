@@ -5,6 +5,7 @@
         $cursor = \Carbon\Carbon::createFromFormat('Y-m', $month)->startOfMonth();
         $dates = collect(range(1, $cursor->daysInMonth))->map(fn (int $day) => $cursor->copy()->day($day));
         $dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+        $today = now('Asia/Jakarta')->startOfDay();
     @endphp
     <style>
         .recap-grid th,
@@ -17,6 +18,8 @@
         .list-table.recap-grid tbody tr:nth-child(even) td.recap-name { background: #fafafa; }
         .list-table.recap-grid tbody tr td.recap-ok { background: #e7f6ec; }
         .list-table.recap-grid tbody tr td.recap-late { background: #fff1e0; }
+        .list-table.recap-grid tbody tr td.recap-off { background: #fff3bf; }
+        .list-table.recap-grid tbody tr td.recap-miss { background: #f8b4b4; }
         .recap-time { display: block; font-size: 11px; line-height: 1.3; font-variant-numeric: tabular-nums; }
         .recap-flag { display: block; font-size: 10px; font-weight: 700; color: #c2410c; }
         .recap-dow { display: block; font-size: 10px; font-weight: 500; text-transform: none; }
@@ -54,8 +57,12 @@
                                 <span class="mt-0.5 block text-[11px] font-normal text-muted">{{ $row['attended'] }} hadir · {{ $row['late'] }} telat</span>
                             </td>
                             @foreach ($dates as $date)
-                                @php $cell = $row['cells'][$date->day] ?? null; @endphp
-                                <td class="{{ $cell ? ($cell['late'] ? 'recap-late' : 'recap-ok') : '' }}">
+                                @php
+                                    $cell = $row['cells'][$date->day] ?? null;
+                                    $off = in_array($date->day, $row['off_days'], true);
+                                    $miss = ! $cell && ! $off && in_array($date->day, $row['due_days'], true) && $date->lte($today);
+                                @endphp
+                                <td class="{{ $cell ? ($cell['late'] ? 'recap-late' : 'recap-ok') : ($off ? 'recap-off' : ($miss ? 'recap-miss' : '')) }}">
                                     @if ($cell)
                                         <span class="recap-time">{{ $cell['in'] }}</span>
                                         <span class="recap-time">{{ $cell['out'] ?: '—' }}</span>

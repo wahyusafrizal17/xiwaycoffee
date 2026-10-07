@@ -441,6 +441,7 @@ class AttendanceTest extends TestCase
         ]);
         $admin->roles()->sync([Role::query()->where('name', 'admin')->firstOrFail()->id]);
 
+        $this->travelTo('2026-10-07 02:00:00');
         Attendance::query()->create([
             'employee_id' => $this->employee->id,
             'outlet_id' => $this->outlet->id,
@@ -449,16 +450,36 @@ class AttendanceTest extends TestCase
             'clock_out_at' => '2026-10-06 10:02:00',
             'is_late' => true,
         ]);
+        WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-04',
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
+        ]);
+        WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-05',
+        ]);
+        WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-20',
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
+        ]);
 
-        $this->actingAs($admin)
+        $html = $this->actingAs($admin)
             ->get(route('employees.recap', ['month' => '2026-10']))
             ->assertOk()
             ->assertSee('Zakki')
             ->assertSee('08:15')
             ->assertSee('17:02')
             ->assertSee('Telat')
-            ->assertSee('>6<', false)
-            ->assertSee('Sel');
+            ->assertSee('class="recap-off"', false)
+            ->assertSee('class="recap-miss"', false)
+            ->getContent();
+
+        $this->assertSame(1, substr_count($html, 'class="recap-off"'));
+        $this->assertSame(1, substr_count($html, 'class="recap-miss"'));
     }
 
     public function test_karyawan_lands_on_attendance_after_login(): void
