@@ -181,6 +181,11 @@ class EmployeeController extends Controller
             $worked = $overrides->has($employee->id) ? (int) $overrides[$employee->id] : $attended;
             $late = $days->where('is_late', true)->count();
             $pay = $employee->pay($worked);
+            $cells = $days->keyBy(fn ($attendance) => $attendance->work_date->day)->map(fn ($attendance) => [
+                'in' => $attendance->clock_in_at?->timezone('Asia/Jakarta')->format('H:i'),
+                'out' => $attendance->clock_out_at?->timezone('Asia/Jakarta')->format('H:i'),
+                'late' => (bool) $attendance->is_late,
+            ]);
 
             return [
                 'employee' => $employee,
@@ -189,6 +194,7 @@ class EmployeeController extends Controller
                 'attended' => $attended,
                 'worked' => $worked,
                 'late' => $late,
+                'cells' => $cells,
                 'salary' => $pay['monthly'],
                 'lines' => $pay['lines'],
                 'bonus' => $pay['bonus'],

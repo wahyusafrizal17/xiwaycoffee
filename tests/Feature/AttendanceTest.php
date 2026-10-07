@@ -431,6 +431,36 @@ class AttendanceTest extends TestCase
             ->assertSee('# Tertulis : Satu Juta Sembilan Ratus Ribu Rupiah', false);
     }
 
+    public function test_recap_shows_clock_times_and_late_on_the_month_grid(): void
+    {
+        $admin = User::query()->create([
+            'name' => 'Admin',
+            'email' => 'admin-recap@test.local',
+            'password' => Hash::make('password'),
+            'is_active' => true,
+        ]);
+        $admin->roles()->sync([Role::query()->where('name', 'admin')->firstOrFail()->id]);
+
+        Attendance::query()->create([
+            'employee_id' => $this->employee->id,
+            'outlet_id' => $this->outlet->id,
+            'work_date' => '2026-10-06',
+            'clock_in_at' => '2026-10-06 01:15:00',
+            'clock_out_at' => '2026-10-06 10:02:00',
+            'is_late' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('employees.recap', ['month' => '2026-10']))
+            ->assertOk()
+            ->assertSee('Zakki')
+            ->assertSee('08:15')
+            ->assertSee('17:02')
+            ->assertSee('Telat')
+            ->assertSee('>6<', false)
+            ->assertSee('Sel');
+    }
+
     public function test_karyawan_lands_on_attendance_after_login(): void
     {
         $this->post(route('login'), [
