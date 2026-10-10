@@ -95,6 +95,7 @@ class OperationsGapTest extends TestCase
         $this->postJson(route('pos.checkout', $order), [
             'method' => 'qris',
             'tendered' => 50000,
+            'arrival_source' => 'langsung',
         ])->assertOk()
             ->assertJsonPath('order.status', 'new')
             ->assertJsonPath('order.payment_status', 'paid');

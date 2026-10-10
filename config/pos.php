@@ -23,6 +23,15 @@ return [
     'food_cafe_percent' => 10,
     'drink_daily_target' => 50,
 
+    'arrival_sources' => [
+        'relasi' => 'Relasi/Teman',
+        'whatsapp' => 'Whatsapp',
+        'tiktok' => 'Tiktok',
+        'instagram' => 'Instagram',
+        'langsung' => 'Datang Langsung',
+        'dll' => 'DLL',
+    ],
+
     // Fixed operating costs. Target omzet minuman = monthly total (cover BOP; HPP tuned later).
     'bop' => [
         'items' => [

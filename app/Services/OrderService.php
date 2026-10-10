@@ -426,6 +426,13 @@ class OrderService
                 'status' => 'paid',
             ]);
 
+            if (filled($payment['arrival_source'] ?? null)) {
+                $order->arrival_source = $payment['arrival_source'];
+                $order->arrival_source_note = $payment['arrival_source'] === 'dll'
+                    ? trim((string) ($payment['arrival_source_note'] ?? ''))
+                    : null;
+            }
+
             $paid = $order->paidTotal();
             $order->payment_status = $paid + 0.009 >= (float) $order->grand_total
                 ? PaymentStatus::Paid

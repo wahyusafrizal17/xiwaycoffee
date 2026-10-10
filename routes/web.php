@@ -219,6 +219,8 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
     Route::post('/investors', [InvestorController::class, 'store'])->name('investors.store');
     Route::post('/investors/topup', [InvestorController::class, 'topup'])->name('investors.topup');
     Route::post('/investors/target', [InvestorController::class, 'storeTarget'])->name('investors.target');
+    Route::post('/investors/bop', [InvestorController::class, 'storeBop'])->name('investors.bop.store');
+    Route::delete('/investors/bop', [InvestorController::class, 'destroyBop'])->name('investors.bop.destroy');
 
     Route::get('/invites', [InviteController::class, 'index'])->name('invites.index');
 

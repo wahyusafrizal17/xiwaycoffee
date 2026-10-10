@@ -7,9 +7,13 @@ use App\Models\Investor;
 use App\Models\InvestorTopup;
 use App\Models\MonthlyTarget;
 use App\Models\OrderItem;
+use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class InvestorController extends Controller
@@ -144,5 +148,83 @@ class InvestorController extends Controller
         return redirect()
             ->route('investors.index')
             ->with('success', 'Target bulanan disimpan.');
+    }
+
+    public function storeBop(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->hasPermission('reports.view'), 403);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'period' => ['required', 'in:month,year'],
+            'amount' => ['required', 'numeric', 'min:0'],
+            'index' => ['nullable', 'integer', 'min:0'],
+        ], [
+            'name.required' => 'Nama biaya wajib diisi.',
+            'period.in' => 'Periode harus bulanan atau tahunan.',
+            'amount.required' => 'Nominal wajib diisi.',
+        ]);
+
+        $items = bop_plan_source();
+        $index = $request->filled('index') ? (int) $data['index'] : null;
+        if ($index !== null && ! isset($items[$index])) {
+            throw ValidationException::withMessages(['index' => 'Biaya tidak ditemukan.']);
+        }
+
+        $row = [
+            'name' => trim($data['name']),
+            'category' => $index !== null
+                ? (string) ($items[$index]['category'] ?? (Str::slug(trim($data['name'])) ?: 'lainnya'))
+                : (Str::slug(trim($data['name'])) ?: 'lainnya'),
+            'amount' => round((float) $data['amount'], 2),
+            'period' => $data['period'],
+        ];
+
+        if ($index === null) {
+            $items[] = $row;
+        } else {
+            $items[$index] = $row;
+        }
+
+        $this->saveBopPlan($items);
+
+        return redirect()
+            ->route('investors.index')
+            ->with('success', $index === null ? 'Biaya ditambahkan.' : 'Biaya diperbarui.');
+    }
+
+    public function destroyBop(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->hasPermission('reports.view'), 403);
+
+        $data = $request->validate([
+            'index' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $items = bop_plan_source();
+        if (! isset($items[(int) $data['index']])) {
+            throw ValidationException::withMessages(['index' => 'Biaya tidak ditemukan.']);
+        }
+
+        array_splice($items, (int) $data['index'], 1);
+        $this->saveBopPlan($items);
+
+        return redirect()
+            ->route('investors.index')
+            ->with('success', 'Biaya dihapus.');
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     */
+    protected function saveBopPlan(array $items): void
+    {
+        Setting::query()->updateOrCreate(
+            ['outlet_id' => null, 'key' => 'bop_plan'],
+            ['value' => json_encode(array_values($items), JSON_UNESCAPED_UNICODE), 'group' => 'bop'],
+        );
+
+        Cache::forget('setting..bop_plan');
+        Cache::forget('setting.'.current_outlet_id().'.bop_plan');
     }
 }

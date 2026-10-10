@@ -329,6 +329,23 @@
                 </div>
 
                 <p class="mt-4 text-xs text-muted" x-show="method !== 'cash'">Nominal akan dicatat sesuai total order.</p>
+
+                <div class="mt-5">
+                    <p class="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">Sumber kedatangan</p>
+                    <p class="mt-1 text-[12px] text-muted">Customer tahu cafe ini dari mana?</p>
+                    <div class="mt-2.5 grid grid-cols-2 gap-2">
+                        <template x-for="source in arrivalSources" :key="source.id">
+                            <button type="button" class="pay-method" :class="arrivalSource === source.id ? 'pay-method-active' : ''" @click="!busy && (arrivalSource = source.id)" :disabled="busy">
+                                <span class="block text-[13px] font-semibold" x-text="source.label"></span>
+                            </button>
+                        </template>
+                    </div>
+                    <div class="mt-3" x-show="arrivalSource === 'dll'" x-cloak>
+                        <label class="label">Lainnya</label>
+                        <input class="input" type="text" maxlength="80" x-model="arrivalNote" placeholder="Tulis sumbernya" :disabled="busy">
+                    </div>
+                </div>
+
                 <p class="mt-3 text-xs font-medium text-brand" x-show="notice" x-text="notice"></p>
 
                 <div class="mt-6 grid grid-cols-2 gap-2">
@@ -432,6 +449,8 @@ function posApp() {
     return {
         order: null, search: '', category: null, order_type: 'dine_in', table_id: '',
         discount_id: '', method: 'cash', tendered: 0, payOpen: false, openHeld: false, busy: false, busyLabel: '', notice: '',
+        arrivalSource: '', arrivalNote: '',
+        arrivalSources: @json(collect(config('pos.arrival_sources'))->map(fn ($label, $id) => ['id' => $id, 'label' => $label])->values()),
         cartOpen: false,
         optionOpen: false,
         bundleOpen: false,
@@ -568,6 +587,8 @@ function posApp() {
         },
         canCompletePay() {
             if (!this.canPay()) return false;
+            if (!this.arrivalSource) return false;
+            if (this.arrivalSource === 'dll' && !String(this.arrivalNote || '').trim()) return false;
             if (this.method === 'cash') return this.tenderedAmount() >= this.grandTotal();
             return true;
         },
@@ -586,6 +607,8 @@ function posApp() {
             this.notice = '';
             this.method = 'cash';
             this.tendered = this.grandTotal();
+            this.arrivalSource = '';
+            this.arrivalNote = '';
             this.payOpen = true;
         },
         setMethod(id) {
@@ -872,7 +895,11 @@ function posApp() {
         },
         async checkout() {
             if (!this.canCompletePay()) {
-                this.notice = this.cashShort() ? 'Uang diterima masih kurang dari total.' : 'Tidak bisa menyelesaikan pembayaran.';
+                this.notice = !this.arrivalSource
+                    ? 'Pilih sumber kedatangan dulu.'
+                    : (this.arrivalSource === 'dll' && !String(this.arrivalNote || '').trim()
+                        ? 'Isi sumber kedatangan lainnya.'
+                        : (this.cashShort() ? 'Uang diterima masih kurang dari total.' : 'Tidak bisa menyelesaikan pembayaran.'));
                 return;
             }
             this.notice = '';
@@ -882,6 +909,8 @@ function posApp() {
                     const data = await this.request(`/pos/${this.order.id}/checkout`, { method: 'POST', headers: await this.csrf(), body: JSON.stringify({
                         method: this.method, amount: this.grandTotal(), tendered: paid,
                         order_type: this.order_type, table_id: this.table_id || null,
+                        arrival_source: this.arrivalSource,
+                        arrival_source_note: this.arrivalSource === 'dll' ? String(this.arrivalNote || '').trim() : null,
                     })});
                     this.payOpen = false;
                     if (data.order) {
@@ -894,6 +923,8 @@ function posApp() {
                         this.invoiceOpen = true;
                         this.order = null;
                         this.tendered = 0;
+                        this.arrivalSource = '';
+                        this.arrivalNote = '';
                         localStorage.removeItem('pos_offline_draft');
                     }
                 });

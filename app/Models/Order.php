@@ -6,18 +6,18 @@ use App\Enums\OrderChannel;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentStatus;
+use App\Models\Concerns\AppliesFillableAttribute;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Concerns\AppliesFillableAttribute;
 
 #[Fillable([
     'order_number', 'outlet_id', 'user_id', 'customer_id', 'table_id', 'discount_id',
     'channel', 'order_type', 'status', 'payment_status', 'subtotal', 'discount_amount',
     'tax_amount', 'tax_rate', 'service_charge', 'points_redeemed', 'points_value',
-    'grand_total', 'guest_count', 'notes', 'estimated_ready_at', 'held_at',
+    'grand_total', 'guest_count', 'notes', 'arrival_source', 'arrival_source_note', 'estimated_ready_at', 'held_at',
     'completed_at', 'cancelled_at', 'cancel_reason',
     'kitchen_printed_at', 'bar_printed_at',
 ])]

@@ -155,6 +155,39 @@ class OrderCheckoutTest extends TestCase
         $this->assertSame(PaymentStatus::Paid, $order->payment_status);
     }
 
+    public function test_pos_checkout_requires_arrival_source_and_stores_dll_note(): void
+    {
+        $this->actingAsAtOutlet($this->cashier);
+        $service = app(OrderService::class);
+        $order = $service->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $service->addItem($order, ['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
+
+        $this->postJson(route('pos.checkout', $order), [
+            'method' => 'cash',
+            'tendered' => 100000,
+        ])->assertUnprocessable()->assertJsonValidationErrors('arrival_source');
+
+        $this->postJson(route('pos.checkout', $order), [
+            'method' => 'cash',
+            'tendered' => 100000,
+            'arrival_source' => 'dll',
+        ])->assertUnprocessable()->assertJsonValidationErrors('arrival_source_note');
+
+        $this->postJson(route('pos.checkout', $order), [
+            'method' => 'cash',
+            'tendered' => 100000,
+            'arrival_source' => 'dll',
+            'arrival_source_note' => 'Google Maps',
+        ])->assertOk();
+
+        $order->refresh();
+        $this->assertSame('dll', $order->arrival_source);
+        $this->assertSame('Google Maps', $order->arrival_source_note);
+    }
+
     public function test_checkout_returns_without_customer_receipt_print_payload(): void
     {
         $this->actingAsAtOutlet($this->cashier);
@@ -184,6 +217,7 @@ class OrderCheckoutTest extends TestCase
         $this->postJson(route('pos.checkout', $order), [
             'method' => 'cash',
             'tendered' => 200000,
+            'arrival_source' => 'langsung',
         ])->assertOk()
             ->assertJsonStructure(['order', 'print_jobs', 'kitchen_whatsapp_sent'])
             ->assertJsonMissingPath('receipt_escpos')

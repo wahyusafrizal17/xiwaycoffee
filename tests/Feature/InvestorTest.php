@@ -159,6 +159,71 @@ class InvestorTest extends TestCase
             ->assertDontSee('12.535.000', false);
     }
 
+    public function test_admin_can_crud_bop_plan_without_changing_saved_target(): void
+    {
+        $year = (int) now()->year;
+        $month = (int) now()->month;
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('investors.target'), [
+                'year' => $year,
+                'month' => $month,
+                'amount' => 50_000_000,
+            ])
+            ->assertRedirect(route('investors.index'));
+
+        $this->actingAsAtOutlet($this->cashier)
+            ->post(route('investors.bop.store'), [
+                'name' => 'Parkir',
+                'period' => 'month',
+                'amount' => 200_000,
+            ])
+            ->assertForbidden();
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('investors.bop.store'), [
+                'name' => 'Parkir',
+                'period' => 'month',
+                'amount' => 200_000,
+            ])
+            ->assertRedirect(route('investors.index'));
+
+        $this->assertEquals(14_300_000.0, monthly_bop());
+        $this->assertDatabaseHas('monthly_targets', [
+            'outlet_id' => $this->outlet->id,
+            'year' => $year,
+            'month' => $month,
+            'amount' => 50000000,
+        ]);
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('investors.index'))
+            ->assertOk()
+            ->assertSee('Parkir')
+            ->assertSee('Sewa Ruko');
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('investors.bop.store'), [
+                'index' => 5,
+                'name' => 'Parkir',
+                'period' => 'year',
+                'amount' => 1_200_000,
+            ])
+            ->assertRedirect(route('investors.index'));
+
+        $this->assertEquals(14_200_000.0, monthly_bop());
+
+        $this->actingAsAtOutlet($this->admin)
+            ->delete(route('investors.bop.destroy'), ['index' => 5])
+            ->assertRedirect(route('investors.index'));
+
+        $this->assertEquals(14_100_000.0, monthly_bop());
+        $this->assertDatabaseHas('monthly_targets', [
+            'outlet_id' => $this->outlet->id,
+            'amount' => 50000000,
+        ]);
+    }
+
     public function test_monthly_bop_covers_fixed_operating_costs(): void
     {
         $this->assertEquals(14_100_000.0, monthly_bop());

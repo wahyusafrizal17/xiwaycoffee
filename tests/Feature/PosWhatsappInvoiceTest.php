@@ -62,6 +62,7 @@ class PosWhatsappInvoiceTest extends TestCase
             'method' => 'cash',
             'amount' => 25000,
             'tendered' => 25000,
+            'arrival_source' => 'langsung',
         ]);
 
         $response->assertOk()

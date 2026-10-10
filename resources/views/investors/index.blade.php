@@ -61,9 +61,12 @@
             <div class="card-header">
                 <div>
                     <h5 class="card-header-title">BOP bulanan (rencana)</h5>
-                    <p class="card-header-subtitle">Biaya tetap yang harus ditutup omzet minuman.</p>
+                    <p class="card-header-subtitle">Biaya tetap yang harus ditutup omzet minuman. {{ money($bopMonthly) }}/bln.</p>
                 </div>
-                <p class="text-lg font-semibold text-heading">{{ money($bopMonthly) }}</p>
+                <button type="button" class="btn-add" @click="openBop()">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/></svg>
+                    Tambah
+                </button>
             </div>
             <div class="table-wrap">
                 <table class="list-table">
@@ -73,20 +76,42 @@
                             <th>Periode</th>
                             <th class="text-right">Nominal</th>
                             <th class="text-right">Per bulan</th>
+                            <th class="col-actions"></th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($bopItems as $item)
+                        @forelse ($bopItems as $index => $item)
                             <tr>
                                 <td>{{ $item['name'] }}</td>
                                 <td>{{ $item['period'] === 'year' ? 'Tahunan' : 'Bulanan' }}</td>
                                 <td class="text-right">{{ money($item['amount']) }}{{ $item['period'] === 'year' ? '/thn' : '/bln' }}</td>
                                 <td class="text-right">{{ money($item['monthly']) }}</td>
+                                <td class="col-actions">
+                                    <button
+                                        type="button"
+                                        class="btn-secondary !px-3 !py-1.5 text-sm"
+                                        @click="openBop({{ $index }}, {{ Js::from($item['name']) }}, {{ Js::from($item['period']) }}, {{ Js::from($item['amount']) }})"
+                                    >
+                                        Ubah
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn-secondary !px-3 !py-1.5 text-sm"
+                                        @click="confirmDeleteBop({{ $index }}, {{ Js::from($item['name']) }})"
+                                    >
+                                        Hapus
+                                    </button>
+                                </td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="5" class="py-12 text-center text-sm text-slate-400">Belum ada biaya rencana.</td>
+                            </tr>
+                        @endforelse
                         <tr class="font-semibold">
                             <td colspan="3">Total BOP / bulan</td>
                             <td class="text-right">{{ money($bopMonthly) }}</td>
+                            <td></td>
                         </tr>
                     </tbody>
                 </table>
@@ -276,6 +301,71 @@
             </div>
         </div>
 
+        {{-- BOP plan modal --}}
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="bopOpen" x-cloak @click.self="bopOpen = false">
+            <div class="crud-modal">
+                <form method="POST" action="{{ route('investors.bop.store') }}">
+                    @csrf
+                    <input type="hidden" name="_form_mode" value="bop">
+                    <input type="hidden" name="index" x-model="bopIndex">
+                    <div class="crud-modal-body">
+                        <div class="mb-4 flex items-start justify-between gap-3">
+                            <div>
+                                <h5 class="card-header-title" x-text="bopIndex === '' ? 'Tambah biaya' : 'Ubah biaya'"></h5>
+                                <p class="card-header-subtitle">Nominal tahunan dibagi 12 untuk hitungan per bulan.</p>
+                            </div>
+                            <button type="button" class="modal-close" @click="bopOpen = false">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                        <div class="grid gap-3">
+                            <div>
+                                <label class="label">Nama</label>
+                                <input class="input" type="text" name="name" x-model="bopName" required maxlength="120">
+                                @error('name') <p class="mt-1 text-xs text-brand">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="label">Periode</label>
+                                <select class="input" name="period" x-model="bopPeriod" required>
+                                    <option value="month">Bulanan</option>
+                                    <option value="year">Tahunan</option>
+                                </select>
+                                @error('period') <p class="mt-1 text-xs text-brand">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="label">Nominal</label>
+                                <input class="input" type="number" name="amount" min="0" step="0.01" x-model="bopAmount" required>
+                                @error('amount') <p class="mt-1 text-xs text-brand">{{ $message }}</p> @enderror
+                                @error('index') <p class="mt-1 text-xs text-brand">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+                    </div>
+                    <div class="crud-modal-footer">
+                        <button type="button" class="btn-secondary" @click="bopOpen = false">Batal</button>
+                        <button class="btn-primary" type="submit">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="bopDeleteOpen" x-cloak @click.self="bopDeleteOpen = false">
+            <div class="crud-modal !max-w-[420px]">
+                <form method="POST" action="{{ route('investors.bop.destroy') }}">
+                    @csrf
+                    @method('DELETE')
+                    <input type="hidden" name="index" x-model="bopDeleteIndex">
+                    <div class="crud-modal-body">
+                        <h5 class="card-header-title">Hapus biaya</h5>
+                        <p class="card-header-subtitle mt-2">Hapus <span class="font-medium text-heading" x-text="bopDeleteName"></span> dari rencana BOP?</p>
+                    </div>
+                    <div class="crud-modal-footer">
+                        <button type="button" class="btn-secondary" @click="bopDeleteOpen = false">Batal</button>
+                        <button class="btn-primary" type="submit">Hapus</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         {{-- History modal --}}
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="historyOpen" x-cloak @click.self="historyOpen = false">
             <div class="crud-modal !max-w-[760px]">
@@ -335,11 +425,21 @@
             const prefillInvestorId = @json($prefillInvestorId ? (string) $prefillInvestorId : '');
             const investors = @json($investors->map(fn ($i) => ['id' => (string) $i->id, 'name' => $i->name])->values());
 
+            const bopError = formError && requestedModal === 'bop';
+
             return {
                 topupOpen: formError && requestedModal === 'topup',
                 createOpen: formError && requestedModal === 'create',
                 targetOpen: formError && requestedModal === 'target',
                 historyOpen: false,
+                bopOpen: bopError,
+                bopDeleteOpen: false,
+                bopIndex: bopError ? @json((string) old('index', '')) : '',
+                bopName: bopError ? @json((string) old('name', '')) : '',
+                bopPeriod: bopError ? @json((string) old('period', 'month')) : 'month',
+                bopAmount: bopError ? @json((string) old('amount', '')) : '',
+                bopDeleteIndex: '',
+                bopDeleteName: '',
                 topupInvestorId: prefillInvestorId,
                 topupName: investors.find(i => i.id === prefillInvestorId)?.name || '',
                 init() {
@@ -355,11 +455,25 @@
                 openCreate() {
                     this.createOpen = true;
                 },
+                openBop(index = '', name = '', period = 'month', amount = '') {
+                    this.bopIndex = index === '' ? '' : String(index);
+                    this.bopName = name;
+                    this.bopPeriod = period || 'month';
+                    this.bopAmount = amount === '' ? '' : String(amount);
+                    this.bopOpen = true;
+                },
+                confirmDeleteBop(index, name) {
+                    this.bopDeleteIndex = String(index);
+                    this.bopDeleteName = name;
+                    this.bopDeleteOpen = true;
+                },
                 closeAll() {
                     this.topupOpen = false;
                     this.createOpen = false;
                     this.targetOpen = false;
                     this.historyOpen = false;
+                    this.bopOpen = false;
+                    this.bopDeleteOpen = false;
                 },
             };
         }

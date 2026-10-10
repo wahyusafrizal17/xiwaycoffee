@@ -64,6 +64,24 @@ function tax_rate(): float
 }
 
 /**
+ * Saved plan, or the config list until someone edits it.
+ *
+ * @return list<array<string, mixed>>
+ */
+function bop_plan_source(): array
+{
+    $stored = setting('bop_plan');
+    if (is_string($stored) && $stored !== '') {
+        $decoded = json_decode($stored, true);
+        if (is_array($decoded)) {
+            return array_values($decoded);
+        }
+    }
+
+    return config('pos.bop.items', []);
+}
+
+/**
  * @return list<array{name: string, category: string, amount: float, period: string, monthly: float}>
  */
 function bop_items(): array
@@ -74,12 +92,12 @@ function bop_items(): array
 
         return [
             'name' => (string) $item['name'],
-            'category' => (string) $item['category'],
+            'category' => (string) ($item['category'] ?? ''),
             'amount' => $amount,
             'period' => (string) ($item['period'] ?? 'month'),
             'monthly' => $monthly,
         ];
-    }, config('pos.bop.items', []));
+    }, bop_plan_source());
 }
 
 function monthly_bop(): float

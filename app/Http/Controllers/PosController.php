@@ -280,6 +280,7 @@ class PosController extends Controller
     {
         abort_unless($request->user()->hasPermission('orders.checkout'), 403);
 
+        $sources = implode(',', array_keys(config('pos.arrival_sources', [])));
         $data = $request->validate([
             'method' => ['required', 'in:cash,qris'],
             'amount' => ['nullable', 'numeric', 'min:0'],
@@ -287,6 +288,11 @@ class PosController extends Controller
             'reference' => ['nullable', 'string', 'max:100'],
             'order_type' => ['nullable', 'in:dine_in,pickup,online'],
             'table_id' => ['nullable', 'exists:tables,id'],
+            'arrival_source' => ['required', 'in:'.$sources],
+            'arrival_source_note' => ['nullable', 'required_if:arrival_source,dll', 'string', 'max:80'],
+        ], [
+            'arrival_source.required' => 'Pilih sumber kedatangan.',
+            'arrival_source_note.required_if' => 'Isi sumber kedatangan lainnya.',
         ]);
 
         $completed = $orders->checkout($order, $data)->load(['items.product', 'payments', 'outlet', 'customer', 'table', 'user']);

@@ -48,6 +48,16 @@
                             <p class="stat-kicker mb-1.5">ETA</p>
                             <div class="rounded-lg bg-[#f4f4f4] px-3.5 py-2.5 text-sm font-medium">{{ $order->estimated_ready_at?->format('H:i') ?? '—' }}</div>
                         </div>
+                        <div>
+                            <p class="stat-kicker mb-1.5">Sumber kedatangan</p>
+                            <div class="rounded-lg bg-[#f4f4f4] px-3.5 py-2.5 text-sm font-medium">
+                                @if ($order->arrival_source)
+                                    {{ config('pos.arrival_sources.'.$order->arrival_source, $order->arrival_source) }}@if ($order->arrival_source === 'dll' && $order->arrival_source_note) · {{ $order->arrival_source_note }}@endif
+                                @else
+                                    —
+                                @endif
+                            </div>
+                        </div>
                     </div>
                     @if ($order->customer?->address)
                         <div>
