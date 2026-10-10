@@ -13,12 +13,12 @@
             </div>
             <div class="grid grid-cols-2 gap-3 bg-[#0b0b0b] px-4 pb-4">
                 @forelse ($images as $image)
-                    <div>
-                        <img src="{{ $image['url'] }}" alt="Gambar event {{ $image['index'] + 1 }}" class="h-48 w-full object-contain">
-                        <form method="POST" action="{{ route('event-display.destroy', $image['index']) }}" class="mt-2">
+                    <div class="overflow-hidden rounded-lg bg-white">
+                        <img src="{{ $image['url'] }}" alt="Gambar event {{ $image['index'] + 1 }}" class="h-48 w-full bg-[#0b0b0b] object-contain">
+                        <form method="POST" action="{{ route('event-display.destroy', $image['index']) }}" class="p-2">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="btn-secondary w-full !py-1.5 text-sm">Hapus</button>
+                            <button type="submit" class="btn-danger w-full !py-1.5">Hapus</button>
                         </form>
                     </div>
                 @empty
