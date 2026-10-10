@@ -6,13 +6,24 @@
         <div class="card overflow-hidden">
             <div class="card-header">
                 <div>
-                    <h5 class="card-header-title">Preview</h5>
-                    <p class="card-header-subtitle">Gambar yang tampil di layar event</p>
+                    <h5 class="card-header-title">Gambar event</h5>
+                    <p class="card-header-subtitle">Diputar bergantian di layar event</p>
                 </div>
                 <a href="{{ $displayUrl }}" target="_blank" class="btn-ghost text-[13px]">Buka /display-event</a>
             </div>
-            <div class="bg-[#0b0b0b] px-4 pb-4">
-                <img src="{{ $imageUrl }}" alt="Preview event" class="mx-auto max-h-[28rem] w-full object-contain">
+            <div class="grid grid-cols-2 gap-3 bg-[#0b0b0b] px-4 pb-4">
+                @forelse ($images as $image)
+                    <div>
+                        <img src="{{ $image['url'] }}" alt="Gambar event {{ $image['index'] + 1 }}" class="h-48 w-full object-contain">
+                        <form method="POST" action="{{ route('event-display.destroy', $image['index']) }}" class="mt-2">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn-secondary w-full !py-1.5 text-sm">Hapus</button>
+                        </form>
+                    </div>
+                @empty
+                    <p class="col-span-2 py-16 text-center text-sm text-white/50">Belum ada gambar. Layar event memakai gambar bawaan.</p>
+                @endforelse
             </div>
         </div>
 
@@ -20,15 +31,20 @@
             <div class="card-header">
                 <div>
                     <h5 class="card-header-title">Upload gambar event</h5>
-                    <p class="card-header-subtitle">Ganti poster untuk event baru (JPG/PNG, maks 5 MB)</p>
+                    <p class="card-header-subtitle">Bisa beberapa sekaligus (JPG/PNG, maks 5 MB tiap gambar, {{ \App\Http\Controllers\EventDisplayController::MAX_IMAGES }} gambar)</p>
                 </div>
             </div>
             <form method="POST" action="{{ route('event-display.update') }}" enctype="multipart/form-data" class="space-y-4 px-6 pb-6">
                 @csrf
                 <div>
                     <label class="label">Gambar</label>
-                    <input class="input" type="file" name="image" accept="image/*" required>
-                    @error('image') <p class="mt-1 text-xs text-brand">{{ $message }}</p> @enderror
+                    <input class="input" type="file" name="images[]" accept="image/*" multiple required>
+                    @error('images') <p class="mt-1 text-xs text-brand">{{ $message }}</p> @enderror
+                    @foreach ($errors->get('images.*') as $messages)
+                        @foreach ($messages as $message)
+                            <p class="mt-1 text-xs text-brand">{{ $message }}</p>
+                        @endforeach
+                    @endforeach
                 </div>
                 <button type="submit" class="btn-primary">Simpan gambar</button>
             </form>

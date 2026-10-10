@@ -45,7 +45,9 @@ Route::get('/menu', MenuController::class)->name('site.menu');
 Route::get('/display', MenuDisplayController::class)->name('menu.display');
 Route::get('/display/focus', [MenuDisplayController::class, 'focus'])->name('menu.display.focus');
 Route::get('/display-event', [EventDisplayController::class, 'show'])->name('event-display.show');
-Route::get('/display-event/image', [EventDisplayController::class, 'file'])->name('event-display.file');
+Route::get('/display-event/image/{index?}', [EventDisplayController::class, 'file'])
+    ->whereNumber('index')
+    ->name('event-display.file');
 Route::get('/invite/{slug}', [InviteController::class, 'show'])->name('invites.show');
 Route::get('/pos/{order}/invoice.pdf', [PosController::class, 'invoicePdf'])
     ->middleware('signed')
@@ -237,6 +239,9 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
 
     Route::get('/event-display', [EventDisplayController::class, 'edit'])->name('event-display.edit');
     Route::post('/event-display', [EventDisplayController::class, 'update'])->name('event-display.update');
+    Route::delete('/event-display/{index}', [EventDisplayController::class, 'destroy'])
+        ->whereNumber('index')
+        ->name('event-display.destroy');
 
     Route::get('/audit', [AuditLogController::class, 'index'])->name('audit.index');
 });

@@ -13,16 +13,41 @@
             overflow: hidden;
             background: #0b0b0b;
         }
-        img {
-            display: block;
+        .stage {
+            position: relative;
             width: 100vw;
             height: 100vh;
+        }
+        .stage img {
+            position: absolute;
+            inset: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
             object-fit: contain;
             background: #0b0b0b;
+            opacity: 0;
+            transition: opacity 0.8s ease;
         }
+        .stage img.on { opacity: 1; }
     </style>
 </head>
 <body>
-    <img src="{{ $imageUrl }}" alt="Event XIWAY Coffee">
+    <div class="stage">
+        @foreach ($imageUrls as $index => $url)
+            <img src="{{ $url }}" alt="Event XIWAY Coffee" @class(['on' => $index === 0])>
+        @endforeach
+    </div>
+    @if (count($imageUrls) > 1)
+        <script>
+            const slides = [...document.querySelectorAll('.stage img')];
+            let current = 0;
+            setInterval(() => {
+                slides[current].classList.remove('on');
+                current = (current + 1) % slides.length;
+                slides[current].classList.add('on');
+            }, 8000);
+        </script>
+    @endif
 </body>
 </html>
