@@ -167,7 +167,38 @@ class DashboardService
         return [
             'sales_trend' => $salesTrend,
             'top_products' => $topProducts,
+            'arrival_sources' => $this->arrivalSources($outletId, $range),
         ];
+    }
+
+    /**
+     * @return list<array{key: string, label: string, qty: int, percent: int}>
+     */
+    protected function arrivalSources(?int $outletId, array $range): array
+    {
+        $rows = Order::query()
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
+            ->where('payment_status', PaymentStatus::Paid->value)
+            ->where('status', '!=', OrderStatus::Cancelled->value)
+            ->whereDate('created_at', '>=', $range['from'])
+            ->whereDate('created_at', '<=', $range['to'])
+            ->whereNotNull('arrival_source')
+            ->where('arrival_source', '!=', '')
+            ->selectRaw('arrival_source, COUNT(*) as qty')
+            ->groupBy('arrival_source')
+            ->orderByDesc('qty')
+            ->orderBy('arrival_source')
+            ->get();
+
+        $total = (int) $rows->sum('qty');
+        $labels = config('pos.arrival_sources', []);
+
+        return $rows->map(fn ($row) => [
+            'key' => (string) $row->arrival_source,
+            'label' => $labels[$row->arrival_source] ?? (string) $row->arrival_source,
+            'qty' => (int) $row->qty,
+            'percent' => $total > 0 ? (int) round($row->qty / $total * 100) : 0,
+        ])->all();
     }
 
     /**

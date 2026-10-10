@@ -185,6 +185,30 @@
         </div>
     @endif
 
+    <div class="mb-5 card overflow-hidden">
+        <div class="card-header">
+            <div>
+                <h5 class="card-header-title">Sumber kedatangan</h5>
+                <p class="card-header-subtitle">Order lunas {{ strtolower($periodLabel) }}. Yang paling banyak di atas.</p>
+            </div>
+        </div>
+        <div class="divide-y divide-[#f0ebe4] px-5 py-1 text-sm">
+            @forelse ($charts['arrival_sources'] as $row)
+                <div class="py-3.5">
+                    <div class="flex items-center justify-between gap-4">
+                        <p class="font-medium text-heading">{{ $row['label'] }}</p>
+                        <p class="tabular-nums text-[13px] text-muted">{{ $row['qty'] }} order · {{ $row['percent'] }}%</p>
+                    </div>
+                    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-soft">
+                        <div class="h-full rounded-full bg-brand" style="width: {{ $row['percent'] }}%"></div>
+                    </div>
+                </div>
+            @empty
+                <p class="py-10 text-center text-sm text-muted">Belum ada data sumber kedatangan.</p>
+            @endforelse
+        </div>
+    </div>
+
     @if ($showFinance)
     <div class="mb-5 grid gap-4 lg:grid-cols-2">
         <div class="card overflow-hidden">

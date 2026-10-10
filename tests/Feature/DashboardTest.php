@@ -138,6 +138,33 @@ class DashboardTest extends TestCase
             ->assertDontSee('Target omzet');
     }
 
+    public function test_dashboard_ranks_arrival_sources_by_paid_orders(): void
+    {
+        $this->actingAsAtOutlet($this->cashier);
+        $orders = app(OrderService::class);
+
+        foreach (['instagram', 'instagram', 'tiktok'] as $source) {
+            $order = $orders->createDraft([
+                'outlet_id' => $this->outlet->id,
+                'order_type' => OrderType::Pickup->value,
+            ]);
+            $orders->addItem($order, ['product_id' => $this->sellableProduct->id, 'quantity' => 1]);
+            $paid = $orders->checkout($order->fresh(), [
+                'method' => PaymentMethod::Cash->value,
+                'tendered' => 100000,
+                'arrival_source' => $source,
+            ]);
+            $this->assertSame($source, $paid->arrival_source);
+        }
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('dashboard', ['period' => 'today']))
+            ->assertOk()
+            ->assertSeeInOrder(['Instagram', 'Tiktok'])
+            ->assertSee('2 order · 67%')
+            ->assertSee('1 order · 33%');
+    }
+
     public function test_cashier_dashboard_hides_profit_share(): void
     {
         $this->actingAsAtOutlet($this->cashier)
@@ -153,6 +180,8 @@ class DashboardTest extends TestCase
             ->assertDontSee('Jumlah charge')
             ->assertSee('Cash')
             ->assertSee('QRIS')
+            ->assertSee('Sumber kedatangan')
+            ->assertSee('Belum ada data sumber kedatangan')
             ->assertDontSee('Selain tunai dan QRIS')
             ->assertDontSee('Bagi hasil')
             ->assertDontSee('Pendapatan bersih')
