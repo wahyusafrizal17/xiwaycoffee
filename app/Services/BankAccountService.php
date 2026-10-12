@@ -55,6 +55,31 @@ class BankAccountService
         return $this->post($outletId, -abs($amount), $type, $reference, $notes, $occurredOn, $userId);
     }
 
+    public function forget(Model $reference, BankMovementType $type): void
+    {
+        DB::transaction(function () use ($reference, $type) {
+            $movement = BankMovement::query()
+                ->where('type', $type->value)
+                ->where('reference_type', $reference->getMorphClass())
+                ->where('reference_id', $reference->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            if (! $movement) {
+                return;
+            }
+
+            BankAccount::query()->whereKey($movement->bank_account_id)->lockForUpdate()->first();
+
+            DB::update(
+                'update bank_movements set balance_after = round(balance_after - ?, 2) where bank_account_id = ? and id > ?',
+                [$movement->amount, $movement->bank_account_id, $movement->id],
+            );
+
+            $movement->delete();
+        });
+    }
+
     public function adjust(int $outletId, float $signedAmount, string $notes, ?string $occurredOn = null): BankMovement
     {
         if (round($signedAmount, 2) == 0.0) {

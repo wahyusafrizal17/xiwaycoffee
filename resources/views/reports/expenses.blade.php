@@ -4,6 +4,7 @@
 @section('content')
     @php
         $formError = $errors->any();
+        $canDelete = auth()->user()->hasPermission('reports.view');
         $formOld = [
             'spent_on' => old('spent_on', now()->toDateString()),
             'category' => (string) old('category', \App\Enums\ExpenseCategory::Ingredients->value),
@@ -87,6 +88,7 @@
                             <th>Keterangan</th>
                             <th>Bukti</th>
                             <th>Oleh</th>
+                            @if ($canDelete)<th></th>@endif
                         </tr>
                         <tr class="filter-row">
                             <th>
@@ -116,6 +118,7 @@
                             <th>
                                 <input form="expense-filters" class="col-filter" type="search" name="user" value="{{ $filters['user'] ?? '' }}" placeholder="Nama..." onchange="this.form.submit()">
                             </th>
+                            @if ($canDelete)<th></th>@endif
                         </tr>
                     </thead>
                     <tbody>
@@ -139,10 +142,19 @@
                                     @endif
                                 </td>
                                 <td class="text-[13px]">{{ $expense->user?->name ?? '—' }}</td>
+                                @if ($canDelete)
+                                    <td>
+                                        <form method="POST" action="{{ route('reports.expenses.destroy', $expense) }}" onsubmit="return confirm('Hapus BOP ini?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn-danger">Hapus</button>
+                                        </form>
+                                    </td>
+                                @endif
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="!border-0">
+                                <td colspan="{{ $canDelete ? 8 : 7 }}" class="!border-0">
                                     <div class="flex flex-col items-center justify-center px-6 py-16 text-center">
                                         <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f6f3ef] text-muted">
                                             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-2.2 0-4 1.3-4 3s1.8 3 4 3 4 1.3 4 3-1.8 3-4 3m0-12V5m0 14v-2"/></svg>

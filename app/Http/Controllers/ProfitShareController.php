@@ -140,6 +140,26 @@ class ProfitShareController extends Controller
         return redirect()->route('reports.expenses')->with('success', 'BOP tercatat.');
     }
 
+    public function destroy(Request $request, OperatingExpense $expense): RedirectResponse
+    {
+        abort_unless($request->user()->hasPermission('reports.view'), 403);
+        abort_unless(! current_outlet_id() || (int) $expense->outlet_id === (int) current_outlet_id(), 404);
+
+        app(BankAccountService::class)->forget($expense, BankMovementType::Bop);
+
+        $path = (string) $expense->evidence;
+        if (str_starts_with($path, 'evidence/bop/')) {
+            $file = public_path($path);
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+
+        $expense->delete();
+
+        return back()->with('success', 'BOP dihapus.');
+    }
+
     public function profit(Request $request): View
     {
         abort_unless($request->user()->hasPermission('reports.view'), 403);

@@ -208,6 +208,7 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
     Route::get('/reports/laba-rugi', [ReportController::class, 'labaRugi'])->name('reports.laba-rugi');
     Route::get('/reports/expenses', [ProfitShareController::class, 'expenses'])->name('reports.expenses');
     Route::post('/reports/expenses', [ProfitShareController::class, 'store'])->name('reports.expenses.store');
+    Route::delete('/reports/expenses/{expense}', [ProfitShareController::class, 'destroy'])->name('reports.expenses.destroy');
     Route::get('/reports/profit', [ProfitShareController::class, 'profit'])->name('reports.profit');
     Route::get('/reports/setoran', [ProfitShareController::class, 'setoran'])->name('reports.setoran');
     Route::post('/reports/setoran', [ProfitShareController::class, 'storeSetoran'])->name('reports.setoran.store');

@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Enums\ExpenseCategory;
 use App\Enums\ExpensePaymentMethod;
+use App\Models\BankMovement;
 use App\Models\OperatingExpense;
+use App\Services\BankAccountService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Tests\Support\SeedsPosFixture;
@@ -62,6 +64,46 @@ class CashierBopTest extends TestCase
             'notes' => 'Belanja es batu',
             'user_id' => $this->cashier->id,
         ]);
+    }
+
+    public function test_admin_can_delete_bop_and_restore_the_bank_balance(): void
+    {
+        $this->actingAs($this->cashier)
+            ->post(route('reports.expenses.store'), [
+                'spent_on' => now()->toDateString(),
+                'category' => ExpenseCategory::Rent->value,
+                'amount' => 5000,
+                'notes' => 'Sewa yang salah',
+                'evidence' => UploadedFile::fake()->image('bukti.jpg'),
+            ])
+            ->assertRedirect();
+
+        $expense = OperatingExpense::query()->where('notes', 'Sewa yang salah')->firstOrFail();
+
+        $this->actingAs($this->admin)
+            ->post(route('bank.deposits.store'), [
+                'occurred_on' => now()->toDateString(),
+                'amount' => 10000,
+                'notes' => 'Setor setelah BOP',
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($this->cashier)
+            ->delete(route('reports.expenses.destroy', $expense))
+            ->assertForbidden();
+
+        $this->actingAs($this->admin)
+            ->get(route('reports.expenses'))
+            ->assertOk()
+            ->assertSee('Hapus');
+
+        $this->actingAs($this->admin)
+            ->delete(route('reports.expenses.destroy', $expense))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('operating_expenses', ['id' => $expense->id]);
+        $this->assertEquals(10000.0, app(BankAccountService::class)->balance($this->outlet->id));
+        $this->assertEquals(10000.0, (float) BankMovement::query()->where('notes', 'Setor setelah BOP')->value('balance_after'));
     }
 
     public function test_legacy_bahan_and_wifi_labels_still_display(): void
