@@ -6,6 +6,7 @@ use App\Enums\OrderType;
 use App\Enums\PaymentMethod;
 use App\Enums\PrinterStation;
 use App\Enums\ProductType;
+use App\Models\FoodSettlement;
 use App\Models\Product;
 use App\Services\OrderService;
 use App\Services\ProfitShareService;
@@ -328,6 +329,58 @@ class ProfitShareTest extends TestCase
             ->get(route('reports.setoran'))
             ->assertOk()
             ->assertSee(money(0));
+    }
+
+    public function test_setoran_payment_cannot_exceed_outstanding_balance(): void
+    {
+        $food = Product::query()->create([
+            'sku' => 'PRD-FOOD-CAP',
+            'name' => 'Nasi Cap',
+            'category_id' => $this->foodCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 20000,
+            'consignment_commission' => 2000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+            'station' => PrinterStation::Kitchen->value,
+        ]);
+
+        $this->actingAsAtOutlet($this->cashier);
+        $orders = app(OrderService::class);
+        $order = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($order, ['product_id' => $food->id, 'quantity' => 1]);
+        $orders->checkout($order->fresh(), [
+            'method' => PaymentMethod::Cash->value,
+            'tendered' => 100000,
+        ]);
+
+        FoodSettlement::query()->create([
+            'outlet_id' => $this->outlet->id,
+            'user_id' => $this->admin->id,
+            'settled_on' => '2026-09-01',
+            'period_from' => '2026-09-01',
+            'period_to' => '2026-09-01',
+            'amount' => 5000,
+        ]);
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('reports.setoran', ['period' => 'day', 'date' => now()->toDateString(), 'open' => 1]))
+            ->assertOk()
+            ->assertSee('Yang bisa disetor sekarang '.money(13000), false);
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('reports.setoran.store'), [
+                'from' => now()->toDateString(),
+                'to' => now()->toDateString(),
+                'settled_on' => now()->toDateString(),
+                'amount' => 18000,
+            ])
+            ->assertSessionHasErrors('amount');
     }
 
     public function test_catalog_seeder_marks_food_as_consignment(): void

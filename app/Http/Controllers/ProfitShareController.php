@@ -163,9 +163,11 @@ class ProfitShareController extends Controller
 
         $food = $this->reports->foodSetoran($filters);
         $outletId = $filters['outlet_id'] ? (int) $filters['outlet_id'] : null;
+        $balance = $this->reports->foodSetoranBalance($outletId);
         $periodPaid = $outletId
             ? $this->reports->foodSetoranPeriodPaid($outletId, $filters['from'], $filters['to'])
             : 0.0;
+        $periodRemaining = round(max(0, $food['setoran'] - $periodPaid), 2);
 
         return view('reports.setoran', [
             'filters' => $filters,
@@ -173,9 +175,10 @@ class ProfitShareController extends Controller
             'period' => $range['period'],
             'outlets' => Outlet::query()->orderBy('name')->get(),
             ...$food,
-            ...$this->reports->foodSetoranBalance($outletId),
+            ...$balance,
             'periodPaid' => $periodPaid,
-            'periodRemaining' => round(max(0, $food['setoran'] - $periodPaid), 2),
+            'periodRemaining' => $periodRemaining,
+            'periodPayable' => round(min($periodRemaining, $balance['outstanding']), 2),
         ]);
     }
 

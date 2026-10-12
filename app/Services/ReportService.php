@@ -474,23 +474,18 @@ class ReportService
         }
 
         $remaining = round($due - $this->foodSetoranPeriodPaid($outletId, $from, $to), 2);
-        if ($remaining <= 0) {
-            throw ValidationException::withMessages([
-                'from' => 'Periode ini sudah lunas.',
-            ]);
-        }
-
-        $amount = round($amount ?? $remaining, 2);
-        if ($amount <= 0 || $amount - $remaining > 0.009) {
-            throw ValidationException::withMessages([
-                'amount' => 'Jumlah disetor maksimal '.money($remaining).'.',
-            ]);
-        }
-
         $outstanding = $this->foodSetoranBalance($outletId)['outstanding'];
-        if ($amount - $outstanding > 0.009) {
+        $cap = round(min($remaining, $outstanding), 2);
+        if ($cap <= 0) {
             throw ValidationException::withMessages([
-                'amount' => 'Jumlah disetor melebihi yang belum disetor.',
+                'from' => 'Tidak ada sisa yang belum disetor.',
+            ]);
+        }
+
+        $amount = round($amount ?? $cap, 2);
+        if ($amount <= 0 || $amount - $cap > 0.009) {
+            throw ValidationException::withMessages([
+                'amount' => 'Jumlah disetor maksimal '.money($cap).'.',
             ]);
         }
 
