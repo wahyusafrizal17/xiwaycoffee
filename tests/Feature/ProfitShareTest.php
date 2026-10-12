@@ -331,7 +331,7 @@ class ProfitShareTest extends TestCase
             ->assertSee(money(0));
     }
 
-    public function test_setoran_payment_cannot_exceed_outstanding_balance(): void
+    public function test_period_remainder_ignores_older_settlements(): void
     {
         $food = Product::query()->create([
             'sku' => 'PRD-FOOD-CAP',
@@ -369,18 +369,24 @@ class ProfitShareTest extends TestCase
         ]);
 
         $this->actingAsAtOutlet($this->admin)
-            ->get(route('reports.setoran', ['period' => 'day', 'date' => now()->toDateString(), 'open' => 1]))
+            ->get(route('reports.setoran', ['period' => 'day', 'date' => now()->toDateString()]))
             ->assertOk()
-            ->assertSee('Yang bisa disetor sekarang '.money(13000), false);
+            ->assertSee(money(18000));
 
         $this->actingAsAtOutlet($this->admin)
             ->post(route('reports.setoran.store'), [
                 'from' => now()->toDateString(),
                 'to' => now()->toDateString(),
                 'settled_on' => now()->toDateString(),
-                'amount' => 18000,
+                'amount' => 10000,
             ])
-            ->assertSessionHasErrors('amount');
+            ->assertRedirect();
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('reports.setoran', ['period' => 'day', 'date' => now()->toDateString()]))
+            ->assertOk()
+            ->assertSee('Setoran periode − sudah disetor', false)
+            ->assertSee(money(8000));
     }
 
     public function test_catalog_seeder_marks_food_as_consignment(): void

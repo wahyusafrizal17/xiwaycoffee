@@ -178,7 +178,7 @@ class ProfitShareController extends Controller
             ...$balance,
             'periodPaid' => $periodPaid,
             'periodRemaining' => $periodRemaining,
-            'periodPayable' => round(min($periodRemaining, $balance['outstanding']), 2),
+            'periodPayable' => $periodRemaining,
         ]);
     }
 

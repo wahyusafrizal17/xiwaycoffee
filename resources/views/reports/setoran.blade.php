@@ -50,8 +50,8 @@
             <div class="stat-card">
                 <div>
                     <p class="stat-kicker">Belum disetor</p>
-                    <p class="stat-value {{ $outstanding > 0 ? 'text-[#c2410c]' : '' }}">{{ money($outstanding) }}</p>
-                    <p class="stat-hint">Akumulasi − sudah disetor</p>
+                    <p class="stat-value {{ $periodRemaining > 0 ? 'text-[#c2410c]' : '' }}">{{ money($periodRemaining) }}</p>
+                    <p class="stat-hint">Setoran periode − sudah disetor</p>
                 </div>
             </div>
         </div>
@@ -173,7 +173,21 @@
                             </button>
                         </div>
 
-                        <div class="mt-5 grid gap-4" x-data="{ paid: {{ (float) old('amount', $periodPayable) }} }">
+                        <div
+                            class="mt-5 grid gap-4"
+                            x-data="{
+                                paid: {{ (float) old('amount', $periodPayable) }},
+                                cap: {{ (float) $periodPayable }},
+                                parse(value) { return Number(String(value ?? '').replace(/[^\d]/g, '')) || 0 },
+                                format(value) { return 'Rp ' + new Intl.NumberFormat('id-ID').format(this.parse(value)) },
+                                onPaid(event) {
+                                    let next = this.parse(event.target.value)
+                                    if (this.cap > 0 && next > this.cap) next = this.cap
+                                    this.paid = next
+                                    event.target.value = this.format(next)
+                                },
+                            }"
+                        >
                             <div class="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <label class="label">Dari tanggal</label>
@@ -197,16 +211,13 @@
                                 <p class="mt-1 text-[12px] text-muted">
                                     {{ 100 - (int) config('pos.food_cafe_percent', 10) }}% penjualan makanan pada periode di atas.
                                     @if ($periodPaid > 0) Sudah dicicil {{ money($periodPaid) }}. @endif
-                                    @if ($periodRemaining > $outstanding)
-                                        Angka ini lebih besar dari belum disetor karena setoran lama sudah melebihi penjualan setelah diskon. Yang bisa disetor sekarang {{ money($periodPayable) }}.
-                                    @else
-                                        Sisa belum disetor {{ money($outstanding) }}.
-                                    @endif
+                                    Sisa periode {{ money($periodRemaining) }}.
                                 </p>
                             </div>
                             <div>
                                 <label class="label">Jumlah disetor</label>
-                                <input class="input" type="number" name="amount" min="1" max="{{ $periodPayable }}" step="1" required x-model.number="paid" value="{{ old('amount', $periodPayable) }}">
+                                <input type="hidden" name="amount" :value="paid">
+                                <input class="input" type="text" inputmode="numeric" autocomplete="off" required :value="format(paid)" @input="onPaid($event)" placeholder="Rp 0">
                                 <p class="mt-1 text-[12px] text-muted">Sisa setelah ini <span class="font-medium text-heading" x-text="'Rp ' + Math.max(0, {{ (float) $periodPayable }} - (Number(paid) || 0)).toLocaleString('id-ID')"></span>.</p>
                                 @error('amount')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>

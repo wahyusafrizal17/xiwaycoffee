@@ -243,7 +243,7 @@
                 <div class="flex items-center justify-between gap-4 py-3.5">
                     <div>
                         <p class="font-medium text-heading">Setoran makanan</p>
-                        <p class="text-[12px] text-muted">Bagagian mitra (dipotong dari omzet)</p>
+                        <p class="text-[12px] text-muted">Sudah disetor {{ money($metrics['food_setoran_paid']) }} · sisa {{ money($metrics['food_setoran_remaining']) }}</p>
                     </div>
                     <p class="tabular-nums font-semibold text-[#c2410c]">{{ money($metrics['food_setoran']) }}</p>
                 </div>

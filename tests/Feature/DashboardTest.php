@@ -10,6 +10,7 @@ use App\Enums\PrinterStation;
 use App\Enums\ProductType;
 use App\Models\Category;
 use App\Models\Discount;
+use App\Models\FoodSettlement;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Services\DashboardService;
@@ -443,5 +444,48 @@ class DashboardTest extends TestCase
             ->assertSee('Setelah diskon')
             ->assertSee(money(20000))
             ->assertSee(money(10000));
+    }
+
+    public function test_dashboard_breakdown_shows_food_setoran_paid_and_remaining(): void
+    {
+        $food = Product::query()->create([
+            'sku' => 'PRD-FOOD-DASH-SETOR',
+            'name' => 'Nasi Setor Dash',
+            'category_id' => $this->foodCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 20000,
+            'consignment_commission' => 2000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+        ]);
+
+        $this->actingAsAtOutlet($this->cashier);
+        $orders = app(OrderService::class);
+        $order = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($order, ['product_id' => $food->id, 'quantity' => 1]);
+        $orders->checkout($order->fresh(), [
+            'method' => PaymentMethod::Cash->value,
+            'tendered' => 100000,
+        ]);
+
+        FoodSettlement::query()->create([
+            'outlet_id' => $this->outlet->id,
+            'user_id' => $this->admin->id,
+            'settled_on' => now()->toDateString(),
+            'period_from' => now()->toDateString(),
+            'period_to' => now()->toDateString(),
+            'amount' => 10000,
+        ]);
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('dashboard', ['period' => 'day', 'date' => now()->toDateString()]))
+            ->assertOk()
+            ->assertSee('Sudah disetor '.money(10000), false)
+            ->assertSee('sisa '.money(8000), false);
     }
 }

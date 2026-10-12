@@ -88,6 +88,9 @@ class DashboardService
         [$drinks, $drinkCups] = $this->drinkSales($filters);
         $gross = round((float) (clone $this->validOrders($outletId, $range))->sum('grand_total'), 2);
         $setoran = (float) $food['setoran'];
+        $setoranPaid = $outletId
+            ? $this->reports->foodSetoranPaidWithin($outletId, $range['from'], $range['to'])
+            : 0.0;
         $sales = round($gross - $setoran, 2);
         $bop = (float) $summary['bop'];
         $serviceFee = round((float) (clone $this->validOrders($outletId, $range))->sum('tax_amount'), 2);
@@ -116,6 +119,8 @@ class DashboardService
             'food_sales' => (float) $food['sales'],
             'food_cafe' => (float) $food['commission'],
             'food_setoran' => $setoran,
+            'food_setoran_paid' => $setoranPaid,
+            'food_setoran_remaining' => round(max(0, $setoran - $setoranPaid), 2),
             'sales' => $sales,
             'bop' => $bop,
             'net' => $net,
