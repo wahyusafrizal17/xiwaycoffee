@@ -93,7 +93,7 @@
                 <div class="min-w-0 flex-1">
                     <p class="stat-kicker">Pendapatan minuman</p>
                     <p class="stat-value">{{ money($metrics['drinks']) }}</p>
-                    <p class="stat-hint">Penjualan minuman pada periode ini</p>
+                    <p class="stat-hint">Setelah diskon pada periode ini</p>
                 </div>
                 <span class="stat-icon bg-[#e8f1ff] text-[#2563eb]">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>
@@ -103,7 +103,7 @@
                 <div class="min-w-0 flex-1">
                     <p class="stat-kicker">Pendapatan makanan</p>
                     <p class="stat-value">{{ money($metrics['food_sales']) }}</p>
-                    <p class="stat-hint">Penjualan makanan pada periode ini</p>
+                    <p class="stat-hint">Setelah diskon pada periode ini</p>
                 </div>
                 <span class="stat-icon bg-[#fff3e8] text-[#c2410c]">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>
@@ -296,7 +296,7 @@
         <div class="card-header">
             <div>
                 <h5 class="card-header-title">Produk terlaris</h5>
-                <p class="card-header-subtitle">Berdasarkan qty terjual {{ strtolower($periodLabel) }}.</p>
+                <p class="card-header-subtitle">Qty terjual {{ strtolower($periodLabel) }}. Omzet setelah diskon.</p>
             </div>
         </div>
         <div class="table-wrap">

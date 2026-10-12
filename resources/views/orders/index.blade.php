@@ -78,7 +78,17 @@
         </div>
     </form>
 
-    <div class="mb-5 grid gap-4 md:grid-cols-3">
+    <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="stat-card">
+            <div>
+                <p class="stat-kicker">Pendapatan</p>
+                <p class="stat-value">{{ money($stats['revenue']) }}</p>
+                <p class="stat-hint">Setelah diskon {{ money($stats['discount']) }} · {{ $range['label'] }}</p>
+            </div>
+            <span class="stat-icon bg-[#eef6f0] text-[#166534]">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 17l6-6 4 4 8-8M14 7h7v7"/></svg>
+            </span>
+        </div>
         <div class="stat-card">
             <div>
                 <p class="stat-kicker">Total order</p>

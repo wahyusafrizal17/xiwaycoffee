@@ -38,7 +38,13 @@
                 <div>
                     <p class="stat-kicker">Setoran periode</p>
                     <p class="stat-value">{{ money($setoran) }}</p>
-                    <p class="stat-hint">Penjualan − komisi</p>
+                    <p class="stat-hint">
+                        @if ($periodPaid > 0)
+                            Dicicil {{ money($periodPaid) }} · sisa {{ money($periodRemaining) }}
+                        @else
+                            Penjualan − komisi
+                        @endif
+                    </p>
                 </div>
             </div>
             <div class="stat-card">
@@ -62,7 +68,7 @@
                         Cetak setoran
                     </button>
                     @if (auth()->user()->hasPermission('reports.view'))
-                        <button type="button" class="btn-add" @click="formOpen = true" @if ($setoran <= 0) disabled @endif>
+                        <button type="button" class="btn-add" @click="formOpen = true" @if ($periodRemaining <= 0) disabled @endif>
                             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/></svg>
                             Catat setoran
                         </button>
@@ -160,14 +166,14 @@
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <h3 class="font-serif text-lg font-semibold text-heading">Catat setoran</h3>
-                                <p class="mt-1 text-[13px] text-muted">Nominal mengikuti penjualan makanan pada periode yang dipilih.</p>
+                                <p class="mt-1 text-[13px] text-muted">Nominal periode boleh dicicil. Sisa tetap tercatat.</p>
                             </div>
                             <button type="button" class="modal-close" @click="formOpen = false">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 6l12 12M18 6L6 18"/></svg>
                             </button>
                         </div>
 
-                        <div class="mt-5 grid gap-4">
+                        <div class="mt-5 grid gap-4" x-data="{ paid: {{ (float) old('amount', $periodRemaining) }} }">
                             <div class="grid gap-4 sm:grid-cols-2">
                                 <div>
                                     <label class="label">Dari tanggal</label>
@@ -186,9 +192,19 @@
                                 @error('settled_on')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                             <div>
-                                <label class="label">Nominal</label>
+                                <label class="label">Nominal periode</label>
                                 <input class="input bg-[#fafafa]" type="text" value="{{ money($setoran) }}" readonly>
-                                <p class="mt-1 text-[12px] text-muted">{{ 100 - (int) config('pos.food_cafe_percent', 10) }}% penjualan makanan pada periode di atas. Sisa belum disetor {{ money($outstanding) }}.</p>
+                                <p class="mt-1 text-[12px] text-muted">
+                                    {{ 100 - (int) config('pos.food_cafe_percent', 10) }}% penjualan makanan pada periode di atas.
+                                    @if ($periodPaid > 0) Sudah dicicil {{ money($periodPaid) }}. @endif
+                                    Sisa belum disetor {{ money($outstanding) }}.
+                                </p>
+                            </div>
+                            <div>
+                                <label class="label">Jumlah disetor</label>
+                                <input class="input" type="number" name="amount" min="1" max="{{ $periodRemaining }}" step="1" required x-model.number="paid" value="{{ old('amount', $periodRemaining) }}">
+                                <p class="mt-1 text-[12px] text-muted">Sisa setelah ini <span class="font-medium text-heading" x-text="'Rp ' + Math.max(0, {{ (float) $periodRemaining }} - (Number(paid) || 0)).toLocaleString('id-ID')"></span>.</p>
+                                @error('amount')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                             <div>
                                 <label class="label">Keterangan</label>
@@ -199,7 +215,7 @@
                     </div>
                     <div class="crud-modal-footer">
                         <button type="button" class="btn-ghost" @click="formOpen = false">Batal</button>
-                        <button class="btn-add" type="submit" @if ($setoran <= 0) disabled @endif>Simpan setoran</button>
+                        <button class="btn-add" type="submit" @if ($periodRemaining <= 0) disabled @endif>Simpan setoran</button>
                     </div>
                 </form>
             </div>

@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Enums\DiscountType;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
 use App\Enums\PaymentMethod;
 use App\Enums\PrinterStation;
 use App\Enums\ProductType;
 use App\Models\Category;
+use App\Models\Discount;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Services\DashboardService;
@@ -129,6 +131,36 @@ class DashboardTest extends TestCase
         $this->assertEquals(18000.0, $today['drinks']);
         $this->assertEquals(15000.0, $today['food_sales']);
         $this->assertEquals(1.0, $today['drink_cups']);
+
+        $water = Product::query()->create([
+            'sku' => 'PRD-WATER-DASH',
+            'name' => 'Air Mineral',
+            'category_id' => $drinkCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 5000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+            'station' => PrinterStation::Bar->value,
+        ]);
+        $waterOrder = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($waterOrder, ['product_id' => $water->id, 'quantity' => 3]);
+        $orders->checkout($waterOrder->fresh(), [
+            'method' => PaymentMethod::Cash->value,
+            'tendered' => 20000,
+        ]);
+
+        $withWater = app(DashboardService::class)->metrics($this->outlet->id, [
+            'period' => 'day',
+            'from' => now()->toDateString(),
+            'to' => now()->toDateString(),
+            'label' => 'hari ini',
+        ]);
+        $this->assertEquals(1.0, $withWater['drink_cups']);
         $this->assertEquals(2, $today['drink_target_percent']);
 
         $this->actingAsAtOutlet($this->admin)
@@ -325,5 +357,91 @@ class DashboardTest extends TestCase
             ->get(route('dashboard', ['period' => 'month', 'month' => '2026-09']))
             ->assertOk()
             ->assertSee('Perlu rekonsiliasi', false);
+    }
+
+    public function test_category_discount_reduces_drink_revenue_and_leaves_food(): void
+    {
+        $drinkCategory = Category::query()->create([
+            'name' => 'Coffee',
+            'slug' => 'coffee-disc',
+            'station' => PrinterStation::Bar->value,
+            'sort_order' => 2,
+            'is_active' => true,
+        ]);
+        $drink = Product::query()->create([
+            'sku' => 'PRD-DRINK-DISC',
+            'name' => 'Sanger Diskon',
+            'category_id' => $drinkCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 20000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+            'station' => PrinterStation::Bar->value,
+        ]);
+        $food = Product::query()->create([
+            'sku' => 'PRD-FOOD-DISC',
+            'name' => 'Nasi Diskon',
+            'category_id' => $this->foodCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 10000,
+            'consignment_commission' => 1000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+        ]);
+        $discount = Discount::query()->create([
+            'name' => 'Promo Minuman 50%',
+            'code' => 'DRINK50',
+            'type' => DiscountType::Percentage,
+            'scope' => 'category',
+            'value' => 50,
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->toDateString(),
+            'is_active' => true,
+        ]);
+        $discount->items()->create(['category_id' => $drinkCategory->id]);
+
+        $this->actingAsAtOutlet($this->cashier);
+        $orders = app(OrderService::class);
+        $order = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($order, ['product_id' => $drink->id, 'quantity' => 1]);
+        $orders->addItem($order->fresh(), ['product_id' => $food->id, 'quantity' => 1]);
+        $orders->applyDiscount($order->fresh(), $discount->id);
+        $orders->checkout($order->fresh(), [
+            'method' => PaymentMethod::Cash->value,
+            'tendered' => 100000,
+        ]);
+
+        $metrics = app(DashboardService::class)->metrics($this->outlet->id, [
+            'period' => 'day',
+            'from' => now()->toDateString(),
+            'to' => now()->toDateString(),
+            'label' => 'hari ini',
+        ]);
+
+        $this->assertEquals(10000.0, $metrics['drinks']);
+        $this->assertEquals(10000.0, $metrics['food_sales']);
+        $this->assertEquals(9000.0, $metrics['food_setoran']);
+        $this->assertEquals(20000.0, $metrics['gross']);
+
+        $top = app(DashboardService::class)->charts($this->outlet->id, [
+            'from' => now()->toDateString(),
+            'to' => now()->toDateString(),
+        ])['top_products']->keyBy('name');
+        $this->assertEquals(10000.0, (float) $top['Sanger Diskon']->total);
+        $this->assertEquals(10000.0, (float) $top['Nasi Diskon']->total);
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('orders.index', ['period' => 'day', 'date' => now()->toDateString()]))
+            ->assertOk()
+            ->assertSee('Setelah diskon')
+            ->assertSee(money(20000))
+            ->assertSee(money(10000));
     }
 }

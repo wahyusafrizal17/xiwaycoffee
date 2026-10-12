@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\Outlet;
 use App\Services\DashboardService;
@@ -62,6 +63,10 @@ class OrderController extends Controller
             ->whereDate('created_at', '>=', $range['from'])
             ->whereDate('created_at', '<=', $range['to']);
 
+        $paid = (clone $counted)
+            ->where('payment_status', PaymentStatus::Paid->value)
+            ->where('status', '!=', OrderStatus::Cancelled->value);
+
         return view('orders.index', [
             'orders' => $orders,
             'outlets' => Outlet::query()->orderBy('name')->get(),
@@ -74,6 +79,8 @@ class OrderController extends Controller
             ]),
             'stats' => [
                 'total' => (clone $counted)->count(),
+                'revenue' => round((float) (clone $paid)->sum('grand_total'), 2),
+                'discount' => round((float) (clone $paid)->sum('discount_amount'), 2),
                 'today' => Order::query()->whereNotIn('status', $pending)->whereDate('created_at', today())->count(),
                 'kitchen' => Order::query()->whereIn('status', [
                     OrderStatus::New->value,

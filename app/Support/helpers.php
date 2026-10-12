@@ -111,16 +111,58 @@ function drink_category_names(): array
     return config('pos.bop.drink_categories', ['Coffee', 'Non Coffee', 'Fit Tea', 'Xiway Main']);
 }
 
+function order_item_discount_share_sql(): string
+{
+    $scope = '(SELECT d.scope FROM discounts d WHERE d.id = orders.discount_id)';
+    $categoryMatch = 'EXISTS (
+        SELECT 1 FROM discount_items di
+        JOIN products p ON p.id = order_items.product_id AND p.category_id = di.category_id
+        WHERE di.discount_id = orders.discount_id
+    )';
+    $categoryBase = 'NULLIF((
+        SELECT SUM(oi.total) FROM order_items oi
+        JOIN products p ON p.id = oi.product_id
+        JOIN discount_items di ON di.discount_id = orders.discount_id AND di.category_id = p.category_id
+        WHERE oi.order_id = orders.id
+    ), 0)';
+    $itemMatch = 'EXISTS (
+        SELECT 1 FROM discount_items di
+        WHERE di.discount_id = orders.discount_id AND di.product_id = order_items.product_id
+    )';
+    $itemBase = 'NULLIF((
+        SELECT SUM(oi.total) FROM order_items oi
+        JOIN discount_items di ON di.discount_id = orders.discount_id AND di.product_id = oi.product_id
+        WHERE oi.order_id = orders.id
+    ), 0)';
+
+    return "CASE
+        WHEN COALESCE(orders.discount_amount, 0) <= 0 OR COALESCE(orders.subtotal, 0) <= 0 OR COALESCE(order_items.total, 0) <= 0 THEN 0
+        WHEN {$scope} = 'category' AND {$categoryMatch} THEN orders.discount_amount * order_items.total / {$categoryBase}
+        WHEN {$scope} = 'category' THEN 0
+        WHEN {$scope} = 'item' AND {$itemMatch} THEN orders.discount_amount * order_items.total / {$itemBase}
+        WHEN {$scope} = 'item' THEN 0
+        ELSE orders.discount_amount * order_items.total / orders.subtotal
+    END";
+}
+
+function order_item_net_total_sql(): string
+{
+    $share = 'COALESCE(('.order_item_discount_share_sql().'), 0)';
+
+    return "CASE WHEN {$share} >= order_items.total THEN 0 ELSE order_items.total - {$share} END";
+}
+
 function order_item_drink_amount_sql(): string
 {
     $names = collect(drink_category_names())
         ->map(fn (string $name) => "'".str_replace("'", "''", $name)."'")
         ->implode(', ');
     $share = 'bundles.drink_share';
+    $net = order_item_net_total_sql();
 
     return "CASE
-        WHEN {$share} IS NOT NULL AND order_items.unit_price > 0 THEN order_items.total * {$share} / order_items.unit_price
-        WHEN categories.name IN ({$names}) THEN order_items.total
+        WHEN {$share} IS NOT NULL AND order_items.unit_price > 0 THEN ({$net}) * {$share} / order_items.unit_price
+        WHEN categories.name IN ({$names}) THEN ({$net})
         ELSE 0 END";
 }
 
@@ -130,19 +172,21 @@ function order_item_drink_cups_sql(): string
         ->map(fn (string $name) => "'".str_replace("'", "''", $name)."'")
         ->implode(', ');
 
-    return 'CASE
+    return "CASE
+        WHEN LOWER(order_items.name) LIKE '%air mineral%' THEN 0
         WHEN bundles.drink_share > 0 THEN order_items.quantity
-        WHEN bundles.drink_share IS NULL AND categories.name IN ('.$names.') THEN order_items.quantity
-        ELSE 0 END';
+        WHEN bundles.drink_share IS NULL AND categories.name IN ({$names}) THEN order_items.quantity
+        ELSE 0 END";
 }
 
 function order_item_food_amount_sql(): string
 {
     $share = 'bundles.drink_share';
+    $net = order_item_net_total_sql();
 
     return "CASE
-        WHEN {$share} IS NOT NULL AND order_items.unit_price > 0 THEN order_items.total - (order_items.total * {$share} / order_items.unit_price)
-        WHEN order_items.consignment_commission > 0 THEN order_items.total
+        WHEN {$share} IS NOT NULL AND order_items.unit_price > 0 THEN ({$net}) - (({$net}) * {$share} / order_items.unit_price)
+        WHEN order_items.consignment_commission > 0 THEN ({$net})
         ELSE 0 END";
 }
 

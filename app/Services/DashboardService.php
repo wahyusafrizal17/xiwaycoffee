@@ -158,7 +158,7 @@ class DashboardService
             ->where('orders.payment_status', PaymentStatus::Paid->value)
             ->whereDate('orders.created_at', '>=', $range['from'])
             ->whereDate('orders.created_at', '<=', $range['to'])
-            ->selectRaw('order_items.name, SUM(order_items.quantity) as qty, SUM(order_items.total) as total')
+            ->selectRaw('order_items.name, SUM(order_items.quantity) as qty, SUM('.order_item_net_total_sql().') as total')
             ->groupBy('order_items.name')
             ->orderByDesc('qty')
             ->limit(8)

@@ -434,15 +434,24 @@ class ReportService
         ];
     }
 
-    public function settleFoodSetoran(int $outletId, int $userId, string $settledOn, string $from, string $to, ?string $notes = null): FoodSettlement
+    public function foodSetoranPeriodPaid(int $outletId, string $from, string $to): float
     {
-        $amount = (float) $this->foodSetoran([
+        return round((float) FoodSettlement::query()
+            ->where('outlet_id', $outletId)
+            ->whereDate('period_from', $from)
+            ->whereDate('period_to', $to)
+            ->sum('amount'), 2);
+    }
+
+    public function settleFoodSetoran(int $outletId, int $userId, string $settledOn, string $from, string $to, ?string $notes = null, ?float $amount = null): FoodSettlement
+    {
+        $due = (float) $this->foodSetoran([
             'outlet_id' => $outletId,
             'from' => $from,
             'to' => $to,
         ])['setoran'];
 
-        if ($amount <= 0) {
+        if ($due <= 0) {
             throw ValidationException::withMessages([
                 'from' => 'Tidak ada setoran makanan pada periode ini.',
             ]);
@@ -452,6 +461,10 @@ class ReportService
             ->where('outlet_id', $outletId)
             ->whereDate('period_from', '<=', $to)
             ->whereDate('period_to', '>=', $from)
+            ->where(function ($query) use ($from, $to) {
+                $query->whereDate('period_from', '!=', $from)
+                    ->orWhereDate('period_to', '!=', $to);
+            })
             ->exists();
 
         if ($overlap) {
@@ -460,10 +473,24 @@ class ReportService
             ]);
         }
 
-        $outstanding = $this->foodSetoranBalance($outletId)['outstanding'];
-        if ($amount > $outstanding) {
+        $remaining = round($due - $this->foodSetoranPeriodPaid($outletId, $from, $to), 2);
+        if ($remaining <= 0) {
             throw ValidationException::withMessages([
-                'from' => 'Nominal periode melebihi yang belum disetor.',
+                'from' => 'Periode ini sudah lunas.',
+            ]);
+        }
+
+        $amount = round($amount ?? $remaining, 2);
+        if ($amount <= 0 || $amount - $remaining > 0.009) {
+            throw ValidationException::withMessages([
+                'amount' => 'Jumlah disetor maksimal '.money($remaining).'.',
+            ]);
+        }
+
+        $outstanding = $this->foodSetoranBalance($outletId)['outstanding'];
+        if ($amount - $outstanding > 0.009) {
+            throw ValidationException::withMessages([
+                'amount' => 'Jumlah disetor melebihi yang belum disetor.',
             ]);
         }
 

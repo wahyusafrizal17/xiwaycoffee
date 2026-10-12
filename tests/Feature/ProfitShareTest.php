@@ -260,6 +260,76 @@ class ProfitShareTest extends TestCase
             ->assertSessionHasErrors('from');
     }
 
+    public function test_food_setoran_can_be_paid_in_installments(): void
+    {
+        $food = Product::query()->create([
+            'sku' => 'PRD-FOOD-CICIL',
+            'name' => 'Nasi Cicil',
+            'category_id' => $this->foodCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 20000,
+            'consignment_commission' => 2000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+            'station' => PrinterStation::Kitchen->value,
+        ]);
+
+        $this->actingAsAtOutlet($this->cashier);
+        $orders = app(OrderService::class);
+        $order = $orders->createDraft([
+            'outlet_id' => $this->outlet->id,
+            'order_type' => OrderType::Pickup->value,
+        ]);
+        $orders->addItem($order, ['product_id' => $food->id, 'quantity' => 1]);
+        $orders->checkout($order->fresh(), [
+            'method' => PaymentMethod::Cash->value,
+            'tendered' => 100000,
+        ]);
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('reports.setoran.store'), [
+                'from' => now()->toDateString(),
+                'to' => now()->toDateString(),
+                'settled_on' => now()->toDateString(),
+                'amount' => 20000,
+            ])
+            ->assertSessionHasErrors('amount');
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('reports.setoran.store'), [
+                'from' => now()->toDateString(),
+                'to' => now()->toDateString(),
+                'settled_on' => now()->toDateString(),
+                'amount' => 10000,
+                'notes' => 'Cicilan pertama',
+            ])
+            ->assertRedirect();
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('reports.setoran'))
+            ->assertOk()
+            ->assertSee('Cicilan pertama')
+            ->assertSee('Dicicil '.money(10000), false)
+            ->assertSee('sisa '.money(8000), false)
+            ->assertSee(money(8000));
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('reports.setoran.store'), [
+                'from' => now()->toDateString(),
+                'to' => now()->toDateString(),
+                'settled_on' => now()->toDateString(),
+                'amount' => 8000,
+            ])
+            ->assertRedirect();
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('reports.setoran'))
+            ->assertOk()
+            ->assertSee(money(0));
+    }
+
     public function test_catalog_seeder_marks_food_as_consignment(): void
     {
         $this->seed(CatalogSeeder::class);

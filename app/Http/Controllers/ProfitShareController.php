@@ -161,13 +161,21 @@ class ProfitShareController extends Controller
         [$filters, $range] = app(DashboardService::class)->periodFilters($request);
         $filters['outlet_id'] = $filters['outlet_id'] ?? current_outlet_id();
 
+        $food = $this->reports->foodSetoran($filters);
+        $outletId = $filters['outlet_id'] ? (int) $filters['outlet_id'] : null;
+        $periodPaid = $outletId
+            ? $this->reports->foodSetoranPeriodPaid($outletId, $filters['from'], $filters['to'])
+            : 0.0;
+
         return view('reports.setoran', [
             'filters' => $filters,
             'range' => $range,
             'period' => $range['period'],
             'outlets' => Outlet::query()->orderBy('name')->get(),
-            ...$this->reports->foodSetoran($filters),
-            ...$this->reports->foodSetoranBalance($filters['outlet_id'] ? (int) $filters['outlet_id'] : null),
+            ...$food,
+            ...$this->reports->foodSetoranBalance($outletId),
+            'periodPaid' => $periodPaid,
+            'periodRemaining' => round(max(0, $food['setoran'] - $periodPaid), 2),
         ]);
     }
 
@@ -179,7 +187,11 @@ class ProfitShareController extends Controller
             'from' => ['required', 'date'],
             'to' => ['required', 'date', 'after_or_equal:from'],
             'settled_on' => ['required', 'date'],
+            'amount' => ['nullable', 'numeric', 'min:1'],
             'notes' => ['nullable', 'string', 'max:255'],
+        ], [
+            'amount.min' => 'Jumlah disetor minimal 1.',
+            'amount.numeric' => 'Jumlah disetor harus angka.',
         ]);
 
         $this->reports->settleFoodSetoran(
@@ -189,6 +201,7 @@ class ProfitShareController extends Controller
             $data['from'],
             $data['to'],
             $data['notes'] ?? null,
+            isset($data['amount']) ? (float) $data['amount'] : null,
         );
 
         return redirect()->route('reports.setoran', [
