@@ -37,13 +37,7 @@ class AttendanceController extends Controller
                 ->first()
             : null;
 
-        $history = $employee
-            ? Attendance::query()
-                ->where('employee_id', $employee->id)
-                ->latest('work_date')
-                ->limit(14)
-                ->get()
-            : collect();
+        $calendar = $employee ? $this->monthCalendar($employee) : null;
 
         $team = null;
         if ($request->user()->hasPermission('attendance.manage')) {
@@ -68,13 +62,66 @@ class AttendanceController extends Controller
             'employee' => $employee,
             'today' => $today,
             'todayShift' => $todayShift,
-            'history' => $history,
+            'calendar' => $calendar,
             'team' => $team,
             'clockInBy' => $clockInBy,
             'offToday' => $offToday,
             'reasonRequired' => $employee && ! $offToday ? app(AttendanceService::class)->isLate($employee) : false,
             'outlet' => $employee?->outlet,
         ]);
+    }
+
+    /**
+     * @return array{label: string, weeks: list<list<array<string, mixed>|null>>}
+     */
+    protected function monthCalendar(Employee $employee): array
+    {
+        $today = now('Asia/Jakarta')->startOfDay();
+        $start = $today->copy()->startOfMonth();
+        $end = $start->copy()->endOfMonth();
+
+        $attendances = Attendance::query()
+            ->where('employee_id', $employee->id)
+            ->whereDate('work_date', '>=', $start->toDateString())
+            ->whereDate('work_date', '<=', $end->toDateString())
+            ->get()
+            ->keyBy(fn (Attendance $row) => $row->work_date->day);
+        $shifts = WorkShift::query()
+            ->where('employee_id', $employee->id)
+            ->whereDate('work_date', '>=', $start->toDateString())
+            ->whereDate('work_date', '<=', $end->toDateString())
+            ->get()
+            ->keyBy(fn (WorkShift $row) => $row->work_date->day);
+
+        $days = [];
+        for ($day = 1; $day <= $start->daysInMonth; $day++) {
+            $date = $start->copy()->day($day);
+            $attendance = $attendances->get($day);
+            $shift = $shifts->get($day);
+            $off = $shift && ! filled($shift->starts_at);
+            $cell = $attendance?->clock_in_at ? [
+                'in' => $attendance->clock_in_at->timezone('Asia/Jakarta')->format('H:i'),
+                'out' => $attendance->clock_out_at?->timezone('Asia/Jakarta')->format('H:i'),
+                'late' => $shift ? $shift->lateAt($attendance->clock_in_at) : (bool) $attendance->is_late,
+                'reason' => $attendance->late_reason,
+            ] : null;
+
+            $days[] = [
+                'day' => $day,
+                'cell' => $cell,
+                'off' => $off && ! $cell,
+                'miss' => ! $cell && ! $off && $shift && filled($shift->starts_at) && $date->lte($today),
+                'weekend' => $date->isWeekend(),
+            ];
+        }
+
+        $weeks = array_chunk(array_merge(array_fill(0, $start->dayOfWeek, null), $days), 7);
+        $weeks[array_key_last($weeks)] = array_pad($weeks[array_key_last($weeks)], 7, null);
+
+        return [
+            'label' => $start->locale('id')->translatedFormat('F Y'),
+            'weeks' => $weeks,
+        ];
     }
 
     public function clockIn(Request $request, AttendanceService $attendance): RedirectResponse

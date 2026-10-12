@@ -64,6 +64,32 @@ class AttendanceTest extends TestCase
         ]);
     }
 
+    public function test_attendance_page_shows_a_month_calendar(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-12 02:00:00'));
+
+        WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-01',
+        ]);
+        Attendance::query()->create([
+            'employee_id' => $this->employee->id,
+            'outlet_id' => $this->outlet->id,
+            'work_date' => '2026-10-11',
+            'clock_in_at' => '2026-10-11 00:00:00',
+            'is_late' => false,
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('attendance.index'))
+            ->assertOk()
+            ->assertSee('Kalender absensi')
+            ->assertSee('Oktober 2026')
+            ->assertSee('07:00')
+            ->assertSee('recap-off', false)
+            ->assertDontSee('Riwayat 14 hari');
+    }
+
     public function test_clock_in_requires_geofence_and_marks_late_after_cutoff(): void
     {
         $this->travelTo(now()->setTime(9, 0));

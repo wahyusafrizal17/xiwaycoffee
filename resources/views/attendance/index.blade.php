@@ -125,39 +125,58 @@
 
         <div class="card overflow-hidden">
             <div class="card-header">
-                <h5 class="card-header-title">Riwayat 14 hari</h5>
+                <div>
+                    <h5 class="card-header-title">Kalender absensi</h5>
+                    <p class="card-header-subtitle">{{ $calendar['label'] }} · jam WIB</p>
+                </div>
             </div>
+            <style>
+                .recap-grid th, .recap-grid td { padding: 0.45rem 0.25rem; text-align: center; vertical-align: middle; }
+                .list-table.recap-grid tbody tr td.recap-ok { background: #e7f6ec; }
+                .list-table.recap-grid tbody tr td.recap-late { background: #fff1e0; }
+                .list-table.recap-grid tbody tr td.recap-off { background: #fff3bf; }
+                .list-table.recap-grid tbody tr td.recap-miss { background: #f8b4b4; }
+                .recap-time { display: block; font-size: 11px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+                .recap-flag { display: block; font-size: 10px; font-weight: 700; color: #c2410c; }
+                .recap-dow { display: block; font-size: 10px; font-weight: 500; }
+                .recap-weekend { color: #e8192c; }
+            </style>
             <div class="table-wrap">
-                <table class="list-table">
+                <table class="list-table recap-grid">
                     <thead>
                         <tr>
-                            <th>Tanggal</th>
-                            <th>Masuk</th>
-                            <th>Pulang</th>
-                            <th>Status</th>
-                            <th>Alasan</th>
-                            <th>Jarak</th>
+                            @foreach (['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'] as $name)
+                                <th class="{{ in_array($name, ['Min', 'Sab'], true) ? 'recap-weekend' : '' }}">{{ $name }}</th>
+                            @endforeach
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($history as $row)
+                        @foreach ($calendar['weeks'] as $week)
                             <tr>
-                                <td>{{ $row->work_date?->format('d/m/Y') }}</td>
-                                <td>{{ $row->clock_in_at?->format('H:i') ?? '—' }}</td>
-                                <td>{{ $row->clock_out_at?->format('H:i') ?? '—' }}</td>
-                                <td>
-                                    @if ($row->is_late)
-                                        <span class="text-amber-600">Telat</span>
-                                    @else
-                                        <span class="text-emerald-600">Tepat waktu</span>
-                                    @endif
-                                </td>
-                                <td class="max-w-[200px] truncate text-[13px] text-muted">{{ $row->late_reason ?: '—' }}</td>
-                                <td>{{ $row->clock_in_distance_m !== null ? $row->clock_in_distance_m.' m' : '—' }}</td>
+                                @foreach ($week as $day)
+                                    @php
+                                        $class = '';
+                                        if ($day) {
+                                            $class = $day['cell']
+                                                ? ($day['cell']['late'] ? 'recap-late' : 'recap-ok')
+                                                : ($day['off'] ? 'recap-off' : ($day['miss'] ? 'recap-miss' : ''));
+                                        }
+                                    @endphp
+                                    <td class="{{ $class }}" @if ($day['cell']['reason'] ?? null) title="{{ $day['cell']['reason'] }}" @endif>
+                                        @if ($day)
+                                            <span class="recap-dow {{ $day['weekend'] ? 'recap-weekend' : '' }}">{{ $day['day'] }}</span>
+                                            @if ($day['cell'])
+                                                <span class="recap-time">{{ $day['cell']['in'] }}</span>
+                                                <span class="recap-time">{{ $day['cell']['out'] ?: '—' }}</span>
+                                                @if ($day['cell']['late'])<span class="recap-flag">Telat</span>@endif
+                                            @elseif ($day['off'])
+                                                <span class="recap-time">L</span>
+                                            @endif
+                                        @endif
+                                    </td>
+                                @endforeach
                             </tr>
-                        @empty
-                            <tr><td colspan="6" class="py-10 text-center text-sm text-slate-400">Belum ada riwayat.</td></tr>
-                        @endforelse
+                        @endforeach
                     </tbody>
                 </table>
             </div>
