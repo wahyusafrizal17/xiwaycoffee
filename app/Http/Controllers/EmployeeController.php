@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\PayrollDay;
 use App\Models\WorkShift;
+use chillerlan\QRCode\QRCode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -110,6 +111,8 @@ class EmployeeController extends Controller
                 'month' => $month,
                 'label' => Carbon::createFromFormat('Y-m', $month)->locale('id')->translatedFormat('F Y'),
                 'worked' => $row['worked'] ?? 0,
+                'late_penalty' => $row['late_penalty'] ?? 0,
+                'report_penalty' => $row['report_penalty'] ?? 0,
                 'net' => $row['net'] ?? 0,
             ];
         });
@@ -117,6 +120,46 @@ class EmployeeController extends Controller
         return view('employees.slips', [
             'rows' => $rows,
         ]);
+    }
+
+    public function contract(Request $request): View
+    {
+        $employee = $this->ownEmployee($request);
+
+        return view('employees.contract', [
+            'employee' => $employee,
+            'qr' => $employee->contract_signed_at
+                ? (new QRCode)->render(route('employees.contract.verify', [$employee, $employee->contractSignature()]))
+                : null,
+        ]);
+    }
+
+    public function signContract(Request $request): RedirectResponse
+    {
+        $employee = $this->ownEmployee($request);
+        if (! $employee->contract_signed_at) {
+            $employee->update(['contract_signed_at' => now()]);
+        }
+
+        return back();
+    }
+
+    public function verifyContract(Employee $employee, string $signature): View
+    {
+        abort_unless($employee->contract_signed_at && hash_equals((string) $employee->contractSignature(), $signature), 404);
+        $employee->loadMissing('user');
+
+        return view('employees.contract-verify', [
+            'employee' => $employee,
+        ]);
+    }
+
+    protected function ownEmployee(Request $request): Employee
+    {
+        $employee = $request->user()->employee;
+        abort_unless($employee && $request->user()->hasPermission('attendance.clock') && ! $request->user()->hasPermission('attendance.manage'), 403);
+
+        return $employee->loadMissing('user', 'outlet');
     }
 
     public function slip(Request $request, Employee $employee): View
@@ -180,6 +223,8 @@ class EmployeeController extends Controller
             $attended = $days->count();
             $worked = $overrides->has($employee->id) ? (int) $overrides[$employee->id] : $attended;
             $pay = $employee->pay($worked);
+            $latePenalty = $employee->latePenalty($days, $mine);
+            $reportPenalty = $employee->reportPenalty($mine);
             $shiftsByDay = $mine->keyBy(fn ($shift) => $shift->work_date->day);
             $cells = $days->keyBy(fn ($attendance) => $attendance->work_date->day)->map(function ($attendance) use ($shiftsByDay) {
                 $shift = $shiftsByDay->get($attendance->work_date->day);
@@ -208,8 +253,10 @@ class EmployeeController extends Controller
                 'lines' => $pay['lines'],
                 'bonus' => $pay['bonus'],
                 'deduction' => $pay['deduction'],
+                'late_penalty' => $latePenalty,
+                'report_penalty' => $reportPenalty,
                 'earnings' => $pay['earnings'],
-                'net' => $pay['received'],
+                'net' => $pay['received'] - $latePenalty - $reportPenalty,
             ];
         });
 

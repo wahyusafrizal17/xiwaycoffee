@@ -121,9 +121,17 @@
                 <td>- Potongan</td>
                 <td class="num"><span>{{ $money($row['deduction']) }}</span></td>
             </tr>
+            <tr>
+                <td>- Potongan telat</td>
+                <td class="num"><span>{{ $money($row['late_penalty']) }}</span></td>
+            </tr>
+            <tr>
+                <td>- Denda report</td>
+                <td class="num"><span>{{ $money($row['report_penalty']) }}</span></td>
+            </tr>
             <tr class="total">
                 <td>Total Potongan</td>
-                <td class="num"><span>{{ $money($row['deduction']) }}</span></td>
+                <td class="num"><span>{{ $money($row['deduction'] + $row['late_penalty'] + $row['report_penalty']) }}</span></td>
             </tr>
             <tr class="grand">
                 <td>TOTAL DITERIMA KARYAWAN</td>

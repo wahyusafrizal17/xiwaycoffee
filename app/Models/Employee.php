@@ -7,8 +7,9 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
-#[Fillable(['user_id', 'outlet_id', 'position', 'primary_position', 'salary', 'base_salary', 'job_allowance', 'transport_allowance', 'cleanliness_allowance', 'sales_bonus', 'deduction', 'is_active'])]
+#[Fillable(['user_id', 'outlet_id', 'position', 'primary_position', 'salary', 'base_salary', 'job_allowance', 'transport_allowance', 'cleanliness_allowance', 'sales_bonus', 'deduction', 'is_active', 'contract_signed_at'])]
 class Employee extends Model
 {
     use AppliesFillableAttribute;
@@ -24,15 +25,27 @@ class Employee extends Model
             'sales_bonus' => 'decimal:2',
             'deduction' => 'decimal:2',
             'is_active' => 'boolean',
+            'contract_signed_at' => 'datetime',
         ];
     }
 
+    public function contractSignature(): ?string
+    {
+        if (! $this->contract_signed_at) {
+            return null;
+        }
+
+        return substr(hash_hmac(
+            'sha256',
+            $this->id.'|'.$this->contract_signed_at->getTimestamp(),
+            (string) config('app.key'),
+        ), 0, 20);
+    }
+
     /**
-     * Prorata applies to pokok and tunjangan. Bonus and potongan stay as entered.
-     *
-     * @return array{lines: array<string, int>, bonus: int, monthly: int, earnings: int, deduction: int, received: int}
+     * @return array<string, int>
      */
-    public function pay(int $worked): array
+    public function payParts(): array
     {
         $parts = [
             'Gaji Pokok' => (int) round((float) $this->base_salary),
@@ -44,6 +57,94 @@ class Employee extends Model
             $parts['Gaji Pokok'] = (int) round((float) $this->salary);
         }
 
+        return $parts;
+    }
+
+    /**
+     * Seconds past the tolerated arrival. Zero before 15 Oct 2026, on OFF, or within 10 minutes after the required time (30 minutes before the shift).
+     */
+    public function latePenalty(iterable $attendances, iterable $shifts): int
+    {
+        $monthly = array_sum($this->payParts());
+        if ($monthly <= 0) {
+            return 0;
+        }
+
+        $byDate = [];
+        foreach ($shifts as $shift) {
+            $byDate[$shift->work_date->toDateString()] = $shift;
+        }
+
+        $fraction = 0.0;
+        foreach ($attendances as $attendance) {
+            if (! $attendance->clock_in_at || $attendance->work_date->toDateString() < '2026-10-15') {
+                continue;
+            }
+            $shift = $byDate[$attendance->work_date->toDateString()] ?? null;
+            if (! $shift?->starts_at || ! $shift->ends_at) {
+                continue;
+            }
+
+            $start = Carbon::parse($attendance->work_date->toDateString().' '.$shift->starts_at, 'Asia/Jakarta');
+            $end = Carbon::parse($attendance->work_date->toDateString().' '.$shift->ends_at, 'Asia/Jakarta');
+            if ($end->lessThanOrEqualTo($start)) {
+                $end->addDay();
+            }
+            $shiftSeconds = $end->getTimestamp() - $start->getTimestamp();
+            if ($shiftSeconds <= 0) {
+                continue;
+            }
+
+            $cutoff = $start->copy()->subMinutes(20);
+            $late = $attendance->clock_in_at->copy()->timezone('Asia/Jakarta')->getTimestamp() - $cutoff->getTimestamp();
+            if ($late <= 0) {
+                continue;
+            }
+
+            $fraction += min(1, $late / $shiftSeconds);
+        }
+
+        return (int) round($monthly / 26 * $fraction);
+    }
+
+    public function reportPenalty(iterable $shifts): int
+    {
+        $shifts = collect($shifts)->filter(fn (WorkShift $shift) => $shift->starts_at && $shift->work_date->toDateString() >= '2026-10-15');
+        if ($shifts->isEmpty()) {
+            return 0;
+        }
+
+        $now = now('Asia/Jakarta');
+        $reports = CleaningReport::query()
+            ->where('employee_id', $this->id)
+            ->whereDate('work_date', '>=', $shifts->min(fn (WorkShift $shift) => $shift->work_date->toDateString()))
+            ->whereDate('work_date', '<=', $shifts->max(fn (WorkShift $shift) => $shift->work_date->toDateString()))
+            ->get();
+        $missed = 0;
+        foreach ($shifts as $shift) {
+            $date = $shift->work_date->toDateString();
+            foreach (CleaningReport::plans($this, $shift, $date, CleaningReport::slots($shift, $date)) as $plan) {
+                if (Carbon::parse($date.' '.$plan['slot'], 'Asia/Jakarta')->greaterThan($now)) {
+                    continue;
+                }
+                foreach ($plan['areas'] as $key => $area) {
+                    $row = $reports->first(fn (CleaningReport $report) => $report->work_date->toDateString() === $date && $report->slot === $plan['slot'] && $report->area === $key);
+                    $missed += $row ? (int) $row->unchecked : count($area['items']);
+                }
+            }
+        }
+
+        return $missed * 100;
+    }
+
+    /**
+     * Prorata applies to pokok and tunjangan. Bonus and potongan stay as entered.
+     *
+     * @return array{lines: array<string, int>, bonus: int, monthly: int, earnings: int, deduction: int, received: int}
+     */
+    public function pay(int $worked): array
+    {
+        $parts = $this->payParts();
         $monthly = array_sum($parts);
         $lines = [];
         foreach ($parts as $label => $amount) {

@@ -331,6 +331,78 @@ class ProfitShareTest extends TestCase
             ->assertSee(money(0));
     }
 
+    public function test_setoran_inside_the_period_reduces_the_remainder(): void
+    {
+        $food = Product::query()->create([
+            'sku' => 'PRD-FOOD-WIDER',
+            'name' => 'Nasi Wider',
+            'category_id' => $this->foodCategory->id,
+            'unit_id' => $this->unitPcs->id,
+            'type' => ProductType::Finished,
+            'price' => 20000,
+            'consignment_commission' => 2000,
+            'is_sellable' => true,
+            'is_stockable' => false,
+            'is_active' => true,
+            'station' => PrinterStation::Kitchen->value,
+        ]);
+
+        $this->actingAsAtOutlet($this->cashier);
+        $orders = app(OrderService::class);
+        foreach (['2026-10-01', '2026-10-02'] as $date) {
+            $order = $orders->createDraft([
+                'outlet_id' => $this->outlet->id,
+                'order_type' => OrderType::Pickup->value,
+            ]);
+            $orders->addItem($order, ['product_id' => $food->id, 'quantity' => 1]);
+            $order = $orders->checkout($order->fresh(), [
+                'method' => PaymentMethod::Cash->value,
+                'tendered' => 100000,
+            ]);
+            $order->forceFill(['created_at' => $date.' 12:00:00'])->save();
+        }
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('reports.setoran.store'), [
+                'from' => '2026-10-01',
+                'to' => '2026-10-01',
+                'settled_on' => '2026-10-01',
+                'amount' => 10000,
+                'notes' => 'Cicilan awal',
+            ])
+            ->assertRedirect();
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('reports.setoran', ['from' => '2026-10-01', 'to' => '2026-10-02']))
+            ->assertOk()
+            ->assertSee('Dicicil '.money(10000), false)
+            ->assertSee('sisa '.money(26000), false)
+            ->assertSee(money(26000));
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('reports.setoran.store'), [
+                'from' => '2026-10-01',
+                'to' => '2026-10-02',
+                'settled_on' => '2026-10-02',
+                'amount' => 36000,
+            ])
+            ->assertSessionHasErrors('amount');
+
+        $this->actingAsAtOutlet($this->admin)
+            ->post(route('reports.setoran.store'), [
+                'from' => '2026-10-01',
+                'to' => '2026-10-02',
+                'settled_on' => '2026-10-02',
+                'amount' => 26000,
+            ])
+            ->assertRedirect();
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('reports.setoran', ['from' => '2026-10-01', 'to' => '2026-10-02']))
+            ->assertOk()
+            ->assertSee(money(0));
+    }
+
     public function test_period_remainder_ignores_older_settlements(): void
     {
         $food = Product::query()->create([

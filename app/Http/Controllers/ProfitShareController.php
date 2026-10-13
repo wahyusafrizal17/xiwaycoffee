@@ -185,7 +185,7 @@ class ProfitShareController extends Controller
         $outletId = $filters['outlet_id'] ? (int) $filters['outlet_id'] : null;
         $balance = $this->reports->foodSetoranBalance($outletId);
         $periodPaid = $outletId
-            ? $this->reports->foodSetoranPeriodPaid($outletId, $filters['from'], $filters['to'])
+            ? $this->reports->foodSetoranPaidWithin($outletId, $filters['from'], $filters['to'])
             : 0.0;
         $periodRemaining = round(max(0, $food['setoran'] - $periodPaid), 2);
 

@@ -13,6 +13,8 @@
                     <tr>
                         <th>Bulan</th>
                         <th>Hari masuk</th>
+                        <th>Potongan telat</th>
+                        <th>Denda report</th>
                         <th>Diterima</th>
                         <th></th>
                     </tr>
@@ -22,6 +24,8 @@
                         <tr>
                             <td class="font-medium text-heading">{{ $row['label'] }}</td>
                             <td>{{ $row['worked'] }} hari</td>
+                            <td class="tabular-nums">{{ money($row['late_penalty']) }}</td>
+                            <td class="tabular-nums">{{ money($row['report_penalty']) }}</td>
                             <td class="tabular-nums font-medium text-heading">{{ money($row['net']) }}</td>
                             <td class="text-right">
                                 <a class="text-[13px] font-medium text-brand" href="{{ route('employees.mine', ['month' => $row['month']]) }}">Lihat</a>
@@ -29,7 +33,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="py-16 text-center text-sm text-slate-400">Belum ada slip.</td>
+                            <td colspan="6" class="py-16 text-center text-sm text-slate-400">Belum ada slip.</td>
                         </tr>
                     @endforelse
                 </tbody>

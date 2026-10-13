@@ -10,6 +10,7 @@ use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\BatchController;
 use App\Http\Controllers\BomController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CleaningReportController;
 use App\Http\Controllers\CheckerController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
@@ -53,6 +54,10 @@ Route::get('/pos/{order}/invoice.pdf', [PosController::class, 'invoicePdf'])
     ->middleware('signed')
     ->name('pos.invoice.pdf');
 
+Route::get('/kontrak/cek/{employee}/{signature}', [EmployeeController::class, 'verifyContract'])
+    ->where('signature', '[a-f0-9]{20}')
+    ->name('employees.contract.verify');
+
 Route::redirect('/login', '/management/login');
 Route::redirect('/forgot-password', '/management/forgot-password');
 
@@ -83,6 +88,10 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
     Route::put('/karyawan/gaji/{employee}', [EmployeeController::class, 'updateDays'])->name('employees.payroll.update');
     Route::get('/karyawan/gaji/{employee}', [EmployeeController::class, 'slip'])->name('employees.slip');
     Route::get('/slip-gaji', [EmployeeController::class, 'mine'])->name('employees.mine');
+    Route::get('/kontrak', [EmployeeController::class, 'contract'])->name('employees.contract');
+    Route::post('/kontrak', [EmployeeController::class, 'signContract'])->name('employees.contract.sign');
+    Route::get('/report-harian', [CleaningReportController::class, 'index'])->name('cleaning.index');
+    Route::post('/report-harian', [CleaningReportController::class, 'store'])->name('cleaning.store');
     Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn'])->name('attendance.clock-in');
     Route::post('/attendance/clock-out', [AttendanceController::class, 'clockOut'])->name('attendance.clock-out');
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Attendance;
+use App\Models\CleaningReport;
 use App\Models\Employee;
 use App\Models\Outlet;
 use App\Models\Role;
@@ -260,13 +261,13 @@ class AttendanceTest extends TestCase
             ->assertSee('Naurah')
             ->assertSee('Jimmy')
             ->assertSee('OFF')
-            ->assertSee('09.00-22.00*');
+            ->assertSee('14.00-22.00');
 
         $this->assertSame(128, WorkShift::query()->count());
 
         $zakiId = User::query()->where('email', 'zakki@xiway.local')->first()->employee->id;
         $shift = WorkShift::query()->where('employee_id', $zakiId)->whereDate('work_date', '2026-09-30')->first();
-        $this->assertSame('09:00', $shift->starts_at);
+        $this->assertSame('14:00', $shift->starts_at);
         $this->assertSame('22:00', $shift->ends_at);
 
         $rere = WorkShift::query()->where('employee_id', $ergina->employee->id)->whereDate('work_date', '2026-09-30')->first();
@@ -275,6 +276,44 @@ class AttendanceTest extends TestCase
 
         $off = WorkShift::query()->where('employee_id', $ergina->employee->id)->whereDate('work_date', '2026-10-01')->first();
         $this->assertNull($off->starts_at);
+
+        $offs = ['Ergina' => 0, 'Naurah' => 0, 'Jimmy' => 0, 'Zakki' => 0];
+        $zakkiShifts = ['09:00' => 0, '14:00' => 0];
+        for ($day = Carbon::parse('2026-10-01'); $day->lte(Carbon::parse('2026-10-31')); $day->addDay()) {
+            $shifts = WorkShift::query()->with('employee.user')->whereDate('work_date', $day->toDateString())->get();
+            $this->assertLessThanOrEqual(1, $shifts->whereNull('starts_at')->count(), $day->toDateString());
+            $working = $shifts->filter(fn (WorkShift $shift) => $shift->starts_at);
+            if ($working->count() === 4) {
+                $this->assertSame(2, $working->where('starts_at', '09:00')->where('ends_at', '17:00')->count(), $day->toDateString());
+                $this->assertSame(2, $working->where('starts_at', '14:00')->count(), $day->toDateString());
+            }
+            $zakki = $shifts->first(fn (WorkShift $shift) => $shift->employee->user->name === 'Zakki');
+            $naurah = $shifts->first(fn (WorkShift $shift) => $shift->employee->user->name === 'Naurah');
+            $this->assertFalse($zakki->starts_at === null && $naurah->starts_at === null, $day->toDateString());
+            if ($zakki->starts_at && $naurah->starts_at) {
+                $this->assertFalse($zakki->starts_at === $naurah->starts_at && $zakki->ends_at === $naurah->ends_at, $day->toDateString());
+            }
+            if ($day->gte(Carbon::parse('2026-10-15'))) {
+                if ($day->isFriday() || $day->isSaturday() || $day->isSunday()) {
+                    $this->assertTrue($shifts->every(fn (WorkShift $shift) => $shift->starts_at !== null), $day->toDateString());
+                }
+                $this->assertGreaterThan(0, $shifts->where('starts_at', '09:00')->count(), $day->toDateString());
+                if ($zakki->starts_at === '09:00' && $zakki->ends_at === '17:00') {
+                    $zakkiShifts['09:00']++;
+                } elseif ($zakki->starts_at === '14:00') {
+                    $zakkiShifts['14:00']++;
+                } else {
+                    $this->assertNull($zakki->starts_at, $day->toDateString());
+                }
+            }
+            foreach ($shifts as $shift) {
+                if (! $shift->starts_at && isset($offs[$shift->employee->user->name])) {
+                    $offs[$shift->employee->user->name]++;
+                }
+            }
+        }
+        $this->assertSame(['Ergina' => 4, 'Naurah' => 4, 'Jimmy' => 4, 'Zakki' => 4], $offs);
+        $this->assertSame(['09:00' => 7, '14:00' => 6], $zakkiShifts);
     }
 
     public function test_payroll_slip_prorates_present_days_over_twenty_six(): void
@@ -372,6 +411,369 @@ class AttendanceTest extends TestCase
             ->assertSee('Management Karyawan', false)
             ->assertSee('Zakki', false)
             ->assertDontSee('Slip Gaji', false);
+    }
+
+    public function test_late_after_fourteen_october_cuts_salary_per_second(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-14 01:00:00'));
+        $this->employee->update(['salary' => 1_700_000, 'position' => 'Kasir']);
+
+        foreach (['2026-10-13', '2026-10-14', '2026-10-15'] as $date) {
+            WorkShift::query()->create([
+                'employee_id' => $this->employee->id,
+                'work_date' => $date,
+                'starts_at' => '09:00',
+                'ends_at' => '17:00',
+            ]);
+        }
+
+        Attendance::query()->create([
+            'employee_id' => $this->employee->id,
+            'outlet_id' => $this->outlet->id,
+            'work_date' => '2026-10-13',
+            'clock_in_at' => '2026-10-13 01:45:00',
+        ]);
+        Attendance::query()->create([
+            'employee_id' => $this->employee->id,
+            'outlet_id' => $this->outlet->id,
+            'work_date' => '2026-10-14',
+            'clock_in_at' => '2026-10-14 01:45:00',
+        ]);
+        Attendance::query()->create([
+            'employee_id' => $this->employee->id,
+            'outlet_id' => $this->outlet->id,
+            'work_date' => '2026-10-15',
+            'clock_in_at' => '2026-10-15 01:45:00',
+        ]);
+
+        $admin = User::query()->create([
+            'name' => 'Admin Telat',
+            'email' => 'admin-telat@test.local',
+            'password' => Hash::make('password'),
+            'is_active' => true,
+        ]);
+        $admin->roles()->sync([Role::query()->where('name', 'admin')->firstOrFail()->id]);
+        $admin->outlets()->sync([$this->outlet->id => ['is_default' => true]]);
+
+        $this->actingAs($admin)
+            ->get(route('employees.payroll', ['month' => '2026-10']))
+            ->assertOk()
+            ->assertSee('Potongan telat')
+            ->assertSee('Rp 681', false);
+
+        $this->actingAs($admin)
+            ->get(route('employees.slip', [$this->employee, 'month' => '2026-10']))
+            ->assertOk()
+            ->assertSee('Potongan telat', false)
+            ->assertSee('195,473', false);
+
+        $this->actingAs($this->user)
+            ->get(route('employees.mine'))
+            ->assertOk()
+            ->assertSee('Potongan telat')
+            ->assertSee('Rp 681', false);
+
+        $this->actingAs($this->user)
+            ->get(route('employees.mine', ['month' => '2026-10']))
+            ->assertOk()
+            ->assertSee('Potongan telat', false)
+            ->assertSee('681', false);
+    }
+
+    public function test_employee_signs_contract_with_a_qr_code(): void
+    {
+        $this->actingAs($this->user)
+            ->get(route('employees.contract'))
+            ->assertOk()
+            ->assertSee('SURAT PERJANJIAN KERJA', false)
+            ->assertSee('Zakki', false)
+            ->assertSee('Tanda tangan', false);
+
+        $this->actingAs($this->user)
+            ->post(route('employees.contract.sign'))
+            ->assertRedirect();
+
+        $this->employee->refresh();
+        $url = route('employees.contract.verify', [$this->employee, $this->employee->contractSignature()]);
+
+        $this->actingAs($this->user)
+            ->get(route('employees.contract'))
+            ->assertOk()
+            ->assertSee('data:image/svg+xml', false)
+            ->assertDontSee('>Tanda tangan<', false);
+
+        $this->get($url)
+            ->assertOk()
+            ->assertSee('Tanda tangan sah', false)
+            ->assertSee('Zakki', false);
+
+        $this->get(route('employees.contract.verify', [$this->employee, '00000000000000000000']))
+            ->assertNotFound();
+    }
+
+    public function test_cleaning_report_is_one_photo_per_area_every_two_hours(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-14 01:30:00'));
+        WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-14',
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
+        ]);
+
+        $html = $this->actingAs($this->user)
+            ->get(route('cleaning.index'))
+            ->assertOk()
+            ->assertSee('Report Harian')
+            ->assertSee('08:30')
+            ->assertSee('name="tasks[lantai2][]"', false)
+            ->assertSee('name="photo[meeting]"', false)
+            ->getContent();
+        preg_match_all('/Cek: ([^·<]+)/', $html, $checks);
+        $this->assertNotSame(trim($checks[1][0]), trim($checks[1][1]));
+        $this->assertNotSame(trim($checks[1][1]), trim($checks[1][2]));
+
+        $tasks = [];
+        $photos = [];
+        foreach (config('cleaning.areas') as $key => $area) {
+            $tasks[$key] = array_keys($area['items']);
+            $photos[$key] = UploadedFile::fake()->image($key.'.jpg');
+        }
+
+        $this->actingAs($this->user)
+            ->post(route('cleaning.store'), [
+                'slot' => '99:99',
+                'tasks' => $tasks,
+                'photo' => $photos,
+            ])
+            ->assertSessionHasErrors('slot');
+
+        $this->actingAs($this->user)
+            ->post(route('cleaning.store'), [
+                'slot' => '08:30',
+                'tasks' => $tasks,
+                'photo' => $photos,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertSame(2, CleaningReport::query()->where('slot', '08:30')->count());
+
+        $this->actingAs($this->user)
+            ->get(route('cleaning.index'))
+            ->assertOk()
+            ->assertSee('Sudah dikirim');
+
+        CleaningReport::query()->get()->each(function (CleaningReport $report) {
+            $file = public_path($report->photo);
+            if (is_file($file)) {
+                unlink($file);
+            }
+        });
+    }
+
+    public function test_one_unchecked_cleaning_task_cuts_five_thousand(): void
+    {
+        $ignored = WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-14',
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
+        ]);
+        $this->travelTo(Carbon::parse('2026-10-15 01:00:00'));
+        $this->assertSame(0, $this->employee->reportPenalty([$ignored]));
+
+        $shift = WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-15',
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
+        ]);
+
+        $this->assertSame(0, $this->employee->reportPenalty([$shift]));
+
+        $this->travelTo(Carbon::parse('2026-10-15 01:30:00'));
+        $areas = CleaningReport::plans($this->employee, $shift, '2026-10-15', CleaningReport::slots($shift, '2026-10-15'))[0]['areas'];
+        $tasks = [];
+        $photos = [];
+        foreach ($areas as $key => $area) {
+            $tasks[$key] = array_keys($area['items']);
+            $photos[$key] = UploadedFile::fake()->image($key.'.jpg');
+        }
+        array_pop($tasks[array_key_first($tasks)]);
+
+        $this->actingAs($this->user)
+            ->post(route('cleaning.store'), [
+                'slot' => '08:30',
+                'tasks' => $tasks,
+                'photo' => $photos,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertSame(1, (int) CleaningReport::query()->sum('unchecked'));
+        $this->assertSame(100, $this->employee->reportPenalty([$ignored, $shift]));
+
+        $admin = User::query()->create([
+            'name' => 'Admin Denda',
+            'email' => 'admin-denda@test.local',
+            'password' => Hash::make('password'),
+            'is_active' => true,
+        ]);
+        $admin->roles()->sync([Role::query()->where('name', 'admin')->firstOrFail()->id]);
+        $admin->outlets()->sync([$this->outlet->id => ['is_default' => true]]);
+
+        $this->actingAs($admin)
+            ->get(route('employees.payroll', ['month' => '2026-10']))
+            ->assertOk()
+            ->assertSee('Denda report')
+            ->assertSee('Rp 100', false);
+
+        $this->actingAs($this->user)
+            ->get(route('employees.mine', ['month' => '2026-10']))
+            ->assertOk()
+            ->assertSee('Denda report', false)
+            ->assertSee('>100<', false);
+
+        CleaningReport::query()->get()->each(function (CleaningReport $report) {
+            $file = public_path($report->photo);
+            if (is_file($file)) {
+                unlink($file);
+            }
+        });
+    }
+
+    public function test_afternoon_shift_cleaning_report_starts_at_1330(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-14 06:30:00'));
+        WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-14',
+            'starts_at' => '14:00',
+            'ends_at' => '22:00',
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('cleaning.index'))
+            ->assertOk()
+            ->assertSee('13:30')
+            ->assertSee('name="tasks[lantai1][]"', false)
+            ->assertSee('15:30')
+            ->assertSee('Kirim report 15:30');
+    }
+
+    public function test_cleaning_areas_rotate_between_people_on_the_same_shift(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-14 01:30:00'));
+        $role = Role::query()->where('name', 'karyawan')->firstOrFail();
+        $partnerUser = User::query()->create([
+            'name' => 'Ergina',
+            'email' => 'ergina@test.local',
+            'password' => Hash::make('password'),
+            'is_active' => true,
+        ]);
+        $partnerUser->roles()->sync([$role->id]);
+        $partner = Employee::query()->create([
+            'user_id' => $partnerUser->id,
+            'outlet_id' => $this->outlet->id,
+            'position' => 'Barista',
+            'salary' => 1_700_000,
+            'is_active' => true,
+        ]);
+        foreach ([$this->employee->id, $partner->id] as $employeeId) {
+            WorkShift::query()->create([
+                'employee_id' => $employeeId,
+                'work_date' => '2026-10-14',
+                'starts_at' => '09:00',
+                'ends_at' => '17:00',
+            ]);
+            WorkShift::query()->create([
+                'employee_id' => $employeeId,
+                'work_date' => '2026-10-15',
+                'starts_at' => '09:00',
+                'ends_at' => '17:00',
+            ]);
+        }
+
+        $pair = function (User $user, string $slot): string {
+            $html = $this->actingAs($user)->get(route('cleaning.index'))->assertOk()->getContent();
+            preg_match('/'.$slot.'.*?Cek: ([^·<]+)/s', $html, $match);
+
+            return trim($match[1] ?? '');
+        };
+
+        $zakki = $pair($this->user, '08:30');
+        $ergina = $pair($partnerUser, '08:30');
+        $this->assertNotSame('', $zakki);
+        $this->assertNotSame($zakki, $ergina);
+        $this->assertNotSame($zakki, $pair($this->user, '10:30'));
+
+        $tasks = [];
+        $photos = [];
+        foreach (config('cleaning.areas') as $key => $area) {
+            $tasks[$key] = array_keys($area['items']);
+            $photos[$key] = UploadedFile::fake()->image($key.'.jpg');
+        }
+        $this->actingAs($this->user)
+            ->post(route('cleaning.store'), [
+                'slot' => '08:30',
+                'tasks' => $tasks,
+                'photo' => $photos,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+        $this->assertSame(2, CleaningReport::query()->where('employee_id', $this->employee->id)->count());
+
+        $this->travelTo(Carbon::parse('2026-10-15 01:30:00'));
+        $this->assertNotSame($zakki, $pair($this->user, '08:30'));
+
+        CleaningReport::query()->get()->each(function (CleaningReport $report) {
+            $file = public_path($report->photo);
+            if (is_file($file)) {
+                unlink($file);
+            }
+        });
+    }
+
+    public function test_afternoon_shift_gives_each_person_two_areas(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-14 06:30:00'));
+        $role = Role::query()->where('name', 'karyawan')->firstOrFail();
+        $ids = [$this->employee->id];
+        foreach (['Ergina' => 'ergina-siang@test.local', 'Jimmy' => 'jimmy-siang@test.local'] as $name => $email) {
+            $user = User::query()->create([
+                'name' => $name,
+                'email' => $email,
+                'password' => Hash::make('password'),
+                'is_active' => true,
+            ]);
+            $user->roles()->sync([$role->id]);
+            $ids[] = Employee::query()->create([
+                'user_id' => $user->id,
+                'outlet_id' => $this->outlet->id,
+                'position' => 'Café Crew',
+                'salary' => 1_700_000,
+                'is_active' => true,
+            ])->id;
+        }
+        foreach ($ids as $employeeId) {
+            WorkShift::query()->create([
+                'employee_id' => $employeeId,
+                'work_date' => '2026-10-14',
+                'starts_at' => '14:00',
+                'ends_at' => '22:00',
+            ]);
+        }
+
+        $html = $this->actingAs($this->user)->get(route('cleaning.index'))->assertOk()->assertSee('name="tasks[meeting][]"', false)->getContent();
+        preg_match('/13:30.*?15:30/s', $html, $at1330);
+        preg_match('/15:30.*?17:30/s', $html, $at1530);
+        preg_match('/17:30.*?19:30/s', $html, $at1730);
+        $this->assertStringContainsString('Ergina: Lantai 1, Ruang Meeting', $at1330[0]);
+        $this->assertStringContainsString('Ergina: Halaman Luar, Lantai 2', $at1530[0]);
+        $this->assertStringContainsString('Ergina: Lantai 1, Lantai 2', $at1730[0]);
+        preg_match_all('/: ([^·<]+)/', $at1330[0], $assigned);
+        $this->assertCount(3, array_unique(array_map('trim', $assigned[1])));
     }
 
     public function test_slip_splits_components_and_keeps_bonus_off_prorata(): void

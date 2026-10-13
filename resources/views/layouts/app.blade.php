@@ -38,7 +38,9 @@
                             ['label' => 'Orders', 'route' => 'orders.index', 'perm' => 'orders.view', 'icon' => 'orders'],
                             ['label' => 'Absensi', 'route' => 'attendance.index', 'perm' => 'attendance.clock', 'unless' => 'attendance.manage', 'icon' => 'clipboard'],
                             ['label' => 'Jadwal', 'route' => 'schedules.index', 'perm' => 'attendance.clock', 'unless' => 'attendance.manage', 'icon' => 'clipboard'],
+                            ['label' => 'Report Harian', 'route' => 'cleaning.index', 'perm' => 'attendance.clock', 'unless' => 'attendance.manage', 'employee' => true, 'icon' => 'clipboard'],
                             ['label' => 'Slip Gaji', 'route' => 'employees.mine', 'perm' => 'attendance.clock', 'unless' => 'attendance.manage', 'employee' => true, 'icon' => 'clipboard'],
+                            ['label' => 'Kontrak', 'route' => 'employees.contract', 'perm' => 'attendance.clock', 'unless' => 'attendance.manage', 'employee' => true, 'icon' => 'clipboard'],
                             ['label' => 'Management Karyawan', 'route' => 'employees.index', 'perm' => 'attendance.manage', 'icon' => 'user', 'children' => [
                                 ['label' => 'Rekap Absensi', 'route' => 'employees.recap', 'icon' => 'clipboard'],
                                 ['label' => 'Jadwal', 'route' => 'schedules.index', 'icon' => 'clipboard'],
@@ -225,14 +227,16 @@
         </div>
     </div>
 
-    <nav class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-white px-2 py-2 lg:hidden">
+    <nav class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-white px-2 py-2 lg:hidden" @if (auth()->user()?->hasPermission('attendance.clock') && ! auth()->user()?->hasPermission('dashboard.view')) style="grid-template-columns: repeat(6, minmax(0, 1fr))" @endif>
         @if (auth()->user()?->hasPermission('dashboard.view'))
             <a href="{{ route('dashboard') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('dashboard') ? 'text-brand' : 'text-muted' }}">Home</a>
         @elseif (auth()->user()?->hasPermission('attendance.clock'))
             <a href="{{ route('attendance.index') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('attendance.index') ? 'text-brand' : 'text-muted' }}">Absen</a>
             <a href="{{ route('schedules.index') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('schedules.*') ? 'text-brand' : 'text-muted' }}">Jadwal</a>
             @if (auth()->user()->employee)
+                <a href="{{ route('cleaning.index') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('cleaning.*') ? 'text-brand' : 'text-muted' }}">Harian</a>
                 <a href="{{ route('employees.mine') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('employees.mine') ? 'text-brand' : 'text-muted' }}">Slip</a>
+                <a href="{{ route('employees.contract') }}" class="flex flex-col items-center gap-1 text-[11px] {{ request()->routeIs('employees.contract') ? 'text-brand' : 'text-muted' }}">Kontrak</a>
             @endif
         @endif
         @if (auth()->user()?->can('pos.access'))

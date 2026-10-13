@@ -434,15 +434,6 @@ class ReportService
         ];
     }
 
-    public function foodSetoranPeriodPaid(int $outletId, string $from, string $to): float
-    {
-        return round((float) FoodSettlement::query()
-            ->where('outlet_id', $outletId)
-            ->whereDate('period_from', $from)
-            ->whereDate('period_to', $to)
-            ->sum('amount'), 2);
-    }
-
     public function foodSetoranPaidWithin(int $outletId, string $from, string $to): float
     {
         return round((float) FoodSettlement::query()
@@ -471,8 +462,8 @@ class ReportService
             ->whereDate('period_from', '<=', $to)
             ->whereDate('period_to', '>=', $from)
             ->where(function ($query) use ($from, $to) {
-                $query->whereDate('period_from', '!=', $from)
-                    ->orWhereDate('period_to', '!=', $to);
+                $query->whereDate('period_from', '<', $from)
+                    ->orWhereDate('period_to', '>', $to);
             })
             ->exists();
 
@@ -482,7 +473,7 @@ class ReportService
             ]);
         }
 
-        $cap = round($due - $this->foodSetoranPeriodPaid($outletId, $from, $to), 2);
+        $cap = round($due - $this->foodSetoranPaidWithin($outletId, $from, $to), 2);
         if ($cap <= 0) {
             throw ValidationException::withMessages([
                 'from' => 'Tidak ada sisa yang belum disetor.',
