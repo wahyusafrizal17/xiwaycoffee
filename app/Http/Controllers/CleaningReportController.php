@@ -122,6 +122,31 @@ class CleaningReportController extends Controller
         return back()->with('success', 'Report '.$data['slot'].' tercatat.');
     }
 
+    public function review(Request $request): View
+    {
+        abort_unless($request->user()->hasPermission('attendance.manage'), 403);
+
+        $date = (string) $request->query('date', now('Asia/Jakarta')->toDateString());
+        if (! Carbon::hasFormat($date, 'Y-m-d')) {
+            $date = now('Asia/Jakarta')->toDateString();
+        }
+
+        $reports = CleaningReport::query()
+            ->with('employee.user')
+            ->when(current_outlet_id(), fn ($query) => $query->where('outlet_id', current_outlet_id()))
+            ->whereDate('work_date', $date)
+            ->orderBy('employee_id')
+            ->orderBy('slot')
+            ->get()
+            ->groupBy('employee_id');
+
+        return view('cleaning.review', [
+            'reports' => $reports,
+            'date' => $date,
+            'areas' => config('cleaning.areas'),
+        ]);
+    }
+
     protected function employee(Request $request): Employee
     {
         $employee = $request->user()->employee;

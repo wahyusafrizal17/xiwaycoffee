@@ -643,6 +643,40 @@ class AttendanceTest extends TestCase
         });
     }
 
+    public function test_owner_can_review_daily_cleaning_reports(): void
+    {
+        CleaningReport::query()->create([
+            'employee_id' => $this->employee->id,
+            'outlet_id' => $this->outlet->id,
+            'work_date' => '2026-10-15',
+            'slot' => '08:30',
+            'area' => 'lantai1',
+            'photo' => 'evidence/report/sample.jpg',
+            'unchecked' => 1,
+        ]);
+
+        $admin = User::query()->create([
+            'name' => 'Admin Report',
+            'email' => 'admin-report@test.local',
+            'password' => Hash::make('password'),
+            'is_active' => true,
+        ]);
+        $admin->roles()->sync([Role::query()->where('name', 'admin')->firstOrFail()->id]);
+        $admin->outlets()->sync([$this->outlet->id => ['is_default' => true]]);
+
+        $this->actingAs($this->user)
+            ->get(route('cleaning.review'))
+            ->assertForbidden();
+
+        $this->actingAs($admin)
+            ->get(route('cleaning.review', ['date' => '2026-10-15']))
+            ->assertOk()
+            ->assertSee('Report Harian')
+            ->assertSee('Zakki')
+            ->assertSee('evidence/report/sample.jpg', false)
+            ->assertSee('1 tidak dicentang');
+    }
+
     public function test_afternoon_shift_cleaning_report_starts_at_1330(): void
     {
         $this->travelTo(Carbon::parse('2026-10-14 06:30:00'));

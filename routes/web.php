@@ -90,6 +90,7 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
     Route::get('/slip-gaji', [EmployeeController::class, 'mine'])->name('employees.mine');
     Route::get('/kontrak', [EmployeeController::class, 'contract'])->name('employees.contract');
     Route::post('/kontrak', [EmployeeController::class, 'signContract'])->name('employees.contract.sign');
+    Route::get('/karyawan/report', [CleaningReportController::class, 'review'])->name('cleaning.review');
     Route::get('/report-harian', [CleaningReportController::class, 'index'])->name('cleaning.index');
     Route::post('/report-harian', [CleaningReportController::class, 'store'])->name('cleaning.store');
     Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn'])->name('attendance.clock-in');

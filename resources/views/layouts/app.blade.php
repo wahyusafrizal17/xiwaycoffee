@@ -44,6 +44,7 @@
                             ['label' => 'Management Karyawan', 'route' => 'employees.index', 'perm' => 'attendance.manage', 'icon' => 'user', 'children' => [
                                 ['label' => 'Rekap Absensi', 'route' => 'employees.recap', 'icon' => 'clipboard'],
                                 ['label' => 'Jadwal', 'route' => 'schedules.index', 'icon' => 'clipboard'],
+                                ['label' => 'Report Harian', 'route' => 'cleaning.review', 'icon' => 'clipboard'],
                                 ['label' => 'Gaji', 'route' => 'employees.payroll', 'icon' => 'clipboard'],
                                 ['label' => 'Karyawan', 'route' => 'employees.index', 'icon' => 'user'],
                             ]],
