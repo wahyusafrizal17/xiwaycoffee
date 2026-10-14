@@ -684,6 +684,13 @@ class AttendanceTest extends TestCase
 
     public function test_owner_can_review_daily_cleaning_reports(): void
     {
+        $this->travelTo(Carbon::parse('2026-10-15 02:00:00'));
+        WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-15',
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
+        ]);
         CleaningReport::query()->create([
             'employee_id' => $this->employee->id,
             'outlet_id' => $this->outlet->id,
@@ -692,6 +699,16 @@ class AttendanceTest extends TestCase
             'area' => 'lantai1',
             'photo' => 'evidence/report/sample.jpg',
             'unchecked' => 1,
+        ]);
+        CleaningReport::query()->create([
+            'employee_id' => $this->employee->id,
+            'outlet_id' => $this->outlet->id,
+            'work_date' => '2026-10-15',
+            'slot' => '08:30',
+            'area' => 'meeting',
+            'item' => 0,
+            'photo' => 'evidence/report/sapu.jpg',
+            'unchecked' => 0,
         ]);
 
         $admin = User::query()->create([
@@ -713,7 +730,12 @@ class AttendanceTest extends TestCase
             ->assertSee('Report Harian')
             ->assertSee('Zakki')
             ->assertSee('evidence/report/sample.jpg', false)
-            ->assertSee('1 tidak dicentang');
+            ->assertSee('1 tidak dicentang')
+            ->assertSee('Sapu Ruang Meeting')
+            ->assertSee('Dikerjakan')
+            ->assertSee('Pel Ruang Meeting')
+            ->assertSee('Belum dikerjakan')
+            ->assertSee('Belum waktunya');
     }
 
     public function test_afternoon_shift_cleaning_report_starts_at_1330(): void

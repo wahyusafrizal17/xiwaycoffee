@@ -154,8 +154,66 @@ class CleaningReportController extends Controller
             ->get()
             ->groupBy('employee_id');
 
+        $shown = [];
+        $boards = WorkShift::query()
+            ->with('employee.user')
+            ->when(current_outlet_id(), fn ($query) => $query->whereHas('employee', fn ($employee) => $employee->where('outlet_id', current_outlet_id())))
+            ->whereDate('work_date', $date)
+            ->get()
+            ->sortBy('employee_id')
+            ->map(function (WorkShift $shift) use ($reports, $date, &$shown) {
+                $employee = $shift->employee;
+                if (! $employee) {
+                    return null;
+                }
+                $shown[] = $employee->id;
+                $rows = $reports->get($employee->id, collect());
+                $slots = [];
+                if ($shift->starts_at) {
+                    foreach (CleaningReport::plans($employee, $shift, $date, CleaningReport::slots($shift, $date)) as $plan) {
+                        $due = Carbon::parse($date.' '.$plan['slot'], 'Asia/Jakarta')->lte(now('Asia/Jakarta'));
+                        $slotRows = $rows->where('slot', $plan['slot']);
+                        $areas = [];
+                        foreach ($plan['areas'] as $key => $area) {
+                            $areaRows = $slotRows->where('area', $key);
+                            $legacy = $areaRows->first(fn (CleaningReport $row) => $row->item === null);
+                            $items = [];
+                            foreach ($area['items'] as $index => $label) {
+                                $photo = $areaRows->first(fn (CleaningReport $row) => $row->item !== null && (int) $row->item === $index);
+                                $items[] = [
+                                    'label' => $label,
+                                    'done' => $photo !== null,
+                                    'photo' => $photo?->photo,
+                                    'status' => $photo ? 'Dikerjakan' : ($due ? 'Belum dikerjakan' : 'Belum waktunya'),
+                                ];
+                            }
+                            $areas[] = [
+                                'label' => $area['label'],
+                                'items' => $legacy ? [] : $items,
+                                'legacy_photo' => $legacy?->photo,
+                                'legacy_unchecked' => $legacy ? (int) $legacy->unchecked : null,
+                                'legacy_items' => $legacy ? $area['items'] : [],
+                            ];
+                        }
+                        $slots[] = ['slot' => $plan['slot'], 'areas' => $areas];
+                    }
+                }
+
+                return [
+                    'name' => $employee->user?->name ?? 'Karyawan',
+                    'shift' => $shift->label($employee->position),
+                    'off' => ! $shift->starts_at,
+                    'slots' => $slots,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        $orphans = $reports->reject(fn ($rows, $employeeId) => in_array((int) $employeeId, $shown, true));
+
         return view('cleaning.review', [
-            'reports' => $reports,
+            'boards' => $boards,
+            'orphans' => $orphans,
             'date' => $date,
             'areas' => config('cleaning.areas'),
         ]);
