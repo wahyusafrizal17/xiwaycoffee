@@ -278,7 +278,7 @@ class AttendanceTest extends TestCase
         $this->assertNull($off->starts_at);
 
         $offs = ['Ergina' => 0, 'Naurah' => 0, 'Jimmy' => 0, 'Zakki' => 0];
-        $zakkiShifts = ['09:00' => 0, '14:00' => 0];
+        $zakkiShifts = ['09:00' => 0, '14:00' => 0, 'full' => 0];
         for ($day = Carbon::parse('2026-10-01'); $day->lte(Carbon::parse('2026-10-31')); $day->addDay()) {
             $shifts = WorkShift::query()->with('employee.user')->whereDate('work_date', $day->toDateString())->get();
             $this->assertLessThanOrEqual(1, $shifts->whereNull('starts_at')->count(), $day->toDateString());
@@ -289,6 +289,17 @@ class AttendanceTest extends TestCase
             }
             $zakki = $shifts->first(fn (WorkShift $shift) => $shift->employee->user->name === 'Zakki');
             $naurah = $shifts->first(fn (WorkShift $shift) => $shift->employee->user->name === 'Naurah');
+            if ($day->gte(Carbon::parse('2026-10-15')) && $working->count() === 3) {
+                $this->assertSame(1, $working->where('starts_at', '09:00')->where('ends_at', '22:00')->count(), $day->toDateString());
+                $this->assertSame(1, $working->where('starts_at', '09:00')->where('ends_at', '17:00')->count(), $day->toDateString());
+                $this->assertSame(1, $working->where('starts_at', '14:00')->where('ends_at', '22:00')->count(), $day->toDateString());
+                if ($zakki->starts_at === null) {
+                    $this->assertSame('22:00', $naurah->ends_at, $day->toDateString());
+                }
+                if ($naurah->starts_at === null) {
+                    $this->assertSame('22:00', $zakki->ends_at, $day->toDateString());
+                }
+            }
             $this->assertFalse($zakki->starts_at === null && $naurah->starts_at === null, $day->toDateString());
             if ($zakki->starts_at && $naurah->starts_at) {
                 $this->assertFalse($zakki->starts_at === $naurah->starts_at && $zakki->ends_at === $naurah->ends_at, $day->toDateString());
@@ -300,6 +311,8 @@ class AttendanceTest extends TestCase
                 $this->assertGreaterThan(0, $shifts->where('starts_at', '09:00')->count(), $day->toDateString());
                 if ($zakki->starts_at === '09:00' && $zakki->ends_at === '17:00') {
                     $zakkiShifts['09:00']++;
+                } elseif ($zakki->starts_at === '09:00' && $zakki->ends_at === '22:00') {
+                    $zakkiShifts['full']++;
                 } elseif ($zakki->starts_at === '14:00') {
                     $zakkiShifts['14:00']++;
                 } else {
@@ -313,7 +326,28 @@ class AttendanceTest extends TestCase
             }
         }
         $this->assertSame(['Ergina' => 4, 'Naurah' => 4, 'Jimmy' => 4, 'Zakki' => 4], $offs);
-        $this->assertSame(['09:00' => 7, '14:00' => 6], $zakkiShifts);
+        $this->assertSame(['09:00' => 5, '14:00' => 5, 'full' => 3], $zakkiShifts);
+    }
+
+    public function test_full_shift_pays_overtime_on_top_of_the_day(): void
+    {
+        $this->employee->update(['salary' => 1_700_000]);
+        $shift = WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-15',
+            'starts_at' => '09:00',
+            'ends_at' => '22:00',
+        ]);
+        $this->assertSame(0, $this->employee->overtimePay([], [$shift]));
+
+        $attendance = Attendance::query()->create([
+            'employee_id' => $this->employee->id,
+            'outlet_id' => $this->outlet->id,
+            'work_date' => '2026-10-15',
+            'clock_in_at' => '2026-10-15 01:00:00',
+        ]);
+
+        $this->assertSame((int) round(9.5 * 1_700_000 / 173), $this->employee->overtimePay([$attendance], [$shift]));
     }
 
     public function test_payroll_slip_prorates_present_days_over_twenty_six(): void
@@ -527,7 +561,7 @@ class AttendanceTest extends TestCase
             ->assertSee('Report Harian')
             ->assertSee('08:30')
             ->assertSee('name="tasks[lantai2][]"', false)
-            ->assertSee('name="photo[meeting]"', false)
+            ->assertSee('name="photo[meeting][0]"', false)
             ->getContent();
         preg_match_all('/Cek: ([^·<]+)/', $html, $checks);
         $this->assertNotSame(trim($checks[1][0]), trim($checks[1][1]));
@@ -537,7 +571,9 @@ class AttendanceTest extends TestCase
         $photos = [];
         foreach (config('cleaning.areas') as $key => $area) {
             $tasks[$key] = array_keys($area['items']);
-            $photos[$key] = UploadedFile::fake()->image($key.'.jpg');
+            foreach ($area['items'] as $index => $item) {
+                $photos[$key][$index] = UploadedFile::fake()->image($key.$index.'.jpg');
+            }
         }
 
         $this->actingAs($this->user)
@@ -557,7 +593,9 @@ class AttendanceTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        $this->assertSame(2, CleaningReport::query()->where('slot', '08:30')->count());
+        $saved = CleaningReport::query()->where('slot', '08:30')->get();
+        $this->assertSame(2, $saved->pluck('area')->unique()->count());
+        $this->assertGreaterThan(2, $saved->count());
 
         $this->actingAs($this->user)
             ->get(route('cleaning.index'))
@@ -598,7 +636,9 @@ class AttendanceTest extends TestCase
         $photos = [];
         foreach ($areas as $key => $area) {
             $tasks[$key] = array_keys($area['items']);
-            $photos[$key] = UploadedFile::fake()->image($key.'.jpg');
+            foreach ($area['items'] as $index => $item) {
+                $photos[$key][$index] = UploadedFile::fake()->image($key.$index.'.jpg');
+            }
         }
         array_pop($tasks[array_key_first($tasks)]);
 
@@ -611,7 +651,6 @@ class AttendanceTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        $this->assertSame(1, (int) CleaningReport::query()->sum('unchecked'));
         $this->assertSame(100, $this->employee->reportPenalty([$ignored, $shift]));
 
         $admin = User::query()->create([
@@ -740,13 +779,22 @@ class AttendanceTest extends TestCase
         $ergina = $pair($partnerUser, '08:30');
         $this->assertNotSame('', $zakki);
         $this->assertNotSame($zakki, $ergina);
+        $this->assertSame([], array_intersect(
+            array_map('trim', explode(',', $zakki)),
+            array_map('trim', explode(',', $ergina)),
+        ));
+        foreach (['Halaman Luar', 'Lantai 1', 'Lantai 2', 'Ruang Meeting'] as $area) {
+            $this->assertStringContainsString($area, $zakki.', '.$ergina);
+        }
         $this->assertNotSame($zakki, $pair($this->user, '10:30'));
 
         $tasks = [];
         $photos = [];
         foreach (config('cleaning.areas') as $key => $area) {
             $tasks[$key] = array_keys($area['items']);
-            $photos[$key] = UploadedFile::fake()->image($key.'.jpg');
+            foreach ($area['items'] as $index => $item) {
+                $photos[$key][$index] = UploadedFile::fake()->image($key.$index.'.jpg');
+            }
         }
         $this->actingAs($this->user)
             ->post(route('cleaning.store'), [
@@ -756,7 +804,9 @@ class AttendanceTest extends TestCase
             ])
             ->assertRedirect()
             ->assertSessionHas('success');
-        $this->assertSame(2, CleaningReport::query()->where('employee_id', $this->employee->id)->count());
+        $saved = CleaningReport::query()->where('employee_id', $this->employee->id)->get();
+        $this->assertSame(2, $saved->pluck('area')->unique()->count());
+        $this->assertGreaterThan(2, $saved->count());
 
         $this->travelTo(Carbon::parse('2026-10-15 01:30:00'));
         $this->assertNotSame($zakki, $pair($this->user, '08:30'));
@@ -803,11 +853,14 @@ class AttendanceTest extends TestCase
         preg_match('/13:30.*?15:30/s', $html, $at1330);
         preg_match('/15:30.*?17:30/s', $html, $at1530);
         preg_match('/17:30.*?19:30/s', $html, $at1730);
-        $this->assertStringContainsString('Ergina: Lantai 1, Ruang Meeting', $at1330[0]);
-        $this->assertStringContainsString('Ergina: Halaman Luar, Lantai 2', $at1530[0]);
-        $this->assertStringContainsString('Ergina: Lantai 1, Lantai 2', $at1730[0]);
         preg_match_all('/: ([^·<]+)/', $at1330[0], $assigned);
-        $this->assertCount(3, array_unique(array_map('trim', $assigned[1])));
+        $assigned = array_map('trim', $assigned[1]);
+        $this->assertCount(3, array_unique($assigned));
+        $together = implode(', ', $assigned);
+        foreach (['Halaman Luar', 'Lantai 1', 'Lantai 2', 'Ruang Meeting'] as $area) {
+            $this->assertStringContainsString($area, $together);
+        }
+        $this->assertStringNotContainsString($together, $at1530[0]);
     }
 
     public function test_slip_splits_components_and_keeps_bonus_off_prorata(): void

@@ -113,6 +113,7 @@ class EmployeeController extends Controller
                 'worked' => $row['worked'] ?? 0,
                 'late_penalty' => $row['late_penalty'] ?? 0,
                 'report_penalty' => $row['report_penalty'] ?? 0,
+                'overtime' => $row['overtime'] ?? 0,
                 'net' => $row['net'] ?? 0,
             ];
         });
@@ -225,6 +226,7 @@ class EmployeeController extends Controller
             $pay = $employee->pay($worked);
             $latePenalty = $employee->latePenalty($days, $mine);
             $reportPenalty = $employee->reportPenalty($mine);
+            $overtime = $employee->overtimePay($days, $mine);
             $shiftsByDay = $mine->keyBy(fn ($shift) => $shift->work_date->day);
             $cells = $days->keyBy(fn ($attendance) => $attendance->work_date->day)->map(function ($attendance) use ($shiftsByDay) {
                 $shift = $shiftsByDay->get($attendance->work_date->day);
@@ -255,8 +257,9 @@ class EmployeeController extends Controller
                 'deduction' => $pay['deduction'],
                 'late_penalty' => $latePenalty,
                 'report_penalty' => $reportPenalty,
+                'overtime' => $overtime,
                 'earnings' => $pay['earnings'],
-                'net' => $pay['received'] - $latePenalty - $reportPenalty,
+                'net' => $pay['received'] - $latePenalty - $reportPenalty + $overtime,
             ];
         });
 

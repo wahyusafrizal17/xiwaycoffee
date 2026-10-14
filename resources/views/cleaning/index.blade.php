@@ -10,14 +10,14 @@
     @elseif ($off)
         <div class="card p-6 text-sm text-muted">Hari ini OFF. Tidak perlu report.</div>
     @else
-        <p class="mb-4 text-sm text-muted">Jadwal hari ini {{ $shiftLabel }}. Report pertama 30 menit sebelum shift. Dua area berganti tiap 2 jam. Satu tugas yang tidak dicentang dipotong Rp 100, terhitung mulai 15 Okt 2026.</p>
+        <p class="mb-4 text-sm text-muted">Jadwal hari ini {{ $shiftLabel }}. Report pertama 30 menit sebelum shift. Dua area berganti tiap 2 jam. Setiap tugas yang dicentang wajib ada fotonya. Yang tidak dicentang dipotong Rp 100, terhitung mulai 15 Okt 2026.</p>
         <div class="space-y-4">
             @foreach ($plans as $plan)
                 @php
                     $slot = $plan['slot'];
                     $areas = $plan['areas'];
                     $rows = $done->get($slot, collect());
-                    $complete = $areas !== [] && $rows->count() >= count($areas);
+                    $complete = $areas !== [] && $rows->isNotEmpty();
                     $mine = collect($plan['roster'])->firstWhere('mine', true);
                 @endphp
                 <section class="card overflow-hidden">
@@ -42,15 +42,15 @@
                     @if ($complete)
                         <div class="grid gap-3 p-4 sm:grid-cols-2">
                             @foreach ($areas as $key => $area)
-                                @php $photo = $rows->firstWhere('area', $key); @endphp
-                                <div>
-                                    <p class="mb-2 text-sm font-medium text-heading">{{ $area['label'] }}</p>
-                                    @if ($photo)
+                                @foreach ($rows->where('area', $key) as $photo)
+                                    @php $task = $photo->item !== null ? ($area['items'][$photo->item] ?? $area['label']) : $area['label']; @endphp
+                                    <div>
+                                        <p class="mb-2 text-sm font-medium text-heading">{{ $area['label'] }} · {{ $task }}</p>
                                         <a href="{{ asset($photo->photo) }}" target="_blank" rel="noopener">
-                                            <img src="{{ asset($photo->photo) }}" alt="{{ $area['label'] }}" class="h-36 w-full rounded-xl object-cover">
+                                            <img src="{{ asset($photo->photo) }}" alt="{{ $task }}" class="h-36 w-full rounded-xl object-cover">
                                         </a>
-                                    @endif
-                                </div>
+                                    </div>
+                                @endforeach
                             @endforeach
                         </div>
                     @else
@@ -60,17 +60,16 @@
                             @foreach ($areas as $key => $area)
                                 <fieldset class="rounded-xl border border-line p-3">
                                     <legend class="px-1 text-sm font-semibold text-heading">{{ $area['label'] }}</legend>
-                                    <div class="mt-2 space-y-2">
+                                    <div class="mt-2 space-y-3">
                                         @foreach ($area['items'] as $index => $item)
-                                            <label class="flex items-start gap-2 text-sm text-heading">
-                                                <input class="mt-1" type="checkbox" name="tasks[{{ $key }}][]" value="{{ $index }}">
-                                                <span>{{ $item }}</span>
-                                            </label>
+                                            <div>
+                                                <label class="flex items-start gap-2 text-sm text-heading">
+                                                    <input class="mt-1" type="checkbox" name="tasks[{{ $key }}][]" value="{{ $index }}">
+                                                    <span>{{ $item }}</span>
+                                                </label>
+                                                <input class="input mt-2" type="file" name="photo[{{ $key }}][{{ $index }}]" accept="image/jpeg,image/png,image/webp" capture="environment">
+                                            </div>
                                         @endforeach
-                                    </div>
-                                    <div class="mt-3">
-                                        <label class="label">Foto {{ $area['label'] }}</label>
-                                        <input class="input" type="file" name="photo[{{ $key }}]" accept="image/jpeg,image/png,image/webp" capture="environment" required>
                                     </div>
                                 </fieldset>
                             @endforeach

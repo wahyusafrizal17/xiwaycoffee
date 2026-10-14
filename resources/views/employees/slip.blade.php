@@ -109,9 +109,13 @@
                 <td>- Bonus Penjualan</td>
                 <td class="num"><span>{{ $money($row['bonus']) }}</span></td>
             </tr>
+            <tr>
+                <td>- Lembur</td>
+                <td class="num"><span>{{ $money($row['overtime']) }}</span></td>
+            </tr>
             <tr class="total">
                 <td>Total Penerimaan</td>
-                <td class="num"><span>{{ $money($row['earnings']) }}</span></td>
+                <td class="num"><span>{{ $money($row['earnings'] + $row['overtime']) }}</span></td>
             </tr>
         </table>
 

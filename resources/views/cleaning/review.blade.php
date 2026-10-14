@@ -16,16 +16,18 @@
             <h2 class="font-medium text-heading">{{ $rows->first()->employee?->user?->name }}</h2>
             <div class="mt-3 grid gap-4 sm:grid-cols-2">
                 @foreach ($rows as $report)
+                    @php
+                        $area = $areas[$report->area] ?? null;
+                        $task = $report->item !== null ? ($area['items'][$report->item] ?? null) : null;
+                    @endphp
                     <figure>
                         <a href="{{ asset($report->photo) }}" target="_blank">
-                            <img class="h-56 w-full rounded-lg object-cover" src="{{ asset($report->photo) }}" alt="{{ $areas[$report->area]['label'] ?? $report->area }}">
+                            <img class="h-56 w-full rounded-lg object-cover" src="{{ asset($report->photo) }}" alt="{{ $task ?? ($area['label'] ?? $report->area) }}">
                         </a>
                         <figcaption class="mt-2 text-[13px] text-muted">
-                            {{ $report->slot }} · {{ $areas[$report->area]['label'] ?? $report->area }}
-                            @if ($report->unchecked)
+                            {{ $report->slot }} · {{ $area['label'] ?? $report->area }}{{ $task ? ' · '.$task : '' }}
+                            @if ($report->item === null && $report->unchecked)
                                 · {{ $report->unchecked }} tidak dicentang
-                            @else
-                                · lengkap
                             @endif
                         </figcaption>
                     </figure>

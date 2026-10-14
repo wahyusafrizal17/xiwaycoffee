@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
-#[Fillable(['employee_id', 'outlet_id', 'work_date', 'slot', 'area', 'photo', 'unchecked'])]
+#[Fillable(['employee_id', 'outlet_id', 'work_date', 'slot', 'area', 'item', 'photo', 'unchecked'])]
 class CleaningReport extends Model
 {
     use AppliesFillableAttribute;
@@ -17,6 +17,7 @@ class CleaningReport extends Model
     {
         return [
             'work_date' => 'date',
+            'item' => 'integer',
         ];
     }
 
@@ -69,22 +70,33 @@ class CleaningReport extends Model
             $crew = collect([(object) ['employee_id' => $employee->id, 'employee' => $employee->loadMissing('user')]]);
         }
 
-        // ponytail: 6 pasangan digeser tiap jam dan tiap orang. Orang dalam shift yang sama tidak pernah dapat pasangan yang sama. Tidak menyimpan histori.
+        // ponytail: 3 pasangan yang saling melengkapi. Dua orang dalam shift yang sama menutup 4 area tanpa dobel. Orang ketiga dapat sisa yang belum terpakai.
         $offset = Carbon::parse($workDate)->dayOfYear;
-        $pairs = [
-            ['lantai1', 'meeting'],
-            ['halaman', 'lantai2'],
-            ['lantai1', 'lantai2'],
-            ['halaman', 'meeting'],
-            ['halaman', 'lantai1'],
-            ['lantai2', 'meeting'],
+        $matchings = [
+            [['lantai1', 'meeting'], ['halaman', 'lantai2']],
+            [['lantai1', 'lantai2'], ['halaman', 'meeting']],
+            [['halaman', 'lantai1'], ['lantai2', 'meeting']],
         ];
         $plans = [];
         foreach ($slots as $slotIndex => $slot) {
+            $matching = $matchings[($offset + $slotIndex) % count($matchings)];
+            $used = [];
             $roster = [];
             $mine = [];
             foreach ($crew as $index => $row) {
-                $personKeys = $pairs[($offset + $slotIndex + $index) % count($pairs)];
+                if ($index < 2) {
+                    $personKeys = $matching[($offset + $slotIndex + $index) % 2];
+                } else {
+                    $personKeys = $matching[0];
+                    for ($step = 0; $step < count($matchings) * 2; $step++) {
+                        $candidate = $matchings[($offset + $slotIndex + $step) % count($matchings)][$step % 2];
+                        if (! in_array($candidate, $used, true)) {
+                            $personKeys = $candidate;
+                            break;
+                        }
+                    }
+                }
+                $used[] = $personKeys;
                 $roster[] = [
                     'name' => $row->employee?->user?->name ?? 'Karyawan',
                     'labels' => array_map(fn (string $key) => $definitions[$key]['label'], $personKeys),

@@ -57,16 +57,32 @@ class CleaningReportController extends Controller
             ]);
         }
 
-        $rules = [];
+        $checked = [];
         foreach ($areas as $key => $area) {
-            $rules['photo.'.$key] = ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'];
-            $rules['tasks.'.$key] = ['nullable', 'array'];
+            $checked[$key] = collect($request->input('tasks.'.$key, []))
+                ->map(fn ($index) => (int) $index)
+                ->unique()
+                ->filter(fn (int $index) => $index >= 0 && $index < count($area['items']))
+                ->values()
+                ->all();
+        }
+        if (collect($checked)->flatten()->isEmpty()) {
+            throw ValidationException::withMessages([
+                'slot' => 'Centang tugas yang sudah dikerjakan, lalu unggah fotonya.',
+            ]);
+        }
+
+        $rules = [];
+        foreach ($checked as $key => $indexes) {
+            foreach ($indexes as $index) {
+                $rules['photo.'.$key.'.'.$index] = ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'];
+            }
         }
 
         $request->validate($rules, [
-            'photo.*.required' => 'Foto bukti wajib diunggah.',
-            'photo.*.image' => 'Bukti harus berupa foto.',
-            'photo.*.max' => 'Foto maksimal 5 MB.',
+            'photo.*.*.required' => 'Setiap tugas yang dicentang wajib ada fotonya.',
+            'photo.*.*.image' => 'Bukti harus berupa foto.',
+            'photo.*.*.max' => 'Foto maksimal 5 MB.',
         ]);
         $data = ['slot' => $slot];
 
@@ -88,26 +104,24 @@ class CleaningReportController extends Controller
 
         $stored = [];
         try {
-            foreach (array_keys($areas) as $key) {
-                $file = $request->file('photo.'.$key);
-                $name = $file->hashName();
-                $file->move($directory, $name);
-                $path = 'evidence/report/'.$name;
-                $stored[] = $path;
-                $checked = collect($request->input('tasks.'.$key, []))
-                    ->map(fn ($index) => (int) $index)
-                    ->unique()
-                    ->filter(fn (int $index) => $index >= 0 && $index < count($areas[$key]['items']))
-                    ->count();
-                CleaningReport::query()->create([
-                    'employee_id' => $employee->id,
-                    'outlet_id' => $employee->outlet_id,
-                    'work_date' => $now->toDateString(),
-                    'slot' => $data['slot'],
-                    'area' => $key,
-                    'photo' => $path,
-                    'unchecked' => count($areas[$key]['items']) - $checked,
-                ]);
+            foreach ($checked as $key => $indexes) {
+                foreach ($indexes as $index) {
+                    $file = $request->file('photo.'.$key.'.'.$index);
+                    $name = $file->hashName();
+                    $file->move($directory, $name);
+                    $path = 'evidence/report/'.$name;
+                    $stored[] = $path;
+                    CleaningReport::query()->create([
+                        'employee_id' => $employee->id,
+                        'outlet_id' => $employee->outlet_id,
+                        'work_date' => $now->toDateString(),
+                        'slot' => $data['slot'],
+                        'area' => $key,
+                        'item' => $index,
+                        'photo' => $path,
+                        'unchecked' => 0,
+                    ]);
+                }
             }
         } catch (\Throwable $e) {
             foreach ($stored as $path) {

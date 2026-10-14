@@ -5,7 +5,8 @@ return [
         'halaman' => [
             'label' => 'Halaman Luar',
             'items' => [
-                'Sapu Lantai Depan Sampai Jalan',
+                'Sapu Lantai Sampe Ke Pinggir Jalan',
+                'Pel Lantai Keramik',
                 'Meja Tersusun Rapi',
             ],
         ],

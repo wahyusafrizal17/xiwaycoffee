@@ -128,13 +128,47 @@ class Employee extends Model
                     continue;
                 }
                 foreach ($plan['areas'] as $key => $area) {
-                    $row = $reports->first(fn (CleaningReport $report) => $report->work_date->toDateString() === $date && $report->slot === $plan['slot'] && $report->area === $key);
-                    $missed += $row ? (int) $row->unchecked : count($area['items']);
+                    $areaRows = $reports->filter(fn (CleaningReport $report) => $report->work_date->toDateString() === $date && $report->slot === $plan['slot'] && $report->area === $key);
+                    if ($areaRows->isEmpty()) {
+                        $missed += count($area['items']);
+                    } elseif ($areaRows->every(fn (CleaningReport $report) => $report->item === null)) {
+                        $missed += (int) $areaRows->sum('unchecked');
+                    } else {
+                        $missed += max(0, count($area['items']) - $areaRows->pluck('item')->filter(fn ($item) => $item !== null)->unique()->count());
+                    }
                 }
             }
         }
 
         return $missed * 100;
+    }
+
+    public function overtimePay(iterable $attendances, iterable $shifts): int
+    {
+        $monthly = array_sum($this->payParts());
+        if ($monthly <= 0) {
+            return 0;
+        }
+
+        $present = [];
+        foreach ($attendances as $attendance) {
+            if ($attendance->clock_in_at) {
+                $present[$attendance->work_date->toDateString()] = true;
+            }
+        }
+
+        $days = 0;
+        foreach ($shifts as $shift) {
+            if ($shift->work_date->toDateString() < '2026-10-15' || $shift->starts_at !== '09:00' || $shift->ends_at !== '22:00') {
+                continue;
+            }
+            if (isset($present[$shift->work_date->toDateString()])) {
+                $days++;
+            }
+        }
+
+        // 13 jam kerja, 8 jam normal. 5 jam lembur: jam pertama 1,5x, sisanya 2x, upah jam = gaji/173.
+        return (int) round($days * 9.5 * $monthly / 173);
     }
 
     /**
