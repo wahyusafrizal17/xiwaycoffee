@@ -294,7 +294,7 @@ class AttendanceTest extends TestCase
                 $this->assertFalse($zakki->starts_at === $naurah->starts_at && $zakki->ends_at === $naurah->ends_at, $day->toDateString());
             }
             if ($day->gte(Carbon::parse('2026-10-15'))) {
-                if (($day->isFriday() || $day->isSaturday() || $day->isSunday()) && $day->toDateString() !== '2026-10-23') {
+                if (($day->isFriday() || $day->isSaturday() || $day->isSunday()) && ! in_array($day->toDateString(), ['2026-10-23', '2026-10-30'], true)) {
                     $this->assertTrue($shifts->every(fn (WorkShift $shift) => $shift->starts_at !== null), $day->toDateString());
                 }
                 $this->assertGreaterThan(0, $shifts->where('starts_at', '09:00')->count(), $day->toDateString());

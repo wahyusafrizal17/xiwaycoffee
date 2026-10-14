@@ -40,7 +40,7 @@ class WorkShiftSeeder extends Seeder
             '2026-10-04' => 'bbcc',
             '2026-10-05' => 'bbcc',
             '2026-10-06' => 'ccob',
-            '2026-10-07' => 'bbco',
+            '2026-10-07' => 'bbcc',
             '2026-10-08' => 'cbbc',
             '2026-10-09' => 'cobc',
             '2026-10-10' => 'bbcc',
@@ -63,7 +63,7 @@ class WorkShiftSeeder extends Seeder
             '2026-10-27' => 'bocb',
             '2026-10-28' => 'ccob',
             '2026-10-29' => 'ocbb',
-            '2026-10-30' => 'ccbb',
+            '2026-10-30' => 'ccbo',
             '2026-10-31' => 'cbbc',
         ];
 
