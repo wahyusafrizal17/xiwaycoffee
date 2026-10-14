@@ -13,7 +13,7 @@
     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
             <h1 class="font-serif text-[1.75rem] font-semibold leading-none text-heading">Report Harian</h1>
-            <p class="mt-2 max-w-xl text-[13px] text-muted">Hijau sudah lengkap, kuning masih dalam toleransi 1 jam, merah tidak dikerjakan. Buka sesi untuk melihat tugas dan fotonya.</p>
+            <p class="mt-2 max-w-xl text-[13px] text-muted">Hijau sudah lengkap, kuning masih dalam toleransi 1 jam, merah tidak dikerjakan.</p>
         </div>
         <form method="GET">
             <input class="input" type="date" name="date" value="{{ $date }}" onchange="this.form.submit()">
