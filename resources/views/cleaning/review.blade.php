@@ -24,8 +24,8 @@
                         <div class="mt-3 rounded-xl border border-line p-3">
                             <p class="text-sm font-semibold text-heading">{{ $area['label'] }}</p>
                             @if ($area['legacy_photo'])
-                                <a class="mt-3 block" href="{{ asset($area['legacy_photo']) }}" target="_blank" rel="noopener">
-                                    <img class="h-36 w-full rounded-lg object-cover" src="{{ asset($area['legacy_photo']) }}" alt="{{ $area['label'] }}">
+                                <a class="mt-3 block" href="{{ evidence_url($area['legacy_photo']) }}" target="_blank" rel="noopener">
+                                    <img class="h-36 w-full rounded-lg object-cover" src="{{ evidence_url($area['legacy_photo']) }}" alt="{{ $area['label'] }}">
                                 </a>
                                 @if ($area['legacy_unchecked'])
                                     <p class="mt-2 text-[13px] text-brand">{{ $area['legacy_unchecked'] }} tidak dicentang</p>
@@ -42,8 +42,8 @@
                                             <p class="text-sm text-heading">{{ $item['label'] }}</p>
                                             <p class="text-[13px] {{ $item['done'] ? 'text-muted' : 'text-brand' }}">{{ $item['status'] }}</p>
                                             @if ($item['photo'])
-                                                <a class="mt-2 block" href="{{ asset($item['photo']) }}" target="_blank" rel="noopener">
-                                                    <img class="h-36 w-full rounded-lg object-cover" src="{{ asset($item['photo']) }}" alt="{{ $item['label'] }}">
+                                                <a class="mt-2 block" href="{{ evidence_url($item['photo']) }}" target="_blank" rel="noopener">
+                                                    <img class="h-36 w-full rounded-lg object-cover" src="{{ evidence_url($item['photo']) }}" alt="{{ $item['label'] }}">
                                                 </a>
                                             @endif
                                         </div>
@@ -71,8 +71,8 @@
                         $task = $report->item !== null ? ($area['items'][$report->item] ?? null) : null;
                     @endphp
                     <figure>
-                        <a href="{{ asset($report->photo) }}" target="_blank">
-                            <img class="h-56 w-full rounded-lg object-cover" src="{{ asset($report->photo) }}" alt="{{ $task ?? ($area['label'] ?? $report->area) }}">
+                        <a href="{{ evidence_url($report->photo) }}" target="_blank">
+                            <img class="h-56 w-full rounded-lg object-cover" src="{{ evidence_url($report->photo) }}" alt="{{ $task ?? ($area['label'] ?? $report->area) }}">
                         </a>
                         <figcaption class="mt-2 text-[13px] text-muted">
                             {{ $report->slot }} · {{ $area['label'] ?? $report->area }}{{ $task ? ' · '.$task : '' }}

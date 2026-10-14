@@ -46,8 +46,8 @@
                                     @php $task = $photo->item !== null ? ($area['items'][$photo->item] ?? $area['label']) : $area['label']; @endphp
                                     <div>
                                         <p class="mb-2 text-sm font-medium text-heading">{{ $area['label'] }} · {{ $task }}</p>
-                                        <a href="{{ asset($photo->photo) }}" target="_blank" rel="noopener">
-                                            <img src="{{ asset($photo->photo) }}" alt="{{ $task }}" class="h-36 w-full rounded-xl object-cover">
+                                        <a href="{{ evidence_url($photo->photo) }}" target="_blank" rel="noopener">
+                                            <img src="{{ evidence_url($photo->photo) }}" alt="{{ $task }}" class="h-36 w-full rounded-xl object-cover">
                                         </a>
                                     </div>
                                 @endforeach

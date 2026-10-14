@@ -3,6 +3,7 @@
 use App\Models\Outlet;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 function money(float|int|string|null $amount): string
 {
@@ -252,4 +253,20 @@ function public_menu_description(?string $description): ?string
     }
 
     return $description;
+}
+
+function evidence_url(?string $path): ?string
+{
+    if ($path === null || $path === '') {
+        return null;
+    }
+    if (is_file(public_path($path))) {
+        return asset($path);
+    }
+
+    try {
+        return Storage::disk('biznet')->temporaryUrl($path, now()->addHours(12));
+    } catch (\Throwable) {
+        return $path;
+    }
 }

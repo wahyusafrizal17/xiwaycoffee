@@ -8,6 +8,7 @@ use App\Models\WorkShift;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -97,19 +98,12 @@ class CleaningReportController extends Controller
             ]);
         }
 
-        $directory = public_path('evidence/report');
-        if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
-
         $stored = [];
         try {
             foreach ($checked as $key => $indexes) {
                 foreach ($indexes as $index) {
                     $file = $request->file('photo.'.$key.'.'.$index);
-                    $name = $file->hashName();
-                    $file->move($directory, $name);
-                    $path = 'evidence/report/'.$name;
+                    $path = $file->storeAs('evidence/report', $file->hashName(), 'biznet');
                     $stored[] = $path;
                     CleaningReport::query()->create([
                         'employee_id' => $employee->id,
@@ -124,12 +118,7 @@ class CleaningReportController extends Controller
                 }
             }
         } catch (\Throwable $e) {
-            foreach ($stored as $path) {
-                $file = public_path($path);
-                if (is_file($file)) {
-                    unlink($file);
-                }
-            }
+            Storage::disk('biznet')->delete($stored);
             throw $e;
         }
 

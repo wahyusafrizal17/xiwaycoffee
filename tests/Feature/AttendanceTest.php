@@ -36,6 +36,7 @@ class AttendanceTest extends TestCase
         parent::setUp();
         $this->seed(RoleSeeder::class);
         Storage::fake('public');
+        Storage::fake('biznet');
 
         $this->outlet = Outlet::query()->create([
             'code' => 'CMH',
@@ -596,6 +597,8 @@ class AttendanceTest extends TestCase
         $saved = CleaningReport::query()->where('slot', '08:30')->get();
         $this->assertSame(2, $saved->pluck('area')->unique()->count());
         $this->assertGreaterThan(2, $saved->count());
+        $this->assertTrue(Storage::disk('biznet')->exists($saved->first()->photo));
+        $this->assertFileDoesNotExist(public_path($saved->first()->photo));
 
         $this->actingAs($this->user)
             ->get(route('cleaning.index'))

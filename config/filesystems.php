@@ -60,6 +60,19 @@ return [
             'report' => false,
         ],
 
+        'biznet' => [
+            'driver' => 's3',
+            'key' => env('BIZNET_ACCESS_KEY_ID'),
+            'secret' => env('BIZNET_SECRET_ACCESS_KEY'),
+            'region' => env('BIZNET_DEFAULT_REGION'),
+            'bucket' => env('BIZNET_BUCKET'),
+            'url' => env('BIZNET_URL'),
+            'endpoint' => env('BIZNET_ENDPOINT'),
+            'use_path_style_endpoint' => env('BIZNET_USE_PATH_STYLE_ENDPOINT', true),
+            'throw' => true,
+            'report' => false,
+        ],
+
     ],
 
     /*
