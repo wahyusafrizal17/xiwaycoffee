@@ -49,6 +49,13 @@ class CleaningReport extends Model
         return $slots;
     }
 
+    public static function accepts(string $workDate, string $slot, ?Carbon $now = null): bool
+    {
+        $now ??= now('Asia/Jakarta');
+
+        return ! $now->greaterThan(Carbon::parse($workDate.' '.$slot, 'Asia/Jakarta')->addHour());
+    }
+
     /**
      * @param  list<string>  $slots
      * @return list<array{slot: string, areas: array<string, array{label: string, items: list<string>}>, roster: list<array{name: string, labels: list<string>, mine: bool}>}>

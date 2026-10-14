@@ -48,6 +48,11 @@ class CleaningReportController extends Controller
                 'slot' => 'Report ini bukan jadwal kamu.',
             ]);
         }
+        if (! CleaningReport::accepts($now->toDateString(), $slot, $now)) {
+            throw ValidationException::withMessages([
+                'slot' => 'Toleransi 1 jam sudah lewat. Report ini tidak bisa dikirim.',
+            ]);
+        }
 
         $plan = collect(($shift && $shift->starts_at) ? CleaningReport::plans($employee, $shift, $now->toDateString(), $slots) : [])
             ->firstWhere('slot', $slot);
@@ -160,7 +165,7 @@ class CleaningReportController extends Controller
                 $slots = [];
                 if ($shift->starts_at) {
                     foreach (CleaningReport::plans($employee, $shift, $date, CleaningReport::slots($shift, $date)) as $plan) {
-                        $due = Carbon::parse($date.' '.$plan['slot'], 'Asia/Jakarta')->lte(now('Asia/Jakarta'));
+                        $due = ! CleaningReport::accepts($date, $plan['slot']);
                         $slotRows = $rows->where('slot', $plan['slot']);
                         $areas = [];
                         foreach ($plan['areas'] as $key => $area) {
@@ -184,18 +189,44 @@ class CleaningReportController extends Controller
                                 'legacy_items' => $legacy ? $area['items'] : [],
                             ];
                         }
-                        $slots[] = ['slot' => $plan['slot'], 'areas' => $areas];
+                        $finished = 0;
+                        $expected = 0;
+                        foreach ($areas as $area) {
+                            if ($area['items'] !== []) {
+                                $expected += count($area['items']);
+                                $finished += collect($area['items'])->where('done', true)->count();
+                            } else {
+                                $expected += count($area['legacy_items']);
+                                $finished += max(0, count($area['legacy_items']) - (int) $area['legacy_unchecked']);
+                            }
+                        }
+                        $slots[] = [
+                            'slot' => $plan['slot'],
+                            'areas' => $areas,
+                            'done' => $finished,
+                            'total' => $expected,
+                            'status' => ($expected > 0 && $finished === $expected) ? 'done' : ($due ? 'miss' : 'wait'),
+                        ];
                     }
                 }
+
+                $tone = match (true) {
+                    ! $shift->starts_at => 'off',
+                    collect($slots)->contains(fn (array $slot) => $slot['status'] === 'miss') => 'miss',
+                    collect($slots)->contains(fn (array $slot) => $slot['status'] === 'wait') => 'wait',
+                    default => 'done',
+                };
 
                 return [
                     'name' => $employee->user?->name ?? 'Karyawan',
                     'shift' => $shift->label($employee->position),
                     'off' => ! $shift->starts_at,
+                    'tone' => $tone,
                     'slots' => $slots,
                 ];
             })
             ->filter()
+            ->sortBy(fn (array $board) => ['miss' => 0, 'wait' => 1, 'done' => 2, 'off' => 3][$board['tone']])
             ->values();
 
         $orphans = $reports->reject(fn ($rows, $employeeId) => in_array((int) $employeeId, $shown, true));

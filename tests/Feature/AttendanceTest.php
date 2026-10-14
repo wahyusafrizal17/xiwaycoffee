@@ -563,6 +563,7 @@ class AttendanceTest extends TestCase
             ->assertSee('08:30')
             ->assertSee('name="tasks[lantai2][]"', false)
             ->assertSee('name="photo[meeting][0]"', false)
+            ->assertSee('report-session report-wait', false)
             ->getContent();
         preg_match_all('/Cek: ([^·<]+)/', $html, $checks);
         $this->assertNotSame(trim($checks[1][0]), trim($checks[1][1]));
@@ -603,7 +604,8 @@ class AttendanceTest extends TestCase
         $this->actingAs($this->user)
             ->get(route('cleaning.index'))
             ->assertOk()
-            ->assertSee('Sudah dikirim');
+            ->assertSee('Sudah dikirim')
+            ->assertSee('report-done', false);
 
         CleaningReport::query()->get()->each(function (CleaningReport $report) {
             $file = public_path($report->photo);
@@ -633,6 +635,22 @@ class AttendanceTest extends TestCase
 
         $this->assertSame(0, $this->employee->reportPenalty([$shift]));
 
+        $this->travelTo(Carbon::parse('2026-10-15 02:31:00'));
+        $missed = 0;
+        foreach (CleaningReport::plans($this->employee, $shift, '2026-10-15', CleaningReport::slots($shift, '2026-10-15'))[0]['areas'] as $area) {
+            $missed += count($area['items']);
+        }
+        $this->actingAs($this->user)
+            ->from(route('cleaning.index'))
+            ->post(route('cleaning.store'), [
+                'slot' => '08:30',
+                'tasks' => ['lantai2' => [0]],
+                'photo' => ['lantai2' => [0 => UploadedFile::fake()->image('late.jpg')]],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('slot');
+        $this->assertSame($missed * 100, $this->employee->reportPenalty([$shift]));
+
         $this->travelTo(Carbon::parse('2026-10-15 01:30:00'));
         $areas = CleaningReport::plans($this->employee, $shift, '2026-10-15', CleaningReport::slots($shift, '2026-10-15'))[0]['areas'];
         $tasks = [];
@@ -654,6 +672,8 @@ class AttendanceTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success');
 
+        $this->assertSame(0, $this->employee->reportPenalty([$ignored, $shift]));
+        $this->travelTo(Carbon::parse('2026-10-15 02:31:00'));
         $this->assertSame(100, $this->employee->reportPenalty([$ignored, $shift]));
 
         $admin = User::query()->create([
@@ -687,7 +707,7 @@ class AttendanceTest extends TestCase
 
     public function test_owner_can_review_daily_cleaning_reports(): void
     {
-        $this->travelTo(Carbon::parse('2026-10-15 02:00:00'));
+        $this->travelTo(Carbon::parse('2026-10-15 02:31:00'));
         WorkShift::query()->create([
             'employee_id' => $this->employee->id,
             'work_date' => '2026-10-15',

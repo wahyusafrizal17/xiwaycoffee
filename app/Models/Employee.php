@@ -124,7 +124,7 @@ class Employee extends Model
         foreach ($shifts as $shift) {
             $date = $shift->work_date->toDateString();
             foreach (CleaningReport::plans($this, $shift, $date, CleaningReport::slots($shift, $date)) as $plan) {
-                if (Carbon::parse($date.' '.$plan['slot'], 'Asia/Jakarta')->greaterThan($now)) {
+                if (CleaningReport::accepts($date, $plan['slot'], $now)) {
                     continue;
                 }
                 foreach ($plan['areas'] as $key => $area) {
