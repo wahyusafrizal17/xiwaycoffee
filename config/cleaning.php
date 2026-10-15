@@ -21,6 +21,7 @@ return [
                 'Bersihkan Kamar Mandi',
                 'Rapihkan Bar Bersih Dan Rapi',
                 'Bersihkan Kaca',
+                'Bersihkan Mushola',
             ],
         ],
         'lantai2' => [

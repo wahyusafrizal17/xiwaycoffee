@@ -63,21 +63,27 @@ class CleaningReport extends Model
     public static function plans(Employee $employee, WorkShift $shift, string $workDate, array $slots): array
     {
         $definitions = config('cleaning.areas');
-        $crew = WorkShift::query()
+        $dayShifts = WorkShift::query()
             ->with('employee.user')
             ->whereDate('work_date', $workDate)
-            ->where('starts_at', $shift->starts_at)
-            ->where('ends_at', $shift->ends_at)
+            ->whereNotNull('starts_at')
             ->whereHas('employee', fn ($query) => $query->where('outlet_id', $employee->outlet_id))
             ->get()
             ->sortBy('employee_id')
             ->values();
-
-        if ($crew->isEmpty()) {
-            $crew = collect([(object) ['employee_id' => $employee->id, 'employee' => $employee->loadMissing('user')]]);
+        if ($dayShifts->isEmpty()) {
+            $shift->setRelation('employee', $employee->loadMissing('user'));
+            $dayShifts = collect([$shift]);
         }
 
-        // ponytail: 3 pasangan yang saling melengkapi. Dua orang dalam shift yang sama menutup 4 area tanpa dobel. Orang ketiga dapat sisa yang belum terpakai.
+        $present = [];
+        foreach ($dayShifts as $row) {
+            foreach (self::slots($row, $workDate) as $time) {
+                $present[$time][] = $row;
+            }
+        }
+
+        // ponytail: pasangan saling melengkapi. Yang bertugas di jam yang sama, meski panjang shift beda, tidak boleh dapat area yang sama.
         $offset = Carbon::parse($workDate)->dayOfYear;
         $matchings = [
             [['lantai1', 'meeting'], ['halaman', 'lantai2']],
@@ -86,24 +92,28 @@ class CleaningReport extends Model
         ];
         $plans = [];
         foreach ($slots as $slotIndex => $slot) {
+            $crew = $present[$slot] ?? [];
             $matching = $matchings[($offset + $slotIndex) % count($matchings)];
-            $used = [];
+            $pairs = [
+                $matching[($offset + $slotIndex) % 2],
+                $matching[($offset + $slotIndex + 1) % 2],
+            ];
+            $count = count($crew);
+            $assigned = [];
+            if ($count <= 2) {
+                for ($index = 0; $index < $count; $index++) {
+                    $assigned[] = $pairs[$index];
+                }
+            } else {
+                $assigned = array_fill(0, $count, []);
+                foreach (array_merge($pairs[0], $pairs[1]) as $index => $key) {
+                    $assigned[$index % $count][] = $key;
+                }
+            }
             $roster = [];
             $mine = [];
             foreach ($crew as $index => $row) {
-                if ($index < 2) {
-                    $personKeys = $matching[($offset + $slotIndex + $index) % 2];
-                } else {
-                    $personKeys = $matching[0];
-                    for ($step = 0; $step < count($matchings) * 2; $step++) {
-                        $candidate = $matchings[($offset + $slotIndex + $step) % count($matchings)][$step % 2];
-                        if (! in_array($candidate, $used, true)) {
-                            $personKeys = $candidate;
-                            break;
-                        }
-                    }
-                }
-                $used[] = $personKeys;
+                $personKeys = $assigned[$index];
                 $roster[] = [
                     'name' => $row->employee?->user?->name ?? 'Karyawan',
                     'labels' => array_map(fn (string $key) => $definitions[$key]['label'], $personKeys),

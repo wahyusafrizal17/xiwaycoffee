@@ -798,18 +798,18 @@ class AttendanceTest extends TestCase
             'salary' => 1_700_000,
             'is_active' => true,
         ]);
-        foreach ([$this->employee->id, $partner->id] as $employeeId) {
+        foreach (['2026-10-14', '2026-10-15'] as $date) {
             WorkShift::query()->create([
-                'employee_id' => $employeeId,
-                'work_date' => '2026-10-14',
+                'employee_id' => $this->employee->id,
+                'work_date' => $date,
                 'starts_at' => '09:00',
                 'ends_at' => '17:00',
             ]);
             WorkShift::query()->create([
-                'employee_id' => $employeeId,
-                'work_date' => '2026-10-15',
+                'employee_id' => $partner->id,
+                'work_date' => $date,
                 'starts_at' => '09:00',
-                'ends_at' => '17:00',
+                'ends_at' => '22:00',
             ]);
         }
 
