@@ -615,6 +615,45 @@ class AttendanceTest extends TestCase
         });
     }
 
+    public function test_partial_cleaning_report_can_be_finished(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-14 01:30:00'));
+        $shift = WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-14',
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
+        ]);
+        $areas = CleaningReport::plans($this->employee, $shift, '2026-10-14', CleaningReport::slots($shift, '2026-10-14'))[0]['areas'];
+        $key = array_key_first($areas);
+
+        $this->actingAs($this->user)
+            ->post(route('cleaning.store'), [
+                'slot' => '08:30',
+                'tasks' => [$key => [0]],
+                'photo' => [$key => [0 => UploadedFile::fake()->image('a.jpg')]],
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJson(['ok' => true]);
+
+        $this->actingAs($this->user)
+            ->get(route('cleaning.index'))
+            ->assertOk()
+            ->assertSee('Kirim report 08:30')
+            ->assertSee('Terkirim');
+
+        $this->actingAs($this->user)
+            ->post(route('cleaning.store'), [
+                'slot' => '08:30',
+                'tasks' => [$key => [0, 1]],
+                'photo' => [$key => [1 => UploadedFile::fake()->image('b.jpg')]],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertSame(2, CleaningReport::query()->where('slot', '08:30')->where('area', $key)->count());
+    }
+
     public function test_one_unchecked_cleaning_task_cuts_five_thousand(): void
     {
         $ignored = WorkShift::query()->create([

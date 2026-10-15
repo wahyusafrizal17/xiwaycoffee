@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\CleaningReport;
 use App\Models\Employee;
 use App\Models\WorkShift;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -36,7 +39,7 @@ class CleaningReportController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $employee = $this->employee($request);
         $now = now('Asia/Jakarta');
@@ -78,56 +81,100 @@ class CleaningReportController extends Controller
             ]);
         }
 
-        $rules = [];
-        foreach ($checked as $key => $indexes) {
-            foreach ($indexes as $index) {
-                $rules['photo.'.$key.'.'.$index] = ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'];
-            }
-        }
-
-        $request->validate($rules, [
-            'photo.*.*.required' => 'Setiap tugas yang dicentang wajib ada fotonya.',
-            'photo.*.*.image' => 'Bukti harus berupa foto.',
-            'photo.*.*.max' => 'Foto maksimal 5 MB.',
-        ]);
-        $data = ['slot' => $slot];
-
-        $exists = CleaningReport::query()
+        $already = CleaningReport::query()
             ->where('employee_id', $employee->id)
             ->whereDate('work_date', $now->toDateString())
-            ->where('slot', $data['slot'])
-            ->exists();
-        if ($exists) {
+            ->where('slot', $slot)
+            ->get();
+        foreach ($checked as $key => $indexes) {
+            $checked[$key] = array_values(array_filter(
+                $indexes,
+                fn (int $index) => ! $already->contains(fn (CleaningReport $row) => $row->area === $key && $row->item !== null && (int) $row->item === $index)
+            ));
+        }
+        if (collect($checked)->flatten()->isEmpty()) {
             throw ValidationException::withMessages([
                 'slot' => 'Report jam ini sudah dikirim.',
             ]);
         }
 
-        $stored = [];
-        try {
-            foreach ($checked as $key => $indexes) {
-                foreach ($indexes as $index) {
-                    $file = $request->file('photo.'.$key.'.'.$index);
-                    $path = $file->storeAs('evidence/report', $file->hashName(), 'biznet');
-                    $stored[] = $path;
-                    CleaningReport::query()->create([
-                        'employee_id' => $employee->id,
-                        'outlet_id' => $employee->outlet_id,
-                        'work_date' => $now->toDateString(),
-                        'slot' => $data['slot'],
-                        'area' => $key,
-                        'item' => $index,
-                        'photo' => $path,
-                        'unchecked' => 0,
-                    ]);
-                }
+        $rules = [];
+        foreach ($checked as $key => $indexes) {
+            foreach ($indexes as $index) {
+                $rules['photo.'.$key.'.'.$index] = ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'];
             }
-        } catch (\Throwable $e) {
-            Storage::disk('biznet')->delete($stored);
-            throw $e;
         }
 
-        return back()->with('success', 'Report '.$data['slot'].' tercatat.');
+        $request->validate($rules, [
+            'photo.*.*.required' => 'Setiap tugas yang dicentang wajib ada fotonya.',
+            'photo.*.*.image' => 'Bukti harus berupa foto JPG, PNG, atau WEBP.',
+            'photo.*.*.uploaded' => 'Ada foto yang gagal diunggah. Ambil ulang dengan tombol Kamera.',
+            'photo.*.*.mimes' => 'Bukti harus berupa foto JPG, PNG, atau WEBP.',
+            'photo.*.*.max' => 'Ada foto yang masih terlalu besar. Ambil ulang dengan tombol Kamera.',
+        ]);
+
+        $stored = [];
+        try {
+            DB::transaction(function () use ($checked, $request, $employee, $now, $slot, &$stored) {
+                foreach ($checked as $key => $indexes) {
+                    foreach ($indexes as $index) {
+                        $file = $this->shrink($request->file('photo.'.$key.'.'.$index));
+                        $path = $file->storeAs('evidence/report', $file->hashName(), 'biznet');
+                        $stored[] = $path;
+                        CleaningReport::query()->create([
+                            'employee_id' => $employee->id,
+                            'outlet_id' => $employee->outlet_id,
+                            'work_date' => $now->toDateString(),
+                            'slot' => $slot,
+                            'area' => $key,
+                            'item' => $index,
+                            'photo' => $path,
+                            'unchecked' => 0,
+                        ]);
+                    }
+                }
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            try {
+                Storage::disk('biznet')->delete($stored);
+            } catch (\Throwable) {
+            }
+            throw ValidationException::withMessages([
+                'slot' => 'Report gagal terkirim. Coba lagi. Yang sudah terkirim tidak perlu diulang.',
+            ]);
+        }
+
+        $message = 'Report '.$slot.' tercatat.';
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true, 'message' => $message]);
+        }
+
+        return back()->with('success', $message);
+    }
+
+    private function shrink(UploadedFile $file): UploadedFile
+    {
+        if ($file->getSize() < 900_000 || ! function_exists('imagecreatefromstring')) {
+            return $file;
+        }
+        $src = @imagecreatefromstring((string) file_get_contents($file->getRealPath()));
+        if (! $src) {
+            return $file;
+        }
+        $width = imagesx($src);
+        $height = imagesy($src);
+        $scale = min(1, 1600 / max($width, $height, 1));
+        $nextWidth = max(1, (int) round($width * $scale));
+        $nextHeight = max(1, (int) round($height * $scale));
+        $dst = imagecreatetruecolor($nextWidth, $nextHeight);
+        imagecopyresampled($dst, $src, 0, 0, 0, 0, $nextWidth, $nextHeight, $width, $height);
+        imagedestroy($src);
+        $tmp = tempnam(sys_get_temp_dir(), 'rep');
+        imagejpeg($dst, $tmp, 72);
+        imagedestroy($dst);
+
+        return new UploadedFile($tmp, 'bukti.jpg', 'image/jpeg', null, true);
     }
 
     public function review(Request $request): View
@@ -149,13 +196,15 @@ class CleaningReportController extends Controller
             ->groupBy('employee_id');
 
         $shown = [];
-        $boards = WorkShift::query()
+        $shifts = WorkShift::query()
             ->with('employee.user')
             ->when(current_outlet_id(), fn ($query) => $query->whereHas('employee', fn ($employee) => $employee->where('outlet_id', current_outlet_id())))
             ->whereDate('work_date', $date)
             ->get()
             ->sortBy('employee_id')
-            ->map(function (WorkShift $shift) use ($reports, $date, &$shown) {
+            ->values();
+        $boards = $shifts
+            ->map(function (WorkShift $shift) use ($reports, $date, $shifts, &$shown) {
                 $employee = $shift->employee;
                 if (! $employee) {
                     return null;
@@ -164,7 +213,7 @@ class CleaningReportController extends Controller
                 $rows = $reports->get($employee->id, collect());
                 $slots = [];
                 if ($shift->starts_at) {
-                    foreach (CleaningReport::plans($employee, $shift, $date, CleaningReport::slots($shift, $date)) as $plan) {
+                    foreach (CleaningReport::plans($employee, $shift, $date, CleaningReport::slots($shift, $date), $shifts) as $plan) {
                         $due = ! CleaningReport::accepts($date, $plan['slot']);
                         $slotRows = $rows->where('slot', $plan['slot']);
                         $areas = [];

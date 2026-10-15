@@ -61,12 +61,9 @@ class User extends Authenticatable
 
     public function hasRole(string|array $roles): bool
     {
-        $roles = (array) $roles;
-        $assigned = $this->relationLoaded('roles')
-            ? $this->roles->pluck('name')
-            : $this->roles()->pluck('name');
+        $this->loadMissing('roles');
 
-        return $assigned->intersect($roles)->isNotEmpty();
+        return $this->roles->pluck('name')->intersect((array) $roles)->isNotEmpty();
     }
 
     public function isSuperAdmin(): bool

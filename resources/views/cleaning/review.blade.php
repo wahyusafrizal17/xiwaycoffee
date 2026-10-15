@@ -64,13 +64,15 @@
                                     <span class="ml-auto text-[13px] tabular-nums text-muted">{{ $slot['done'] }}/{{ $slot['total'] }}</span>
                                     <span class="chev text-muted" aria-hidden="true">▾</span>
                                 </summary>
+                                <template>
                                 <div class="space-y-3 bg-white px-3 py-3">
                                     @foreach ($slot['areas'] as $area)
                                         <div>
                                             <p class="text-[13px] font-semibold text-heading">{{ $area['label'] }}</p>
                                             @if ($area['legacy_photo'])
-                                                <a class="mt-2 flex items-center gap-3" href="{{ evidence_url($area['legacy_photo']) }}" target="_blank" rel="noopener">
-                                                    <img class="h-14 w-14 rounded-lg object-cover" src="{{ evidence_url($area['legacy_photo']) }}" alt="{{ $area['label'] }}">
+                                                @php $photo = evidence_url($area['legacy_photo']); @endphp
+                                                <a class="mt-2 flex items-center gap-3" href="{{ $photo }}" target="_blank" rel="noopener">
+                                                    <img class="h-14 w-14 rounded-lg bg-[#f3f3f3] object-cover" alt="{{ $area['label'] }}" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="{{ $photo }}">
                                                     <span class="text-[13px] text-muted">{{ $area['label'] }}</span>
                                                 </a>
                                                 @if ($area['legacy_unchecked'])
@@ -90,8 +92,9 @@
                                                                 <p class="text-[12px] {{ $item['done'] ? 'text-muted' : 'text-brand' }}">{{ $item['status'] }}</p>
                                                             </div>
                                                             @if ($item['photo'])
-                                                                <a href="{{ evidence_url($item['photo']) }}" target="_blank" rel="noopener">
-                                                                    <img class="h-14 w-14 rounded-lg object-cover" src="{{ evidence_url($item['photo']) }}" alt="{{ $item['label'] }}">
+                                                                @php $photo = evidence_url($item['photo']); @endphp
+                                                                <a href="{{ $photo }}" target="_blank" rel="noopener">
+                                                                    <img class="h-14 w-14 rounded-lg bg-[#f3f3f3] object-cover" alt="{{ $item['label'] }}" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" data-src="{{ $photo }}">
                                                                 </a>
                                                             @endif
                                                         </div>
@@ -101,6 +104,7 @@
                                         </div>
                                     @endforeach
                                 </div>
+                                </template>
                             </details>
                         @endforeach
                     </div>
@@ -121,8 +125,9 @@
                             $area = $areas[$report->area] ?? null;
                             $task = $report->item !== null ? ($area['items'][$report->item] ?? null) : null;
                         @endphp
-                        <a class="flex items-center gap-3 rounded-xl border border-line p-2" href="{{ evidence_url($report->photo) }}" target="_blank" rel="noopener">
-                            <img class="h-14 w-14 rounded-lg object-cover" src="{{ evidence_url($report->photo) }}" alt="{{ $task ?? ($area['label'] ?? $report->area) }}">
+                        @php $photo = evidence_url($report->photo); @endphp
+                        <a class="flex items-center gap-3 rounded-xl border border-line p-2" href="{{ $photo }}" target="_blank" rel="noopener">
+                            <img class="h-14 w-14 rounded-lg object-cover" src="{{ $photo }}" alt="{{ $task ?? ($area['label'] ?? $report->area) }}" loading="lazy">
                             <span class="text-[13px] text-muted">
                                 {{ $report->slot }} · {{ $area['label'] ?? $report->area }}{{ $task ? ' · '.$task : '' }}
                                 @if ($report->item === null && $report->unchecked)
@@ -135,4 +140,22 @@
             </section>
         @endforeach
     </div>
+    @push('scripts')
+        <script>
+            document.querySelectorAll('.monitor-session').forEach(function (el) {
+                el.addEventListener('toggle', function () {
+                    if (!el.open) return;
+                    var tpl = el.querySelector('template');
+                    if (tpl) {
+                        el.appendChild(tpl.content);
+                        tpl.remove();
+                    }
+                    el.querySelectorAll('img[data-src]').forEach(function (img) {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                    });
+                });
+            });
+        </script>
+    @endpush
 @endsection

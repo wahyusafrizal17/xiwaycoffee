@@ -58,17 +58,20 @@ class CleaningReport extends Model
 
     /**
      * @param  list<string>  $slots
+     * @param  \Illuminate\Support\Collection<int, WorkShift>|null  $dayShifts
      * @return list<array{slot: string, areas: array<string, array{label: string, items: list<string>}>, roster: list<array{name: string, labels: list<string>, mine: bool}>}>
      */
-    public static function plans(Employee $employee, WorkShift $shift, string $workDate, array $slots): array
+    public static function plans(Employee $employee, WorkShift $shift, string $workDate, array $slots, $dayShifts = null): array
     {
         $definitions = config('cleaning.areas');
-        $dayShifts = WorkShift::query()
+        $dayShifts ??= WorkShift::query()
             ->with('employee.user')
             ->whereDate('work_date', $workDate)
             ->whereNotNull('starts_at')
             ->whereHas('employee', fn ($query) => $query->where('outlet_id', $employee->outlet_id))
-            ->get()
+            ->get();
+        $dayShifts = $dayShifts
+            ->filter(fn (WorkShift $row) => $row->starts_at && (int) $row->employee?->outlet_id === (int) $employee->outlet_id)
             ->sortBy('employee_id')
             ->values();
         if ($dayShifts->isEmpty()) {
