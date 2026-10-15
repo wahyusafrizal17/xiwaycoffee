@@ -22,6 +22,7 @@ return [
                 'Rapihkan Bar Bersih Dan Rapi',
                 'Bersihkan Kaca',
                 'Bersihkan Mushola',
+                'Nyalakan TV ke Browser',
             ],
         ],
         'lantai2' => [
