@@ -167,8 +167,8 @@ class Employee extends Model
             }
         }
 
-        // 13 jam kerja, 8 jam normal. 5 jam lembur: jam pertama 1,5x, sisanya 2x, upah jam = gaji/173.
-        return (int) round($days * 9.5 * $monthly / 173);
+        // Shift 09.00–22.00 = 1 hari tambahan. Upah 1 hari = gaji/26.
+        return (int) round($days * $monthly / 26);
     }
 
     /**

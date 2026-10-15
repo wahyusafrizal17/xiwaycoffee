@@ -349,7 +349,7 @@ class AttendanceTest extends TestCase
             'clock_in_at' => '2026-10-15 01:00:00',
         ]);
 
-        $this->assertSame((int) round(9.5 * 1_700_000 / 173), $this->employee->overtimePay([$attendance], [$shift]));
+        $this->assertSame((int) round(1_700_000 / 26), $this->employee->overtimePay([$attendance], [$shift]));
     }
 
     public function test_payroll_slip_prorates_present_days_over_twenty_six(): void
