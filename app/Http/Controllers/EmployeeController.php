@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
+use App\Models\ContentLink;
 use App\Models\Employee;
 use App\Models\PayrollDay;
 use App\Models\WorkShift;
@@ -113,6 +114,7 @@ class EmployeeController extends Controller
                 'worked' => $row['worked'] ?? 0,
                 'late_penalty' => $row['late_penalty'] ?? 0,
                 'report_penalty' => $row['report_penalty'] ?? 0,
+                'content_penalty' => $row['content_penalty'] ?? 0,
                 'overtime' => $row['overtime'] ?? 0,
                 'net' => $row['net'] ?? 0,
             ];
@@ -216,7 +218,15 @@ class EmployeeController extends Controller
             ->where('month', $month)
             ->pluck('days', 'employee_id');
 
-        $rows = $employees->map(function (Employee $employee) use ($shifts, $present, $overrides) {
+        $content = [];
+        foreach ($employees->groupBy('outlet_id') as $outletId => $group) {
+            $heads = $group->where('is_active', true)->count();
+            $content[$outletId] = $heads > 0
+                ? ContentLink::share((int) $outletId, $start->toDateString(), $end->toDateString(), $heads)
+                : 0;
+        }
+
+        $rows = $employees->map(function (Employee $employee) use ($shifts, $present, $overrides, $content) {
             $mine = $shifts->get($employee->id, collect());
             $days = $present->get($employee->id, collect());
             $scheduled = $mine->filter(fn ($shift) => filled($shift->starts_at))->count();
@@ -226,6 +236,7 @@ class EmployeeController extends Controller
             $pay = $employee->pay($worked);
             $latePenalty = $employee->latePenalty($days, $mine);
             $reportPenalty = $employee->reportPenalty($mine);
+            $contentPenalty = $employee->is_active ? ($content[$employee->outlet_id] ?? 0) : 0;
             $overtime = $employee->overtimePay($days, $mine);
             $shiftsByDay = $mine->keyBy(fn ($shift) => $shift->work_date->day);
             $cells = $days->keyBy(fn ($attendance) => $attendance->work_date->day)->map(function ($attendance) use ($shiftsByDay) {
@@ -257,9 +268,10 @@ class EmployeeController extends Controller
                 'deduction' => $pay['deduction'],
                 'late_penalty' => $latePenalty,
                 'report_penalty' => $reportPenalty,
+                'content_penalty' => $contentPenalty,
                 'overtime' => $overtime,
                 'earnings' => $pay['earnings'],
-                'net' => $pay['received'] - $latePenalty - $reportPenalty + $overtime,
+                'net' => $pay['received'] - $latePenalty - $reportPenalty - $contentPenalty + $overtime,
             ];
         });
 

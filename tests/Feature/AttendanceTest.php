@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Attendance;
 use App\Models\CleaningReport;
+use App\Models\ContentLink;
 use App\Models\Employee;
 use App\Models\Outlet;
 use App\Models\Role;
@@ -665,18 +666,28 @@ class AttendanceTest extends TestCase
         $this->travelTo(Carbon::parse('2026-10-15 01:00:00'));
         $this->assertSame(0, $this->employee->reportPenalty([$ignored]));
 
-        $shift = WorkShift::query()->create([
+        $before = WorkShift::query()->create([
             'employee_id' => $this->employee->id,
             'work_date' => '2026-10-15',
             'starts_at' => '09:00',
             'ends_at' => '17:00',
         ]);
+        $this->travelTo(Carbon::parse('2026-10-15 02:31:00'));
+        $this->assertSame(0, $this->employee->reportPenalty([$before]));
 
+        $shift = WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-16',
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
+        ]);
+
+        $this->travelTo(Carbon::parse('2026-10-16 01:00:00'));
         $this->assertSame(0, $this->employee->reportPenalty([$shift]));
 
-        $this->travelTo(Carbon::parse('2026-10-15 02:31:00'));
+        $this->travelTo(Carbon::parse('2026-10-16 02:31:00'));
         $missed = 0;
-        foreach (CleaningReport::plans($this->employee, $shift, '2026-10-15', CleaningReport::slots($shift, '2026-10-15'))[0]['areas'] as $area) {
+        foreach (CleaningReport::plans($this->employee, $shift, '2026-10-16', CleaningReport::slots($shift, '2026-10-16'))[0]['areas'] as $area) {
             $missed += count($area['items']);
         }
         $this->actingAs($this->user)
@@ -690,8 +701,8 @@ class AttendanceTest extends TestCase
             ->assertSessionHasErrors('slot');
         $this->assertSame($missed * 100, $this->employee->reportPenalty([$shift]));
 
-        $this->travelTo(Carbon::parse('2026-10-15 01:30:00'));
-        $areas = CleaningReport::plans($this->employee, $shift, '2026-10-15', CleaningReport::slots($shift, '2026-10-15'))[0]['areas'];
+        $this->travelTo(Carbon::parse('2026-10-16 01:30:00'));
+        $areas = CleaningReport::plans($this->employee, $shift, '2026-10-16', CleaningReport::slots($shift, '2026-10-16'))[0]['areas'];
         $tasks = [];
         $photos = [];
         foreach ($areas as $key => $area) {
@@ -711,9 +722,9 @@ class AttendanceTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        $this->assertSame(0, $this->employee->reportPenalty([$ignored, $shift]));
-        $this->travelTo(Carbon::parse('2026-10-15 02:31:00'));
-        $this->assertSame(100, $this->employee->reportPenalty([$ignored, $shift]));
+        $this->assertSame(0, $this->employee->reportPenalty([$ignored, $before, $shift]));
+        $this->travelTo(Carbon::parse('2026-10-16 02:31:00'));
+        $this->assertSame(100, $this->employee->reportPenalty([$ignored, $before, $shift]));
 
         $admin = User::query()->create([
             'name' => 'Admin Denda',
@@ -1097,6 +1108,79 @@ class AttendanceTest extends TestCase
         $this->assertSame(1, substr_count($html, 'class="recap-off"'));
         $this->assertSame(1, substr_count($html, 'class="recap-miss"'));
         $this->assertSame(1, substr_count($html, 'class="recap-late"'));
+    }
+
+    public function test_three_daily_videos_are_shared_by_the_crew(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-16 02:00:00'));
+        $role = Role::query()->where('name', 'karyawan')->firstOrFail();
+        foreach (['Naurah', 'Ergina', 'Jimmy'] as $name) {
+            $user = User::query()->create([
+                'name' => $name,
+                'email' => strtolower($name).'@test.local',
+                'password' => Hash::make('password'),
+                'is_active' => true,
+            ]);
+            $user->roles()->sync([$role->id]);
+            Employee::query()->create([
+                'user_id' => $user->id,
+                'outlet_id' => $this->outlet->id,
+                'position' => 'Cafe Crew',
+                'salary' => 1_700_000,
+                'is_active' => true,
+            ]);
+        }
+
+        $this->assertSame(0, ContentLink::share($this->outlet->id, '2026-10-01', '2026-10-31', 4));
+
+        $this->actingAs($this->user)
+            ->get(route('content.index'))
+            ->assertOk()
+            ->assertSee('3 link video');
+
+        $this->actingAs($this->user)
+            ->post(route('content.store'), ['url' => 'https://www.instagram.com/reel/abc?igsh=1'])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->actingAs($this->user)
+            ->post(route('content.store'), ['url' => 'https://instagram.com/reel/abc'])
+            ->assertSessionHasErrors('url');
+
+        $this->actingAs($this->user)
+            ->post(route('content.store'), ['url' => 'https://example.com/reel/abc'])
+            ->assertSessionHasErrors('url');
+
+        $this->actingAs($this->user)->post(route('content.store'), ['url' => 'https://instagram.com/reel/def'])->assertSessionHas('success');
+        $this->actingAs($this->user)->post(route('content.store'), ['url' => 'https://instagram.com/reel/ghi'])->assertSessionHas('success');
+        $this->actingAs($this->user)->post(route('content.store'), ['url' => 'https://instagram.com/reel/jkl'])->assertSessionHasErrors('url');
+        $this->assertSame(3, ContentLink::query()->whereDate('work_date', '2026-10-16')->count());
+
+        $this->actingAs($this->user)->get(route('content.review'))->assertForbidden();
+
+        $admin = User::query()->create([
+            'name' => 'Admin Konten',
+            'email' => 'admin-konten@test.local',
+            'password' => Hash::make('password'),
+            'is_active' => true,
+        ]);
+        $admin->roles()->sync([Role::query()->where('name', 'admin')->firstOrFail()->id]);
+        $admin->outlets()->sync([$this->outlet->id => ['is_default' => true]]);
+
+        $this->actingAs($admin)
+            ->get(route('content.review', ['date' => '2026-10-16']))
+            ->assertOk()
+            ->assertSee('Zakki')
+            ->assertSee('https://instagram.com/reel/abc', false);
+
+        $this->travelTo(Carbon::parse('2026-10-18 02:00:00'));
+        $this->assertSame(7_500, ContentLink::share($this->outlet->id, '2026-10-01', '2026-10-31', 4));
+
+        $this->actingAs($admin)
+            ->get(route('employees.payroll', ['month' => '2026-10']))
+            ->assertOk()
+            ->assertSee('Denda konten')
+            ->assertSee('Rp 7.500', false);
     }
 
     public function test_karyawan_lands_on_attendance_after_login(): void

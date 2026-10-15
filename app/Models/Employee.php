@@ -109,7 +109,7 @@ class Employee extends Model
 
     public function reportPenalty(iterable $shifts): int
     {
-        $shifts = collect($shifts)->filter(fn (WorkShift $shift) => $shift->starts_at && $shift->work_date->toDateString() >= '2026-10-15');
+        $shifts = collect($shifts)->filter(fn (WorkShift $shift) => $shift->starts_at && $shift->work_date->toDateString() >= '2026-10-16');
         if ($shifts->isEmpty()) {
             return 0;
         }
