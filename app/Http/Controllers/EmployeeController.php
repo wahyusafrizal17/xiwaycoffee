@@ -235,7 +235,7 @@ class EmployeeController extends Controller
             $worked = $overrides->has($employee->id) ? (int) $overrides[$employee->id] : $attended;
             $pay = $employee->pay($worked);
             $latePenalty = $employee->latePenalty($days, $mine);
-            $reportPenalty = $employee->reportPenalty($mine);
+            $reportPenalty = $employee->reportPenalty($mine, $days);
             $contentPenalty = $employee->is_active ? ($content[$employee->outlet_id] ?? 0) : 0;
             $overtime = $employee->overtimePay($days, $mine);
             $shiftsByDay = $mine->keyBy(fn ($shift) => $shift->work_date->day);

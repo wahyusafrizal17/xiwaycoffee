@@ -61,7 +61,8 @@ class Employee extends Model
     }
 
     /**
-     * Seconds past the tolerated arrival. Zero before 15 Oct 2026, on OFF, or within 10 minutes after the required time (30 minutes before the shift).
+     * Late cut from 15 Oct 2026. Clock-in after cutoff (shift start − 20 menit) is per second of the shift.
+     * No clock-in: cut starts at cutoff and reaches one full day at shift start + 3 jam (pagi 08:40 → 12:00).
      */
     public function latePenalty(iterable $attendances, iterable $shifts): int
     {
@@ -70,23 +71,24 @@ class Employee extends Model
             return 0;
         }
 
-        $byDate = [];
-        foreach ($shifts as $shift) {
-            $byDate[$shift->work_date->toDateString()] = $shift;
+        $clocked = [];
+        foreach ($attendances as $attendance) {
+            if ($attendance->clock_in_at) {
+                $clocked[$attendance->work_date->toDateString()] = $attendance;
+            }
         }
 
+        $now = now('Asia/Jakarta');
+        $today = $now->toDateString();
         $fraction = 0.0;
-        foreach ($attendances as $attendance) {
-            if (! $attendance->clock_in_at || $attendance->work_date->toDateString() < '2026-10-15') {
-                continue;
-            }
-            $shift = $byDate[$attendance->work_date->toDateString()] ?? null;
-            if (! $shift?->starts_at || ! $shift->ends_at) {
+        foreach ($shifts as $shift) {
+            $date = $shift->work_date->toDateString();
+            if ($date < '2026-10-15' || ! $shift->starts_at || ! $shift->ends_at) {
                 continue;
             }
 
-            $start = Carbon::parse($attendance->work_date->toDateString().' '.$shift->starts_at, 'Asia/Jakarta');
-            $end = Carbon::parse($attendance->work_date->toDateString().' '.$shift->ends_at, 'Asia/Jakarta');
+            $start = Carbon::parse($date.' '.$shift->starts_at, 'Asia/Jakarta');
+            $end = Carbon::parse($date.' '.$shift->ends_at, 'Asia/Jakarta');
             if ($end->lessThanOrEqualTo($start)) {
                 $end->addDay();
             }
@@ -96,20 +98,47 @@ class Employee extends Model
             }
 
             $cutoff = $start->copy()->subMinutes(20);
-            $late = $attendance->clock_in_at->copy()->timezone('Asia/Jakarta')->getTimestamp() - $cutoff->getTimestamp();
-            if ($late <= 0) {
+            $missBy = $start->copy()->addHours(3);
+
+            $attendance = $clocked[$date] ?? null;
+            if ($attendance) {
+                $late = $attendance->clock_in_at->copy()->timezone('Asia/Jakarta')->getTimestamp() - $cutoff->getTimestamp();
+                if ($late > 0) {
+                    $fraction += min(1, $late / $shiftSeconds);
+                }
                 continue;
             }
 
-            $fraction += min(1, $late / $shiftSeconds);
+            if ($now->lessThan($cutoff)) {
+                continue;
+            }
+            if ($date < $today || $now->greaterThanOrEqualTo($missBy)) {
+                $fraction += 1;
+                continue;
+            }
+
+            $window = $missBy->getTimestamp() - $cutoff->getTimestamp();
+            if ($window > 0) {
+                $fraction += ($now->getTimestamp() - $cutoff->getTimestamp()) / $window;
+            }
         }
 
         return (int) round($monthly / 26 * $fraction);
     }
 
-    public function reportPenalty(iterable $shifts): int
+    public function reportPenalty(iterable $shifts, iterable $attendances = []): int
     {
-        $shifts = collect($shifts)->filter(fn (WorkShift $shift) => $shift->starts_at && $shift->work_date->toDateString() >= '2026-10-16');
+        $present = [];
+        foreach ($attendances as $attendance) {
+            if ($attendance->clock_in_at) {
+                $present[$attendance->work_date->toDateString()] = true;
+            }
+        }
+
+        // OFF (tanpa starts_at) dan hari tidak masuk: tidak kena denda report.
+        $shifts = collect($shifts)->filter(fn (WorkShift $shift) => $shift->starts_at
+            && $shift->work_date->toDateString() >= '2026-10-16'
+            && isset($present[$shift->work_date->toDateString()]));
         if ($shifts->isEmpty()) {
             return 0;
         }

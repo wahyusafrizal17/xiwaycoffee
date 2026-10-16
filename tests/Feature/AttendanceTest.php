@@ -449,6 +449,29 @@ class AttendanceTest extends TestCase
             ->assertDontSee('Slip Gaji', false);
     }
 
+    public function test_no_clock_in_after_noon_cuts_one_full_day(): void
+    {
+        $this->employee->update(['salary' => 1_700_000]);
+        $shift = WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-16',
+            'starts_at' => '09:00',
+            'ends_at' => '17:00',
+        ]);
+        $day = (int) round(1_700_000 / 26);
+
+        $this->travelTo(Carbon::parse('2026-10-16 01:39:00'));
+        $this->assertSame(0, $this->employee->latePenalty([], [$shift]));
+
+        $this->travelTo(Carbon::parse('2026-10-16 02:40:00'));
+        $mid = $this->employee->latePenalty([], [$shift]);
+        $this->assertGreaterThan(0, $mid);
+        $this->assertLessThan($day, $mid);
+
+        $this->travelTo(Carbon::parse('2026-10-16 05:00:00'));
+        $this->assertSame($day, $this->employee->latePenalty([], [$shift]));
+    }
+
     public function test_late_after_fourteen_october_cuts_salary_per_second(): void
     {
         $this->travelTo(Carbon::parse('2026-10-14 01:00:00'));
@@ -681,9 +704,25 @@ class AttendanceTest extends TestCase
             'starts_at' => '09:00',
             'ends_at' => '17:00',
         ]);
+        $off = WorkShift::query()->create([
+            'employee_id' => $this->employee->id,
+            'work_date' => '2026-10-17',
+            'starts_at' => null,
+            'ends_at' => null,
+        ]);
+
+        $this->travelTo(Carbon::parse('2026-10-16 02:31:00'));
+        $this->assertSame(0, $this->employee->reportPenalty([$shift], []));
+
+        $attendance = Attendance::query()->create([
+            'employee_id' => $this->employee->id,
+            'outlet_id' => $this->outlet->id,
+            'work_date' => '2026-10-16',
+            'clock_in_at' => '2026-10-16 01:30:00',
+        ]);
 
         $this->travelTo(Carbon::parse('2026-10-16 01:00:00'));
-        $this->assertSame(0, $this->employee->reportPenalty([$shift]));
+        $this->assertSame(0, $this->employee->reportPenalty([$shift], [$attendance]));
 
         $this->travelTo(Carbon::parse('2026-10-16 02:31:00'));
         $missed = 0;
@@ -699,7 +738,8 @@ class AttendanceTest extends TestCase
             ])
             ->assertRedirect()
             ->assertSessionHasErrors('slot');
-        $this->assertSame($missed * 100, $this->employee->reportPenalty([$shift]));
+        $this->assertSame($missed * 100, $this->employee->reportPenalty([$shift], [$attendance]));
+        $this->assertSame(0, $this->employee->reportPenalty([$off], [$attendance]));
 
         $this->travelTo(Carbon::parse('2026-10-16 01:30:00'));
         $areas = CleaningReport::plans($this->employee, $shift, '2026-10-16', CleaningReport::slots($shift, '2026-10-16'))[0]['areas'];
@@ -722,9 +762,9 @@ class AttendanceTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        $this->assertSame(0, $this->employee->reportPenalty([$ignored, $before, $shift]));
+        $this->assertSame(0, $this->employee->reportPenalty([$ignored, $before, $shift, $off], [$attendance]));
         $this->travelTo(Carbon::parse('2026-10-16 02:31:00'));
-        $this->assertSame(100, $this->employee->reportPenalty([$ignored, $before, $shift]));
+        $this->assertSame(100, $this->employee->reportPenalty([$ignored, $before, $shift, $off], [$attendance]));
 
         $admin = User::query()->create([
             'name' => 'Admin Denda',
