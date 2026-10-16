@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['investor_id', 'user_id', 'topped_up_on', 'amount', 'notes'])]
+#[Fillable(['investor_id', 'user_id', 'topped_up_on', 'amount', 'notes', 'evidence'])]
 class InvestorTopup extends Model
 {
     use AppliesFillableAttribute;

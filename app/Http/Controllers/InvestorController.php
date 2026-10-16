@@ -106,13 +106,28 @@ class InvestorController extends Controller
             'topped_up_on' => ['required', 'date'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'notes' => ['nullable', 'string', 'max:255'],
+            'evidence' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:5120'],
+        ], [
+            'evidence.required' => 'Bukti wajib diunggah.',
+            'evidence.mimes' => 'Bukti harus berupa foto atau PDF.',
+            'evidence.max' => 'Bukti maksimal 5 MB.',
         ]);
 
-        DB::transaction(function () use ($data, $request) {
+        $file = $request->file('evidence');
+        $directory = public_path('evidence/topup');
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+        $name = $file->hashName();
+        $file->move($directory, $name);
+        unset($data['evidence']);
+
+        DB::transaction(function () use ($data, $request, $name) {
             $investor = Investor::query()->lockForUpdate()->findOrFail($data['investor_id']);
 
             InvestorTopup::query()->create([
                 ...$data,
+                'evidence' => 'evidence/topup/'.$name,
                 'user_id' => $request->user()->id,
             ]);
 

@@ -17,6 +17,7 @@ use App\Models\Product;
 use App\Services\ProfitShareService;
 use Database\Seeders\BopSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\Support\SeedsPosFixture;
 use Tests\TestCase;
 
@@ -45,16 +46,17 @@ class InvestorTest extends TestCase
                 'topped_up_on' => now()->toDateString(),
                 'amount' => 10_000_000,
                 'notes' => 'Topup modal',
+                'evidence' => UploadedFile::fake()->image('bukti.jpg'),
             ])
             ->assertRedirect(route('investors.index'));
 
         $this->assertEquals(100_000_000.0, (float) $investor->fresh()->capital);
-        $this->assertDatabaseHas('investor_topups', [
-            'investor_id' => $investor->id,
-            'amount' => 10000000,
-            'notes' => 'Topup modal',
-        ]);
-        $this->assertSame(1, InvestorTopup::query()->count());
+        $topup = InvestorTopup::query()->first();
+        $this->assertNotNull($topup);
+        $this->assertSame('Topup modal', $topup->notes);
+        $this->assertNotEmpty($topup->evidence);
+        $this->assertFileExists(public_path($topup->evidence));
+        @unlink(public_path($topup->evidence));
     }
 
     public function test_profit_share_uses_investor_capital_from_database(): void

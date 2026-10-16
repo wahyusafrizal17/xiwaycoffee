@@ -174,7 +174,7 @@
         {{-- Topup modal --}}
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" x-show="topupOpen" x-cloak @click.self="topupOpen = false">
             <div class="crud-modal">
-                <form method="POST" action="{{ route('investors.topup') }}">
+                <form method="POST" action="{{ route('investors.topup') }}" enctype="multipart/form-data">
                     @csrf
                     <input type="hidden" name="_form_mode" value="topup">
                     <div class="crud-modal-body">
@@ -208,6 +208,12 @@
                                     <input class="input" type="number" name="amount" min="0.01" step="0.01" value="{{ old('amount') }}" required>
                                     @error('amount') <p class="mt-1 text-xs text-brand">{{ $message }}</p> @enderror
                                 </div>
+                            </div>
+                            <div>
+                                <label class="label">Bukti</label>
+                                <input class="input" type="file" name="evidence" accept="image/jpeg,image/png,image/webp,application/pdf" required>
+                                <p class="mt-1 text-xs text-muted">Foto atau PDF, maksimal 5 MB.</p>
+                                @error('evidence') <p class="mt-1 text-xs text-brand">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label class="label">Keterangan</label>
@@ -387,6 +393,7 @@
                                     <th>Investor</th>
                                     <th>Nominal</th>
                                     <th>Keterangan</th>
+                                    <th>Bukti</th>
                                     <th>Oleh</th>
                                 </tr>
                             </thead>
@@ -397,11 +404,18 @@
                                         <td>{{ $topup->investor?->name ?? '—' }}</td>
                                         <td>{{ money($topup->amount) }}</td>
                                         <td>{{ $topup->notes ?: '—' }}</td>
+                                        <td>
+                                            @if ($url = evidence_url($topup->evidence))
+                                                <a class="text-[13px] font-medium text-brand" href="{{ $url }}" target="_blank" rel="noopener">Lihat</a>
+                                            @else
+                                                —
+                                            @endif
+                                        </td>
                                         <td>{{ $topup->user?->name ?? '—' }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="py-12 text-center text-sm text-slate-400">Belum ada topup.</td>
+                                        <td colspan="6" class="py-12 text-center text-sm text-slate-400">Belum ada topup.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
