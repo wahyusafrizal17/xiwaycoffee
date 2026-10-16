@@ -12,6 +12,7 @@ use App\Http\Controllers\BomController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CleaningReportController;
 use App\Http\Controllers\ContentLinkController;
+use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\CheckerController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
@@ -95,6 +96,9 @@ Route::middleware(['auth', 'active', 'outlet'])->group(function () {
     Route::get('/konten', [ContentLinkController::class, 'index'])->name('content.index');
     Route::post('/konten', [ContentLinkController::class, 'store'])->name('content.store');
     Route::get('/karyawan/konten', [ContentLinkController::class, 'review'])->name('content.review');
+    Route::get('/izin', [LeaveRequestController::class, 'index'])->name('leave.index');
+    Route::post('/izin', [LeaveRequestController::class, 'store'])->name('leave.store');
+    Route::post('/izin/{leave}', [LeaveRequestController::class, 'decide'])->name('leave.decide');
     Route::get('/report-harian', [CleaningReportController::class, 'index'])->name('cleaning.index');
     Route::post('/report-harian', [CleaningReportController::class, 'store'])->name('cleaning.store');
     Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn'])->name('attendance.clock-in');

@@ -123,6 +123,64 @@ class Employee extends Model
         return (int) round($monthly / 26 * $fraction);
     }
 
+    /**
+     * Scheduled days with no clock-in after miss-by (shift start + 3 jam). OFF / approved leave (swap to OFF) not counted.
+     */
+    public function absentCount(iterable $shifts, iterable $attendances): int
+    {
+        $clocked = [];
+        foreach ($attendances as $attendance) {
+            if ($attendance->clock_in_at) {
+                $clocked[$attendance->work_date->toDateString()] = true;
+            }
+        }
+
+        $now = now('Asia/Jakarta');
+        $count = 0;
+        foreach ($shifts as $shift) {
+            if (! $shift->starts_at || isset($clocked[$shift->work_date->toDateString()])) {
+                continue;
+            }
+            $missBy = Carbon::parse($shift->work_date->toDateString().' '.$shift->starts_at, 'Asia/Jakarta')->addHours(3);
+            if ($now->greaterThanOrEqualTo($missBy)) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /** 50% of one day rate per absent day from 16 Oct 2026. */
+    public function absentPenalty(iterable $shifts, iterable $attendances): int
+    {
+        $monthly = array_sum($this->payParts());
+        if ($monthly <= 0) {
+            return 0;
+        }
+
+        $clocked = [];
+        foreach ($attendances as $attendance) {
+            if ($attendance->clock_in_at) {
+                $clocked[$attendance->work_date->toDateString()] = true;
+            }
+        }
+
+        $now = now('Asia/Jakarta');
+        $days = 0;
+        foreach ($shifts as $shift) {
+            $date = $shift->work_date->toDateString();
+            if ($date < '2026-10-16' || ! $shift->starts_at || isset($clocked[$date])) {
+                continue;
+            }
+            $missBy = Carbon::parse($date.' '.$shift->starts_at, 'Asia/Jakarta')->addHours(3);
+            if ($now->greaterThanOrEqualTo($missBy)) {
+                $days++;
+            }
+        }
+
+        return (int) round($days * $monthly / 26 * 0.5);
+    }
+
     public function reportPenalty(iterable $shifts, iterable $attendances = []): int
     {
         $present = [];

@@ -24,6 +24,7 @@
                         <th>Potongan telat</th>
                         <th>Denda report</th>
                         <th>Denda konten</th>
+                        <th>Denda tidak hadir</th>
                         <th>Lembur</th>
                         <th>Diterima</th>
                         <th></th>
@@ -48,6 +49,7 @@
                             <td class="tabular-nums">{{ money($row['late_penalty']) }}</td>
                             <td class="tabular-nums">{{ money($row['report_penalty']) }}</td>
                             <td class="tabular-nums">{{ money($row['content_penalty']) }}</td>
+                            <td class="tabular-nums">{{ money($row['absent_penalty']) }}</td>
                             <td class="tabular-nums">{{ money($row['overtime']) }}</td>
                             <td class="tabular-nums font-medium text-heading">{{ money($row['net']) }}</td>
                             <td class="text-right">
@@ -56,14 +58,14 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" class="py-16 text-center text-sm text-slate-400">Belum ada karyawan.</td>
+                            <td colspan="12" class="py-16 text-center text-sm text-slate-400">Belum ada karyawan.</td>
                         </tr>
                     @endforelse
                 </tbody>
                 @if ($rows->isNotEmpty())
                     <tfoot>
                         <tr>
-                            <td colspan="9" class="font-medium text-heading">Total gaji karyawan</td>
+                            <td colspan="10" class="font-medium text-heading">Total gaji karyawan</td>
                             <td class="tabular-nums font-medium text-heading">{{ money($rows->sum('net')) }}</td>
                             <td></td>
                         </tr>
