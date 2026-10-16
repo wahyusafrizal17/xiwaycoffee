@@ -60,6 +60,15 @@
                         </tr>
                     @endforelse
                 </tbody>
+                @if ($rows->isNotEmpty())
+                    <tfoot>
+                        <tr>
+                            <td colspan="9" class="font-medium text-heading">Total gaji karyawan</td>
+                            <td class="tabular-nums font-medium text-heading">{{ money($rows->sum('net')) }}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                @endif
             </table>
         </div>
     </div>
