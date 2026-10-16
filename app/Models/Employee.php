@@ -62,7 +62,7 @@ class Employee extends Model
 
     /**
      * Late cut from 15 Oct 2026. Clock-in after cutoff (shift start − 20 menit) is per second of the shift.
-     * No clock-in: cut starts at cutoff and reaches one full day at shift start + 3 jam (pagi 08:40 → 12:00).
+     * No clock-in before miss-by (start + 3 jam, pagi 12:00): late runs from cutoff; after that = tidak masuk, bukan denda telat.
      */
     public function latePenalty(iterable $attendances, iterable $shifts): int
     {
@@ -109,11 +109,8 @@ class Employee extends Model
                 continue;
             }
 
-            if ($now->lessThan($cutoff)) {
-                continue;
-            }
-            if ($date < $today || $now->greaterThanOrEqualTo($missBy)) {
-                $fraction += 1;
+            // Belum absen: setelah jam 12 (atau hari sudah lewat) = tidak masuk, bukan potongan telat.
+            if ($date < $today || $now->greaterThanOrEqualTo($missBy) || $now->lessThan($cutoff)) {
                 continue;
             }
 

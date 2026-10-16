@@ -226,12 +226,22 @@ class EmployeeController extends Controller
                 : 0;
         }
 
-        $rows = $employees->map(function (Employee $employee) use ($shifts, $present, $overrides, $content) {
+        $now = now('Asia/Jakarta');
+        $rows = $employees->map(function (Employee $employee) use ($shifts, $present, $overrides, $content, $now) {
             $mine = $shifts->get($employee->id, collect());
             $days = $present->get($employee->id, collect());
             $scheduled = $mine->filter(fn ($shift) => filled($shift->starts_at))->count();
             $off = $mine->filter(fn ($shift) => ! filled($shift->starts_at))->count();
             $attended = $days->count();
+            $clocked = $days->mapWithKeys(fn ($attendance) => [$attendance->work_date->toDateString() => true]);
+            $absent = $mine->filter(function (WorkShift $shift) use ($clocked, $now) {
+                if (! filled($shift->starts_at) || isset($clocked[$shift->work_date->toDateString()])) {
+                    return false;
+                }
+                $missBy = Carbon::parse($shift->work_date->toDateString().' '.$shift->starts_at, 'Asia/Jakarta')->addHours(3);
+
+                return $now->greaterThanOrEqualTo($missBy);
+            })->count();
             $worked = $overrides->has($employee->id) ? (int) $overrides[$employee->id] : $attended;
             $pay = $employee->pay($worked);
             $latePenalty = $employee->latePenalty($days, $mine);
@@ -257,6 +267,7 @@ class EmployeeController extends Controller
                 'scheduled' => $scheduled,
                 'off' => $off,
                 'attended' => $attended,
+                'absent' => $absent,
                 'worked' => $worked,
                 'late' => $late,
                 'cells' => $cells,

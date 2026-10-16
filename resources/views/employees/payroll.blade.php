@@ -20,6 +20,7 @@
                         <th>Jabatan</th>
                         <th>Gaji pokok</th>
                         <th>Hari masuk</th>
+                        <th>Tidak hadir</th>
                         <th>Potongan telat</th>
                         <th>Denda report</th>
                         <th>Denda konten</th>
@@ -43,6 +44,7 @@
                                     <button class="text-[13px] font-medium text-brand" type="submit">Simpan</button>
                                 </form>
                             </td>
+                            <td class="tabular-nums">{{ $row['absent'] }}</td>
                             <td class="tabular-nums">{{ money($row['late_penalty']) }}</td>
                             <td class="tabular-nums">{{ money($row['report_penalty']) }}</td>
                             <td class="tabular-nums">{{ money($row['content_penalty']) }}</td>
@@ -54,7 +56,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="py-16 text-center text-sm text-slate-400">Belum ada karyawan.</td>
+                            <td colspan="11" class="py-16 text-center text-sm text-slate-400">Belum ada karyawan.</td>
                         </tr>
                     @endforelse
                 </tbody>

@@ -449,7 +449,7 @@ class AttendanceTest extends TestCase
             ->assertDontSee('Slip Gaji', false);
     }
 
-    public function test_no_clock_in_after_noon_cuts_one_full_day(): void
+    public function test_no_clock_in_after_noon_is_absent_not_late(): void
     {
         $this->employee->update(['salary' => 1_700_000]);
         $shift = WorkShift::query()->create([
@@ -469,7 +469,7 @@ class AttendanceTest extends TestCase
         $this->assertLessThan($day, $mid);
 
         $this->travelTo(Carbon::parse('2026-10-16 05:00:00'));
-        $this->assertSame($day, $this->employee->latePenalty([], [$shift]));
+        $this->assertSame(0, $this->employee->latePenalty([], [$shift]));
     }
 
     public function test_late_after_fourteen_october_cuts_salary_per_second(): void
