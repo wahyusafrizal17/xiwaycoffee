@@ -46,11 +46,11 @@
                                 </form>
                             </td>
                             <td class="tabular-nums">{{ $row['absent'] }}</td>
-                            <td class="tabular-nums">{{ money($row['late_penalty']) }}</td>
-                            <td class="tabular-nums">{{ money($row['report_penalty']) }}</td>
-                            <td class="tabular-nums">{{ money($row['content_penalty']) }}</td>
-                            <td class="tabular-nums">{{ money($row['absent_penalty']) }}</td>
-                            <td class="tabular-nums">{{ money($row['overtime']) }}</td>
+                            <td class="tabular-nums text-red-600">− {{ money($row['late_penalty']) }}</td>
+                            <td class="tabular-nums text-red-600">− {{ money($row['report_penalty']) }}</td>
+                            <td class="tabular-nums text-red-600">− {{ money($row['content_penalty']) }}</td>
+                            <td class="tabular-nums text-red-600">− {{ money($row['absent_penalty']) }}</td>
+                            <td class="tabular-nums text-emerald-600">+ {{ money($row['overtime']) }}</td>
                             <td class="tabular-nums font-medium text-heading">{{ money($row['net']) }}</td>
                             <td class="text-right">
                                 <a class="text-[13px] font-medium text-brand" href="{{ route('employees.slip', [$row['employee'], 'month' => $month]) }}" target="_blank">Slip</a>
