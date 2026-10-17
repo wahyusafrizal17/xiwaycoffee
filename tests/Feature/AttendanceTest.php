@@ -712,7 +712,18 @@ class AttendanceTest extends TestCase
         ]);
 
         $this->travelTo(Carbon::parse('2026-10-16 02:31:00'));
-        $this->assertSame(0, $this->employee->reportPenalty([$shift], []));
+        $absentMissed = 0;
+        foreach (CleaningReport::plans($this->employee, $shift, '2026-10-16', CleaningReport::slots($shift, '2026-10-16')) as $plan) {
+            if (CleaningReport::accepts('2026-10-16', $plan['slot'], now('Asia/Jakarta'))) {
+                continue;
+            }
+            foreach ($plan['areas'] as $area) {
+                $absentMissed += count($area['items']);
+            }
+        }
+        $this->assertGreaterThan(0, $absentMissed);
+        $this->assertSame($absentMissed * 100, $this->employee->reportPenalty([$shift], []));
+        $this->assertSame(0, $this->employee->reportPenalty([$off], []));
 
         $attendance = Attendance::query()->create([
             'employee_id' => $this->employee->id,

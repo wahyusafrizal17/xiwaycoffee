@@ -183,17 +183,8 @@ class Employee extends Model
 
     public function reportPenalty(iterable $shifts, iterable $attendances = []): int
     {
-        $present = [];
-        foreach ($attendances as $attendance) {
-            if ($attendance->clock_in_at) {
-                $present[$attendance->work_date->toDateString()] = true;
-            }
-        }
-
-        // OFF (tanpa starts_at) dan hari tidak masuk: tidak kena denda report.
-        $shifts = collect($shifts)->filter(fn (WorkShift $shift) => $shift->starts_at
-            && $shift->work_date->toDateString() >= '2026-10-16'
-            && isset($present[$shift->work_date->toDateString()]));
+        // OFF / izin (starts_at kosong): tidak kena. Ada jadwal (hadir atau tidak masuk tanpa izin): kena untuk slot yang sudah lewat.
+        $shifts = collect($shifts)->filter(fn (WorkShift $shift) => $shift->starts_at && $shift->work_date->toDateString() >= '2026-10-16');
         if ($shifts->isEmpty()) {
             return 0;
         }
