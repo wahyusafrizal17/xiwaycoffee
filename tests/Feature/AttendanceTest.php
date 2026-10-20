@@ -586,7 +586,9 @@ class AttendanceTest extends TestCase
             ->assertSee('Report Harian')
             ->assertSee('08:30')
             ->assertSee('name="tasks[lantai2][]"', false)
-            ->assertSee('name="photo[meeting][0]"', false)
+            ->assertSee('data-field="photo[meeting][0]"', false)
+            ->assertSee('Buka kamera', false)
+            ->assertDontSee('Galeri')
             ->assertSee('report-session report-wait', false)
             ->getContent();
         preg_match_all('/Cek: ([^·<]+)/', $html, $checks);

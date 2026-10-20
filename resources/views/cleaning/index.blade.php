@@ -24,14 +24,19 @@
             .report-session.report-wait > summary { background: #fff6d8; }
             .report-session.report-miss > summary { background: #fde8e8; }
             .report-check { width: 1.35rem; height: 1.35rem; margin-top: 0.1rem; flex: none; }
-            .report-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.75rem; }
-            .report-shot { position: relative; display: flex; align-items: center; justify-content: center; min-height: 3rem; border: 1px dashed #e4e4e7; border-radius: 0.85rem; background: #fff; padding: 0.5rem 0.75rem; }
-            .report-photos.has-photo .report-shot { border-style: solid; border-color: #bbf7d0; background: #f0fdf4; }
-            .report-file { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+            .report-shot { display: flex; align-items: center; justify-content: center; min-height: 3rem; margin-top: 0.75rem; border: 1px dashed #e4e4e7; border-radius: 0.85rem; background: #fff; padding: 0.5rem 0.75rem; width: 100%; font-size: 0.875rem; font-weight: 500; color: #18181b; }
+            .report-photos.has-photo .report-shot { display: none; }
+            .report-retake { display: none; margin-top: 0.5rem; width: 100%; text-align: center; font-size: 0.75rem; font-weight: 500; color: #71717a; }
+            .report-photos.has-photo .report-retake { display: block; }
+            .report-file { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
             .report-preview { display: none; width: 100%; height: 9rem; margin-top: 0.75rem; border-radius: 0.85rem; object-fit: cover; }
             .report-photos.has-photo .report-preview { display: block; }
             .report-submit { position: sticky; bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px)); z-index: 40; }
             @media (min-width: 1024px) { .report-submit { position: static; } }
+            .report-cam { position: fixed; inset: 0; z-index: 60; display: none; flex-direction: column; background: #0a0a0a; }
+            .report-cam.open { display: flex; }
+            .report-cam video { flex: 1; width: 100%; object-fit: cover; background: #000; }
+            .report-cam-bar { display: flex; gap: 0.75rem; padding: 1rem; padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); background: #111; }
         </style>
         @php
             $sessions = [];
@@ -130,19 +135,12 @@
                                                         <input class="report-check" type="checkbox" name="tasks[{{ $key }}][]" value="{{ $index }}">
                                                         <span>{{ $item }}</span>
                                                     </label>
-                                                    <div class="report-photos">
+                                                    <div class="report-photos relative">
+                                                        <input class="report-file" type="file" accept="image/jpeg" data-field="photo[{{ $key }}][{{ $index }}]">
                                                         <img class="report-preview" alt="">
-                                                        <p class="report-shot-status mt-2 text-[12px] text-muted">Belum ada foto</p>
-                                                        <div class="report-actions">
-                                                            <label class="report-shot">
-                                                                <input class="report-file" type="file" accept="image/*" capture="environment" data-field="photo[{{ $key }}][{{ $index }}]" onchange="reportPick(this)">
-                                                                <span class="text-sm font-medium text-heading">Kamera</span>
-                                                            </label>
-                                                            <label class="report-shot">
-                                                                <input class="report-file" type="file" name="photo[{{ $key }}][{{ $index }}]" accept="image/jpeg,image/png,image/webp" data-field="photo[{{ $key }}][{{ $index }}]" onchange="reportPick(this)">
-                                                                <span class="text-sm font-medium text-heading">Galeri</span>
-                                                            </label>
-                                                        </div>
+                                                        <p class="report-shot-status mt-2 text-[12px] text-muted">Belum ada foto. Wajib dari kamera.</p>
+                                                        <button class="report-shot" type="button" onclick="reportOpenCam(this)">Buka kamera</button>
+                                                        <button class="report-retake" type="button" onclick="reportClearPhoto(this)">Ulangi foto</button>
                                                     </div>
                                                 @endif
                                             </div>
@@ -158,83 +156,101 @@
                 </details>
             @endforeach
         </div>
+        <div id="report-cam" class="report-cam" aria-hidden="true">
+            <video id="report-cam-video" autoplay playsinline muted></video>
+            <canvas id="report-cam-canvas" class="hidden"></canvas>
+            <div class="report-cam-bar">
+                <button id="report-cam-close" class="btn-secondary flex-1" type="button">Batal</button>
+                <button id="report-cam-shot" class="btn-primary flex-1" type="button">Ambil foto</button>
+            </div>
+        </div>
         <script>
-            function showPreview(source, box) {
-                box.querySelectorAll('input[type=file]').forEach((input) => {
-                    if (input === source) {
-                        input.name = input.dataset.field;
-                    } else {
-                        input.removeAttribute('name');
-                        input.value = '';
-                    }
-                });
+            let reportCamStream = null;
+            let reportCamBox = null;
+
+            function reportStopCam() {
+                reportCamStream?.getTracks()?.forEach((track) => track.stop());
+                reportCamStream = null;
+                const shell = document.getElementById('report-cam');
+                const video = document.getElementById('report-cam-video');
+                if (video) video.srcObject = null;
+                if (shell) {
+                    shell.classList.remove('open');
+                    shell.setAttribute('aria-hidden', 'true');
+                }
+                reportCamBox = null;
+            }
+
+            async function reportOpenCam(button) {
+                reportCamBox = button.closest('.report-photos');
+                const shell = document.getElementById('report-cam');
+                const video = document.getElementById('report-cam-video');
+                const status = reportCamBox.querySelector('.report-shot-status');
+                try {
+                    reportCamStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { ideal: 'environment' } },
+                        audio: false,
+                    });
+                    video.srcObject = reportCamStream;
+                    shell.classList.add('open');
+                    shell.setAttribute('aria-hidden', 'false');
+                } catch (e) {
+                    reportCamBox = null;
+                    status.textContent = 'Tidak bisa membuka kamera. Izinkan akses kamera di browser.';
+                }
+            }
+
+            function reportClearPhoto(button) {
+                const box = button.closest('.report-photos');
+                const input = box.querySelector('input[type=file]');
+                input.removeAttribute('name');
+                input.value = '';
+                box.classList.remove('has-photo');
+                box.querySelector('img').removeAttribute('src');
+                box.querySelector('.report-shot-status').textContent = 'Belum ada foto. Wajib dari kamera.';
+                const check = box.closest('.py-3').querySelector('.report-check');
+                if (check) check.checked = false;
+            }
+
+            function reportApplyFile(box, file) {
+                const input = box.querySelector('input[type=file]');
+                const list = new DataTransfer();
+                list.items.add(file);
+                input.files = list.files;
+                input.name = input.dataset.field;
                 const check = box.closest('.py-3').querySelector('.report-check');
                 if (check) check.checked = true;
-                box.querySelector('img').src = URL.createObjectURL(source.files[0]);
+                box.querySelector('img').src = URL.createObjectURL(file);
                 box.classList.add('has-photo');
-                box.querySelector('.report-shot-status').textContent = source.hasAttribute('capture') ? 'Foto dari kamera' : 'Foto dari galeri';
+                box.querySelector('.report-shot-status').textContent = 'Foto dari kamera';
             }
 
-            function compressPhoto(file) {
-                return createImageBitmap(file).then((bitmap) => {
-                    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height, 1));
-                    const canvas = document.createElement('canvas');
-                    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-                    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-                    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-                    if (bitmap.close) bitmap.close();
-                    return new Promise((resolve, reject) => {
-                        canvas.toBlob((blob) => {
-                            if (!blob) reject(new Error('blob'));
-                            else resolve(new File([blob], 'bukti.jpg', { type: 'image/jpeg' }));
-                        }, 'image/jpeg', 0.72);
-                    });
-                });
-            }
-
-            async function reportPick(source) {
-                const box = source.closest('.report-photos');
-                const file = source.files && source.files[0];
-                if (!file) return;
-                if (source.dataset.compressed === '1') {
-                    source.dataset.compressed = '';
-                    source.removeAttribute('data-busy');
-                    showPreview(source, box);
-                    return;
-                }
-                source.dataset.busy = '1';
+            async function reportCapture() {
+                if (!reportCamBox || !reportCamStream) return;
+                const box = reportCamBox;
                 const status = box.querySelector('.report-shot-status');
+                const video = document.getElementById('report-cam-video');
+                const canvas = document.getElementById('report-cam-canvas');
+                const width = video.videoWidth || 1280;
+                const height = video.videoHeight || 720;
+                const scale = Math.min(1, 1600 / Math.max(width, height, 1));
+                canvas.width = Math.max(1, Math.round(width * scale));
+                canvas.height = Math.max(1, Math.round(height * scale));
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
                 status.textContent = 'Memproses foto…';
-                let next = file;
+                reportStopCam();
                 try {
-                    if (file.size > 700000 || file.type !== 'image/jpeg') {
-                        next = await compressPhoto(file);
-                    }
+                    const blob = await new Promise((resolve, reject) => {
+                        canvas.toBlob((next) => next ? resolve(next) : reject(new Error('blob')), 'image/jpeg', 0.72);
+                    });
+                    reportApplyFile(box, new File([blob], 'bukti.jpg', { type: 'image/jpeg' }));
                 } catch (e) {
-                    source.removeAttribute('data-busy');
-                    if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 4.5 * 1024 * 1024) {
-                        source.value = '';
-                        status.textContent = 'Foto gagal diproses. Ambil ulang dengan tombol Kamera.';
-                        return;
-                    }
+                    status.textContent = 'Foto gagal diproses. Ambil ulang dari kamera.';
                 }
-                if (next !== file) {
-                    try {
-                        const list = new DataTransfer();
-                        list.items.add(next);
-                        source.dataset.compressed = '1';
-                        source.files = list.files;
-                        if (source.dataset.compressed === '1') {
-                            source.dataset.compressed = '';
-                            source.removeAttribute('data-busy');
-                            showPreview(source, box);
-                        }
-                        return;
-                    } catch (e) {}
-                }
-                source.removeAttribute('data-busy');
-                showPreview(source, box);
             }
+
+            document.getElementById('report-cam-close')?.addEventListener('click', reportStopCam);
+            document.getElementById('report-cam-shot')?.addEventListener('click', reportCapture);
 
             function reportError(form, message) {
                 const box = form.querySelector('.report-error');
@@ -246,10 +262,6 @@
                 if (form.dataset.sending === '1') return;
                 const button = form.querySelector('button[type=submit]');
                 const label = button.textContent;
-                if (form.querySelector('input[data-busy]')) {
-                    reportError(form, 'Foto masih diproses. Tunggu sebentar, lalu kirim lagi.');
-                    return;
-                }
                 const jobs = [];
                 let missing = '';
                 form.querySelectorAll('.py-3').forEach((row) => {
@@ -264,11 +276,11 @@
                     jobs.push({ row, check, input });
                 });
                 if (missing) {
-                    reportError(form, 'Foto belum ada untuk: ' + missing);
+                    reportError(form, 'Foto kamera belum ada untuk: ' + missing);
                     return;
                 }
                 if (!jobs.length) {
-                    reportError(form, 'Centang tugas yang sudah dikerjakan, lalu tambahkan fotonya.');
+                    reportError(form, 'Centang tugas yang sudah dikerjakan, lalu ambil fotonya dari kamera.');
                     return;
                 }
                 form.dataset.sending = '1';
@@ -338,14 +350,7 @@
                         if (check.checked) return;
                         const box = check.closest('.py-3').querySelector('.report-photos');
                         if (!box) return;
-                        box.classList.remove('has-photo');
-                        box.querySelectorAll('input[type=file]').forEach((input) => {
-                            input.removeAttribute('name');
-                            input.value = '';
-                        });
-                        const gallery = box.querySelectorAll('input[type=file]')[1];
-                        if (gallery) gallery.name = gallery.dataset.field;
-                        box.querySelector('.report-shot-status').textContent = 'Belum ada foto';
+                        reportClearPhoto(box.querySelector('.report-retake') || box.querySelector('.report-shot'));
                     });
                 });
             });
