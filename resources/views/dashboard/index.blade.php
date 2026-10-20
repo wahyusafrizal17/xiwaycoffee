@@ -292,41 +292,48 @@
         <div class="h-72"><canvas id="salesTrend"></canvas></div>
     </div>
 
-    <div class="mb-5 card overflow-hidden">
-        <div class="card-header">
-            <div>
-                <h5 class="card-header-title">Produk terlaris</h5>
-                <p class="card-header-subtitle">Qty terjual {{ strtolower($periodLabel) }}. Omzet setelah diskon. Profit = omzet − HPP.</p>
+    <div class="mb-5 grid gap-5 lg:grid-cols-2">
+        @foreach ([
+            ['title' => 'Minuman terlaris', 'rows' => $charts['top_drinks']],
+            ['title' => 'Makanan terlaris', 'rows' => $charts['top_food']],
+        ] as $block)
+            <div class="card overflow-hidden">
+                <div class="card-header">
+                    <div>
+                        <h5 class="card-header-title">{{ $block['title'] }}</h5>
+                        <p class="card-header-subtitle">Top 10 {{ strtolower($periodLabel) }}. Omzet setelah diskon. Profit = omzet − HPP.</p>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="list-table">
+                        <thead>
+                            <tr>
+                                <th class="w-10">#</th>
+                                <th>Produk</th>
+                                <th class="text-right">Qty</th>
+                                <th class="text-right">Omzet</th>
+                                <th class="text-right">Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($block['rows'] as $i => $row)
+                                <tr>
+                                    <td class="text-muted">{{ $i + 1 }}</td>
+                                    <td class="font-medium text-heading">{{ $row->name }}</td>
+                                    <td class="text-right tabular-nums">{{ number_format((float) $row->qty) }}</td>
+                                    <td class="text-right tabular-nums">{{ money($row->total) }}</td>
+                                    <td class="text-right tabular-nums {{ (float) $row->profit >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ money($row->profit) }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="py-14 text-center text-sm text-muted">Belum ada penjualan di periode ini.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
-        <div class="table-wrap">
-            <table class="list-table">
-                <thead>
-                    <tr>
-                        <th class="w-10">#</th>
-                        <th>Produk</th>
-                        <th class="text-right">Qty</th>
-                        <th class="text-right">Omzet</th>
-                        <th class="text-right">Profit</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($charts['top_products'] as $i => $row)
-                        <tr>
-                            <td class="text-muted">{{ $i + 1 }}</td>
-                            <td class="font-medium text-heading">{{ $row->name }}</td>
-                            <td class="text-right tabular-nums">{{ number_format((float) $row->qty) }}</td>
-                            <td class="text-right tabular-nums">{{ money($row->total) }}</td>
-                            <td class="text-right tabular-nums {{ (float) $row->profit >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ money($row->profit) }}</td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" class="py-14 text-center text-sm text-muted">Belum ada penjualan di periode ini.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+        @endforeach
     </div>
 @endsection
 

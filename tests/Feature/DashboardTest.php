@@ -433,19 +433,24 @@ class DashboardTest extends TestCase
         $this->assertEquals(9000.0, $metrics['food_setoran']);
         $this->assertEquals(20000.0, $metrics['gross']);
 
-        $top = app(DashboardService::class)->charts($this->outlet->id, [
+        $charts = app(DashboardService::class)->charts($this->outlet->id, [
             'from' => now()->toDateString(),
             'to' => now()->toDateString(),
-        ])['top_products']->keyBy('name');
-        $this->assertEquals(10000.0, (float) $top['Sanger Diskon']->total);
-        $this->assertEquals(10000.0, (float) $top['Nasi Diskon']->total);
-        $this->assertEquals(7000.0, (float) $top['Sanger Diskon']->profit);
-        $this->assertEquals(6000.0, (float) $top['Nasi Diskon']->profit);
+        ]);
+        $drinks = $charts['top_drinks']->keyBy('name');
+        $food = $charts['top_food']->keyBy('name');
+        $this->assertEquals(10000.0, (float) $drinks['Sanger Diskon']->total);
+        $this->assertEquals(7000.0, (float) $drinks['Sanger Diskon']->profit);
+        $this->assertFalse($drinks->has('Nasi Diskon'));
+        $this->assertEquals(10000.0, (float) $food['Nasi Diskon']->total);
+        $this->assertEquals(6000.0, (float) $food['Nasi Diskon']->profit);
+        $this->assertFalse($food->has('Sanger Diskon'));
 
         $this->actingAsAtOutlet($this->admin)
             ->get(route('dashboard', ['period' => 'day', 'date' => now()->toDateString()]))
             ->assertOk()
-            ->assertSee('Profit')
+            ->assertSee('Minuman terlaris')
+            ->assertSee('Makanan terlaris')
             ->assertSee(money(7000));
 
         $this->actingAsAtOutlet($this->admin)

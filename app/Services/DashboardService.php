@@ -157,29 +157,45 @@ class DashboardService
             ->orderBy('d')
             ->get();
 
+        return [
+            'sales_trend' => $salesTrend,
+            'top_drinks' => $this->topProducts($outletId, $range, 'drink'),
+            'top_food' => $this->topProducts($outletId, $range, 'food'),
+            'arrival_sources' => $this->arrivalSources($outletId, $range),
+        ];
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, object{name: string, qty: float|int, total: float|int, profit: float|int}>
+     */
+    protected function topProducts(?int $outletId, array $range, string $kind)
+    {
         $net = order_item_net_total_sql();
+        $drinkNames = collect(drink_category_names())
+            ->map(fn (string $name) => "'".str_replace("'", "''", $name)."'")
+            ->implode(', ');
+
         $lines = OrderItem::query()
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
+            ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
             ->when($outletId, fn ($q) => $q->where('orders.outlet_id', $outletId))
             ->where('orders.payment_status', PaymentStatus::Paid->value)
             ->whereDate('orders.created_at', '>=', $range['from'])
             ->whereDate('orders.created_at', '<=', $range['to'])
+            ->when($kind === 'drink', fn ($q) => $q->whereRaw("categories.name IN ({$drinkNames})"))
+            ->when($kind === 'food', fn ($q) => $q->where(function ($q) use ($drinkNames) {
+                $q->whereNull('categories.name')->orWhereRaw("categories.name NOT IN ({$drinkNames})");
+            }))
             ->selectRaw("order_items.name as name, order_items.quantity as qty, ({$net}) as line_total, order_items.quantity * COALESCE(products.cost, 0) as line_cost");
 
-        $topProducts = DB::query()
+        return DB::query()
             ->fromSub($lines, 'lines')
             ->selectRaw('name, SUM(qty) as qty, SUM(line_total) as total, SUM(line_total) - SUM(line_cost) as profit')
             ->groupBy('name')
             ->orderByDesc('qty')
-            ->limit(8)
+            ->limit(10)
             ->get();
-
-        return [
-            'sales_trend' => $salesTrend,
-            'top_products' => $topProducts,
-            'arrival_sources' => $this->arrivalSources($outletId, $range),
-        ];
     }
 
     /**
