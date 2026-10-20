@@ -220,11 +220,6 @@ class Employee extends Model
 
     public function overtimePay(iterable $attendances, iterable $shifts): int
     {
-        $monthly = array_sum($this->payParts());
-        if ($monthly <= 0) {
-            return 0;
-        }
-
         $present = [];
         foreach ($attendances as $attendance) {
             if ($attendance->clock_in_at) {
@@ -242,8 +237,8 @@ class Employee extends Model
             }
         }
 
-        // Shift 09.00–22.00 = 1 hari tambahan. Upah 1 hari = gaji/26.
-        return (int) round($days * $monthly / 26);
+        // Flat sama rata: Rp 65.385 per hari lembur 09.00–22.00.
+        return $days * 65_385;
     }
 
     /**

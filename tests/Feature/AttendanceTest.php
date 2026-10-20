@@ -333,7 +333,7 @@ class AttendanceTest extends TestCase
 
     public function test_full_shift_pays_overtime_on_top_of_the_day(): void
     {
-        $this->employee->update(['salary' => 1_700_000]);
+        $this->employee->update(['salary' => 3_000_000]);
         $shift = WorkShift::query()->create([
             'employee_id' => $this->employee->id,
             'work_date' => '2026-10-15',
@@ -349,7 +349,7 @@ class AttendanceTest extends TestCase
             'clock_in_at' => '2026-10-15 01:00:00',
         ]);
 
-        $this->assertSame((int) round(1_700_000 / 26), $this->employee->overtimePay([$attendance], [$shift]));
+        $this->assertSame(65_385, $this->employee->overtimePay([$attendance], [$shift]));
     }
 
     public function test_payroll_slip_prorates_present_days_over_twenty_six(): void
