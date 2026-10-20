@@ -296,7 +296,7 @@
         <div class="card-header">
             <div>
                 <h5 class="card-header-title">Produk terlaris</h5>
-                <p class="card-header-subtitle">Qty terjual {{ strtolower($periodLabel) }}. Omzet setelah diskon.</p>
+                <p class="card-header-subtitle">Qty terjual {{ strtolower($periodLabel) }}. Omzet setelah diskon. Profit = omzet − HPP.</p>
             </div>
         </div>
         <div class="table-wrap">
@@ -307,6 +307,7 @@
                         <th>Produk</th>
                         <th class="text-right">Qty</th>
                         <th class="text-right">Omzet</th>
+                        <th class="text-right">Profit</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -316,10 +317,11 @@
                             <td class="font-medium text-heading">{{ $row->name }}</td>
                             <td class="text-right tabular-nums">{{ number_format((float) $row->qty) }}</td>
                             <td class="text-right tabular-nums">{{ money($row->total) }}</td>
+                            <td class="text-right tabular-nums {{ (float) $row->profit >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ money($row->profit) }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="py-14 text-center text-sm text-muted">Belum ada penjualan di periode ini.</td>
+                            <td colspan="5" class="py-14 text-center text-sm text-muted">Belum ada penjualan di periode ini.</td>
                         </tr>
                     @endforelse
                 </tbody>

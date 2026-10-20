@@ -159,11 +159,15 @@ class DashboardService
 
         $topProducts = OrderItem::query()
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
             ->when($outletId, fn ($q) => $q->where('orders.outlet_id', $outletId))
             ->where('orders.payment_status', PaymentStatus::Paid->value)
             ->whereDate('orders.created_at', '>=', $range['from'])
             ->whereDate('orders.created_at', '<=', $range['to'])
-            ->selectRaw('order_items.name, SUM(order_items.quantity) as qty, SUM('.order_item_net_total_sql().') as total')
+            ->selectRaw(
+                'order_items.name, SUM(order_items.quantity) as qty, SUM('.order_item_net_total_sql().') as total, '
+                .'SUM('.order_item_net_total_sql().') - SUM(order_items.quantity * COALESCE(products.cost, 0)) as profit'
+            )
             ->groupBy('order_items.name')
             ->orderByDesc('qty')
             ->limit(8)

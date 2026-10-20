@@ -376,6 +376,7 @@ class DashboardTest extends TestCase
             'unit_id' => $this->unitPcs->id,
             'type' => ProductType::Finished,
             'price' => 20000,
+            'cost' => 3000,
             'is_sellable' => true,
             'is_stockable' => false,
             'is_active' => true,
@@ -388,6 +389,7 @@ class DashboardTest extends TestCase
             'unit_id' => $this->unitPcs->id,
             'type' => ProductType::Finished,
             'price' => 10000,
+            'cost' => 4000,
             'consignment_commission' => 1000,
             'is_sellable' => true,
             'is_stockable' => false,
@@ -437,6 +439,14 @@ class DashboardTest extends TestCase
         ])['top_products']->keyBy('name');
         $this->assertEquals(10000.0, (float) $top['Sanger Diskon']->total);
         $this->assertEquals(10000.0, (float) $top['Nasi Diskon']->total);
+        $this->assertEquals(7000.0, (float) $top['Sanger Diskon']->profit);
+        $this->assertEquals(6000.0, (float) $top['Nasi Diskon']->profit);
+
+        $this->actingAsAtOutlet($this->admin)
+            ->get(route('dashboard', ['period' => 'day', 'date' => now()->toDateString()]))
+            ->assertOk()
+            ->assertSee('Profit')
+            ->assertSee(money(7000));
 
         $this->actingAsAtOutlet($this->admin)
             ->get(route('orders.index', ['period' => 'day', 'date' => now()->toDateString()]))
