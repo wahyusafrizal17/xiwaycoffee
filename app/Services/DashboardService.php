@@ -157,18 +157,20 @@ class DashboardService
             ->orderBy('d')
             ->get();
 
-        $topProducts = OrderItem::query()
+        $net = order_item_net_total_sql();
+        $lines = OrderItem::query()
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
             ->when($outletId, fn ($q) => $q->where('orders.outlet_id', $outletId))
             ->where('orders.payment_status', PaymentStatus::Paid->value)
             ->whereDate('orders.created_at', '>=', $range['from'])
             ->whereDate('orders.created_at', '<=', $range['to'])
-            ->selectRaw(
-                'order_items.name, SUM(order_items.quantity) as qty, SUM('.order_item_net_total_sql().') as total, '
-                .'SUM('.order_item_net_total_sql().') - SUM(order_items.quantity * COALESCE(products.cost, 0)) as profit'
-            )
-            ->groupBy('order_items.name')
+            ->selectRaw("order_items.name as name, order_items.quantity as qty, ({$net}) as line_total, order_items.quantity * COALESCE(products.cost, 0) as line_cost");
+
+        $topProducts = DB::query()
+            ->fromSub($lines, 'lines')
+            ->selectRaw('name, SUM(qty) as qty, SUM(line_total) as total, SUM(line_total) - SUM(line_cost) as profit')
+            ->groupBy('name')
             ->orderByDesc('qty')
             ->limit(8)
             ->get();
