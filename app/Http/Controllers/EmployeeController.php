@@ -220,8 +220,9 @@ class EmployeeController extends Controller
             ->pluck('days', 'employee_id');
 
         $content = [];
-        foreach ($employees->groupBy('outlet_id') as $outletId => $group) {
-            $heads = $group->where('is_active', true)->count();
+        foreach ($employees->pluck('outlet_id')->unique()->filter() as $outletId) {
+            // Selalu bagi rata semua karyawan aktif outlet, termasuk saat buka slip 1 orang.
+            $heads = Employee::query()->where('outlet_id', $outletId)->where('is_active', true)->count();
             $content[$outletId] = $heads > 0
                 ? ContentLink::share((int) $outletId, $start->toDateString(), $end->toDateString(), $heads)
                 : 0;

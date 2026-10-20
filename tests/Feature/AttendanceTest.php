@@ -1234,6 +1234,13 @@ class AttendanceTest extends TestCase
             ->assertOk()
             ->assertSee('Denda konten')
             ->assertSee('Rp 7.500', false);
+
+        $this->actingAs($this->user)
+            ->get(route('employees.mine', ['month' => '2026-10']))
+            ->assertOk()
+            ->assertSee('Denda konten', false)
+            ->assertSee('7,500', false)
+            ->assertDontSee('30,000', false);
     }
 
     public function test_karyawan_lands_on_attendance_after_login(): void
