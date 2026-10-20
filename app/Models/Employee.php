@@ -237,8 +237,8 @@ class Employee extends Model
             }
         }
 
-        // Flat sama rata: Rp 65.385 per hari lembur 09.00–22.00.
-        return $days * 65_385;
+        // Flat sama rata: Rp 65.000 per hari lembur 09.00–22.00.
+        return $days * 65_000;
     }
 
     /**
