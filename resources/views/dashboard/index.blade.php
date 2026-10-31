@@ -148,7 +148,14 @@
                 <div class="min-w-0 flex-1">
                     <p class="stat-kicker">Setoran makanan</p>
                     <p class="stat-value">{{ money($metrics['food_setoran']) }}</p>
-                    <p class="stat-hint">Sudah disetor {{ money($metrics['food_setoran_paid']) }} · sisa {{ money($metrics['food_setoran_remaining']) }}</p>
+                    <p class="stat-hint">Sudah disetor {{ money($metrics['food_setoran_paid']) }}</p>
+                </div>
+            </div>
+            <div class="stat-card !items-start">
+                <div class="min-w-0 flex-1">
+                    <p class="stat-kicker">Sisa setoran</p>
+                    <p class="stat-value">{{ money($metrics['food_setoran_remaining']) }}</p>
+                    <p class="stat-hint">Belum disetor pada periode ini</p>
                 </div>
             </div>
         @endif
