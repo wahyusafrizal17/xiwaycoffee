@@ -175,14 +175,21 @@ class AttendanceController extends Controller
         abort_unless($request->user()->hasPermission('attendance.clock') || $request->user()->hasPermission('attendance.manage'), 403);
 
         $order = [
-            'zakki@xiway.local' => 0,
-            'ergina@xiway.local' => 1,
-            'naurah@xiway.local' => 2,
-            'jimmy@xiway.local' => 3,
+            'Dinda' => 0,
+            'Jimmy' => 1,
+            'Bagas' => 2,
         ];
+
+        $month = (string) $request->query('month');
+        if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
+            $month = now('Asia/Jakarta')->format('Y-m');
+        }
+        $start = Carbon::parse($month.'-01');
 
         $shifts = WorkShift::query()
             ->with(['employee.user'])
+            ->whereDate('work_date', '>=', $start->toDateString())
+            ->whereDate('work_date', '<=', $start->copy()->endOfMonth()->toDateString())
             ->when(current_outlet_id(), fn ($q) => $q->whereHas('employee', fn ($employee) => $employee->where('outlet_id', current_outlet_id())))
             ->orderBy('work_date')
             ->get();
@@ -190,7 +197,7 @@ class AttendanceController extends Controller
         $employees = $shifts
             ->pluck('employee')
             ->unique('id')
-            ->sortBy(fn (Employee $employee) => $order[$employee->user?->email] ?? 9)
+            ->sortBy(fn (Employee $employee) => $order[$employee->user?->name] ?? 9)
             ->values();
 
         $byDate = $shifts->groupBy(fn (WorkShift $shift) => $shift->work_date->toDateString());
@@ -198,6 +205,8 @@ class AttendanceController extends Controller
         return view('attendance.schedule', [
             'employees' => $employees,
             'byDate' => $byDate,
+            'month' => $month,
+            'label' => $start->locale('id')->translatedFormat('F Y'),
             'meId' => Employee::query()->where('user_id', $request->user()->id)->value('id'),
         ]);
     }

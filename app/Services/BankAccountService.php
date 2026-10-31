@@ -3,15 +3,22 @@
 namespace App\Services;
 
 use App\Enums\BankMovementType;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
 use App\Models\BankAccount;
 use App\Models\BankMovement;
+use App\Models\Payment;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class BankAccountService
 {
+    /** QRIS sebelum rekening dipakai (20-22 Sep 2026) tidak pernah masuk saldo. */
+    public const QRIS_START = '2026-09-23';
+
     public function accountFor(int $outletId): BankAccount
     {
         return BankAccount::query()->firstOrCreate(
@@ -53,6 +60,49 @@ class BankAccountService
         ?int $userId = null,
     ): ?BankMovement {
         return $this->post($outletId, -abs($amount), $type, $reference, $notes, $occurredOn, $userId);
+    }
+
+    /**
+     * Closing harian: QRIS yang lunas sebelum hari ini (WIB) dan belum tercatat masuk ke saldo.
+     * Aman diulang, dan hari yang terlewat ikut terbawa di closing berikutnya.
+     *
+     * @return array{count: int, total: float}
+     */
+    public function closeQris(): array
+    {
+        $payments = Payment::query()
+            ->with('order')
+            ->where('method', PaymentMethod::Qris->value)
+            ->where('status', 'paid')
+            ->where('created_at', '>=', Carbon::parse(self::QRIS_START, 'Asia/Jakarta')->utc()->toDateTimeString())
+            ->where('created_at', '<', now('Asia/Jakarta')->startOfDay()->utc()->toDateTimeString())
+            ->whereHas('order', fn ($query) => $query->where('status', '!=', OrderStatus::Cancelled->value))
+            ->whereNotIn('id', BankMovement::query()
+                ->where('type', BankMovementType::Qris->value)
+                ->where('reference_type', (new Payment)->getMorphClass())
+                ->select('reference_id'))
+            ->orderBy('id')
+            ->get();
+
+        $count = 0;
+        $total = 0.0;
+        foreach ($payments as $payment) {
+            $movement = $this->credit(
+                (int) $payment->order->outlet_id,
+                (float) $payment->amount,
+                BankMovementType::Qris,
+                $payment,
+                'Pembayaran QRIS '.$payment->order->order_number,
+                $payment->created_at->copy()->timezone('Asia/Jakarta')->toDateString(),
+                $payment->user_id,
+            );
+            if ($movement) {
+                $count++;
+                $total += (float) $payment->amount;
+            }
+        }
+
+        return ['count' => $count, 'total' => $total];
     }
 
     public function forget(Model $reference, BankMovementType $type): void
@@ -98,6 +148,16 @@ class BankAccountService
             $notes,
             $occurredOn,
         );
+    }
+
+    public function setBalance(int $outletId, float $target, string $notes, ?string $occurredOn = null): BankMovement
+    {
+        $difference = round($target - $this->balance($outletId), 2);
+        if ($difference == 0.0) {
+            throw ValidationException::withMessages(['balance' => 'Saldo sudah sama dengan nominal ini.']);
+        }
+
+        return $this->adjust($outletId, $difference, $notes, $occurredOn);
     }
 
     protected function post(

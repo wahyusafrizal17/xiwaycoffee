@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
                 BopSeeder::class,
                 EmployeeSeeder::class,
                 WorkShiftSeeder::class,
+                NovemberRosterSeeder::class,
             ]);
         });
     }

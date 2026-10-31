@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\BankMovementType;
 use App\Enums\OrderChannel;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
@@ -438,16 +437,6 @@ class OrderService
                 ? PaymentStatus::Paid
                 : ($paid > 0 ? PaymentStatus::Partial : PaymentStatus::Unpaid);
             $order->save();
-
-            if ($method === PaymentMethod::Qris) {
-                app(BankAccountService::class)->credit(
-                    (int) $order->outlet_id,
-                    (float) $paymentRow->amount,
-                    BankMovementType::Qris,
-                    $paymentRow,
-                    'Pembayaran QRIS '.$order->order_number,
-                );
-            }
 
             return $order->fresh(['items', 'payments', 'customer', 'table']);
         });

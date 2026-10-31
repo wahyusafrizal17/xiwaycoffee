@@ -103,17 +103,17 @@ class BankAccountController extends Controller
 
         $data = $request->validate([
             'occurred_on' => ['required', 'date'],
-            'amount' => ['required', 'numeric', 'not_in:0'],
+            'balance' => ['required', 'numeric'],
             'notes' => ['required', 'string', 'max:255'],
         ]);
 
-        $this->bank->adjust(
+        $this->bank->setBalance(
             (int) current_outlet_id(),
-            (float) $data['amount'],
+            (float) $data['balance'],
             $data['notes'],
             $data['occurred_on'],
         );
 
-        return redirect()->route('bank.index')->with('success', 'Koreksi saldo tercatat.');
+        return redirect()->route('bank.index')->with('success', 'Saldo disesuaikan.');
     }
 }

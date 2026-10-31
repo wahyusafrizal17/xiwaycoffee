@@ -13,10 +13,10 @@
             <div>
                 <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Keuangan</p>
                 <h1 class="mt-1 font-serif text-[1.75rem] font-semibold leading-none text-heading">Rekening</h1>
-                <p class="mt-2 max-w-xl text-[13px] text-muted">Saldo bank di web. QRIS, setoran kas, BOP, dan setoran makanan masuk otomatis.</p>
+                <p class="mt-2 max-w-xl text-[13px] text-muted">Saldo bank di web. QRIS masuk otomatis saat closing jam 00.00 WIB. Setoran kas, BOP, dan setoran makanan langsung tercatat.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button type="button" class="btn-ghost" @click="adjustOpen = true">Koreksi saldo</button>
+                <button type="button" class="btn-ghost" @click="adjustOpen = true">Sesuaikan saldo</button>
                 <button type="button" class="btn-add" @click="depositOpen = true">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14"/></svg>
                     Catat setoran kas
@@ -130,8 +130,8 @@
                     <div class="crud-modal-body">
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                <h3 class="font-serif text-lg font-semibold text-heading">Koreksi saldo</h3>
-                                <p class="mt-1 text-[13px] text-muted">Positif = tambah, negatif = kurang. Samakan dengan bank asli.</p>
+                                <h3 class="font-serif text-lg font-semibold text-heading">Sesuaikan saldo</h3>
+                                <p class="mt-1 text-[13px] text-muted">Saldo sekarang {{ money($balance) }}. Isi saldo yang benar, selisihnya tercatat sebagai koreksi. QRIS hari ini belum termasuk sampai closing jam 00.00.</p>
                             </div>
                             <button type="button" class="modal-close" @click="adjustOpen = false">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 6l12 12M18 6L6 18"/></svg>
@@ -144,20 +144,20 @@
                                 @error('occurred_on')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                             <div>
-                                <label class="label">Nominal (+ / −)</label>
-                                <input class="input" type="number" name="amount" step="0.01" required value="{{ old('amount') }}" placeholder="0">
-                                @error('amount')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                                <label class="label">Saldo yang benar</label>
+                                <input class="input" type="number" name="balance" step="0.01" required value="{{ old('balance') }}" placeholder="0">
+                                @error('balance')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                             <div>
                                 <label class="label">Keterangan</label>
-                                <input class="input" type="text" name="notes" value="{{ old('notes') }}" maxlength="255" required placeholder="Alasan koreksi">
+                                <input class="input" type="text" name="notes" value="{{ old('notes') }}" maxlength="255" required placeholder="Alasan penyesuaian">
                                 @error('notes')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                         </div>
                     </div>
                     <div class="crud-modal-footer">
                         <button type="button" class="btn-ghost" @click="adjustOpen = false">Batal</button>
-                        <button class="btn-add" type="submit">Simpan koreksi</button>
+                        <button class="btn-add" type="submit">Simpan saldo</button>
                     </div>
                 </form>
             </div>

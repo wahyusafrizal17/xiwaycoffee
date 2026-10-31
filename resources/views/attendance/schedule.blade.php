@@ -2,10 +2,15 @@
 @section('title', 'Jadwal')
 @section('breadcrumb', 'Karyawan')
 @section('content')
-    <div class="mb-5">
-        <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Shift karyawan</p>
-        <h1 class="mt-1 font-serif text-[1.75rem] font-semibold leading-none text-heading">Jadwal</h1>
-        <p class="mt-2 text-[13px] text-muted">30 September – 31 Oktober 2026. Terhubung ke akun karyawan.</p>
+    <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Shift karyawan</p>
+            <h1 class="mt-1 font-serif text-[1.75rem] font-semibold leading-none text-heading">Jadwal</h1>
+            <p class="mt-2 text-[13px] text-muted">{{ $label }}. Terhubung ke akun karyawan.</p>
+        </div>
+        <form method="GET">
+            <input class="input" type="month" name="month" value="{{ $month }}" onchange="this.form.submit()">
+        </form>
     </div>
 
     <div class="card overflow-hidden">

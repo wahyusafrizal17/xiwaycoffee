@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\ExpenseCategory;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\TableStatus;
 use App\Models\DiningTable;
+use App\Models\Employee;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Http\Request;
@@ -93,8 +95,13 @@ class DashboardService
             : 0.0;
         $sales = round($gross - $setoran, 2);
         $bop = (float) $summary['bop'];
+        // Gaji pakai nilai tetap karyawan, jadi BOP kategori Gaji tidak dihitung lagi di operasional.
+        $salary = $this->fixedSalary($outletId, $range);
+        $otherExpenses = $summary['expenses']->reject(fn ($expense) => $expense->category === ExpenseCategory::Salary);
+        $bopOther = round((float) $otherExpenses->sum('amount'), 2);
+        $operational = round($bopOther + $salary, 2);
         $serviceFee = round((float) (clone $this->validOrders($outletId, $range))->sum('tax_amount'), 2);
-        $net = round($gross - $bop, 2);
+        $net = round($sales - $operational, 2);
         $shareBase = round($sales - $serviceFee - $bop, 2);
 
         $orderCount = (int) (clone $this->validOrders($outletId, $range))->count();
@@ -123,6 +130,10 @@ class DashboardService
             'food_setoran_remaining' => round(max(0, $setoran - $setoranPaid), 2),
             'sales' => $sales,
             'bop' => $bop,
+            'salary' => $salary,
+            'bop_other' => $bopOther,
+            'operational' => $operational,
+            'expense_groups' => $this->expenseGroups($otherExpenses, $salary, $operational),
             'net' => $net,
             'share_base' => $shareBase,
             'shares' => $this->shares->split($shareBase, $this->shares->partners()),
@@ -144,25 +155,83 @@ class DashboardService
         ];
     }
 
-    public function charts(?int $outletId, array $range): array
+    /**
+     * Gaji bulanan karyawan aktif. Bulanan penuh, tahunan per bulan berjalan, harian/range prorata kalender.
+     */
+    protected function fixedSalary(?int $outletId, array $range): float
+    {
+        $monthly = Employee::query()
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
+            ->where('is_active', true)
+            ->get()
+            ->sum(fn (Employee $employee) => array_sum($employee->payParts()));
+
+        $from = Carbon::parse($range['from']);
+        $to = Carbon::parse($range['to']);
+        $months = match ($range['period']) {
+            'month' => 1,
+            'year' => $to->month,
+            default => ($from->diffInDays($to) + 1) / $from->daysInMonth,
+        };
+
+        return round($monthly * $months, 2);
+    }
+
+    /**
+     * @return list<array{label: string, amount: float, percent: int}>
+     */
+    protected function expenseGroups($expenses, float $salary, float $total): array
+    {
+        $groups = $expenses
+            ->groupBy(fn ($expense) => $expense->category?->label() ?? 'Lainnya')
+            ->map(fn ($rows) => (float) $rows->sum('amount'));
+        if ($salary > 0) {
+            $groups['Gaji karyawan'] = $salary;
+        }
+
+        return $groups
+            ->map(fn (float $amount, $label) => [
+                'label' => (string) $label,
+                'amount' => round($amount, 2),
+                'percent' => $total > 0 ? (int) round($amount / $total * 100) : 0,
+            ])
+            ->sortByDesc('amount')
+            ->values()
+            ->all();
+    }
+
+    public function charts(?int $outletId, array $range, string $tab = 'cafe'): array
     {
         $trendFrom = now()->subDays(13)->startOfDay();
 
-        $salesTrend = Order::query()
-            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
-            ->where('payment_status', PaymentStatus::Paid->value)
-            ->where('created_at', '>=', $trendFrom)
-            ->selectRaw('DATE(created_at) as d, SUM(grand_total) as total, COUNT(*) as qty')
-            ->groupBy('d')
-            ->orderBy('d')
-            ->get();
-
         return [
-            'sales_trend' => $salesTrend,
+            'sales_trend' => $this->kindTrend($outletId, $trendFrom, $tab === 'food' ? 'food' : 'drink'),
             'top_drinks' => $this->topProducts($outletId, $range, 'drink'),
             'top_food' => $this->topProducts($outletId, $range, 'food'),
             'arrival_sources' => $this->arrivalSources($outletId, $range),
         ];
+    }
+
+    /**
+     * Omzet harian minuman atau makanan, setelah diskon, sama dengan kartu pendapatan.
+     */
+    protected function kindTrend(?int $outletId, Carbon $from, string $kind)
+    {
+        $amount = $kind === 'drink' ? order_item_drink_amount_sql() : order_item_food_amount_sql();
+
+        return OrderItem::query()
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
+            ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
+            ->leftJoin('bundles', 'bundles.id', '=', 'order_items.bundle_id')
+            ->when($outletId, fn ($q) => $q->where('orders.outlet_id', $outletId))
+            ->where('orders.payment_status', PaymentStatus::Paid->value)
+            ->where('orders.status', '!=', OrderStatus::Cancelled->value)
+            ->where('orders.created_at', '>=', $from)
+            ->selectRaw("DATE(orders.created_at) as d, SUM({$amount}) as total")
+            ->groupBy('d')
+            ->orderBy('d')
+            ->get();
     }
 
     /**
@@ -194,7 +263,6 @@ class DashboardService
             ->selectRaw('name, SUM(qty) as qty, SUM(line_total) as total, SUM(line_total) - SUM(line_cost) as profit')
             ->groupBy('name')
             ->orderByDesc('qty')
-            ->limit(10)
             ->get();
     }
 

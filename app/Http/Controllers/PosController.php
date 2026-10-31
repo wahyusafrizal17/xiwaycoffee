@@ -431,6 +431,7 @@ class PosController extends Controller
             'customer' => $order->notes ?: $order->customer?->name,
             'items_count' => $order->items->count(),
             'held_at' => $order->held_at?->toIso8601String(),
+            'held_label' => ($order->held_at ?? $order->created_at)?->copy()->timezone('Asia/Jakarta')->locale('id')->translatedFormat('d M Y, H.i'),
             'status' => $order->status?->value,
         ];
     }

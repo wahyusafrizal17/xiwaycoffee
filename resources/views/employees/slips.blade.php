@@ -13,10 +13,6 @@
                     <tr>
                         <th>Bulan</th>
                         <th>Hari masuk</th>
-                        <th>Potongan telat</th>
-                        <th>Denda report</th>
-                        <th>Denda konten</th>
-                        <th>Denda tidak hadir</th>
                         <th>Lembur</th>
                         <th>Diterima</th>
                         <th></th>
@@ -27,10 +23,6 @@
                         <tr>
                             <td class="font-medium text-heading">{{ $row['label'] }}</td>
                             <td>{{ $row['worked'] }} hari</td>
-                            <td class="tabular-nums">{{ money($row['late_penalty']) }}</td>
-                            <td class="tabular-nums">{{ money($row['report_penalty']) }}</td>
-                            <td class="tabular-nums">{{ money($row['content_penalty']) }}</td>
-                            <td class="tabular-nums">{{ money($row['absent_penalty']) }}</td>
                             <td class="tabular-nums">{{ money($row['overtime']) }}</td>
                             <td class="tabular-nums font-medium text-heading">{{ money($row['net']) }}</td>
                             <td class="text-right">
@@ -39,7 +31,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="py-16 text-center text-sm text-slate-400">Belum ada slip.</td>
+                            <td colspan="5" class="py-16 text-center text-sm text-slate-400">Belum ada slip.</td>
                         </tr>
                     @endforelse
                 </tbody>

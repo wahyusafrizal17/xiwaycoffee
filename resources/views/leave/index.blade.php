@@ -23,7 +23,7 @@
                     <div class="min-w-0">
                         <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand">Izin kerja</p>
                         <h1 class="mt-2 font-serif text-[1.85rem] font-semibold leading-none text-heading">Ajukan izin</h1>
-                        <p class="mt-3 max-w-md text-[13px] leading-relaxed text-muted">Pilih backup, tunggu mereka setujui. Shift digabung ke jam mereka. Tanpa approve dan tidak masuk: denda 50% gaji per hari.</p>
+                        <p class="mt-3 max-w-md text-[13px] leading-relaxed text-muted">Pilih backup, tunggu mereka setujui. Shift digabung ke jam mereka.</p>
                     </div>
                     <button
                         type="button"

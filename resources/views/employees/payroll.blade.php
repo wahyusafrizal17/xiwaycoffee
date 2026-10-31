@@ -4,7 +4,7 @@
     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
             <h1 class="font-serif text-[1.75rem] font-semibold leading-none text-heading">Gaji</h1>
-            <p class="mt-2 text-[13px] text-muted">Prorata 26 hari kerja/bulan dari hari hadir. {{ $label }}. Sejak 15 Okt 2026, wajib hadir 30 menit sebelum shift, toleransi 10 menit; lebih dari itu dipotong per detik.</p>
+            <p class="mt-2 text-[13px] text-muted">Prorata 26 hari kerja/bulan dari hari hadir. {{ $label }}.</p>
         </div>
         <form method="GET">
             <input class="input" type="month" name="month" value="{{ $month }}" onchange="this.form.submit()">
@@ -21,10 +21,6 @@
                         <th>Gaji pokok</th>
                         <th>Hari masuk</th>
                         <th>Tidak hadir</th>
-                        <th>Potongan telat</th>
-                        <th>Denda report</th>
-                        <th>Denda konten</th>
-                        <th>Denda tidak hadir</th>
                         <th>Lembur</th>
                         <th>Diterima</th>
                         <th></th>
@@ -46,10 +42,6 @@
                                 </form>
                             </td>
                             <td class="tabular-nums">{{ $row['absent'] }}</td>
-                            <td class="tabular-nums text-red-600">− {{ money($row['late_penalty']) }}</td>
-                            <td class="tabular-nums text-red-600">− {{ money($row['report_penalty']) }}</td>
-                            <td class="tabular-nums text-red-600">− {{ money($row['content_penalty']) }}</td>
-                            <td class="tabular-nums text-red-600">− {{ money($row['absent_penalty']) }}</td>
                             <td class="tabular-nums text-emerald-600">+ {{ money($row['overtime']) }}</td>
                             <td class="tabular-nums font-medium text-heading">{{ money($row['net']) }}</td>
                             <td class="text-right">
@@ -58,14 +50,14 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="12" class="py-16 text-center text-sm text-slate-400">Belum ada karyawan.</td>
+                            <td colspan="8" class="py-16 text-center text-sm text-slate-400">Belum ada karyawan.</td>
                         </tr>
                     @endforelse
                 </tbody>
                 @if ($rows->isNotEmpty())
                     <tfoot>
                         <tr>
-                            <td colspan="10" class="font-medium text-heading">Total gaji karyawan</td>
+                            <td colspan="6" class="font-medium text-heading">Total gaji karyawan</td>
                             <td class="tabular-nums font-medium text-heading">{{ money($rows->sum('net')) }}</td>
                             <td></td>
                         </tr>

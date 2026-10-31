@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
-use App\Models\ContentLink;
 use App\Models\Employee;
 use App\Models\PayrollDay;
 use App\Models\WorkShift;
@@ -112,10 +111,6 @@ class EmployeeController extends Controller
                 'month' => $month,
                 'label' => Carbon::createFromFormat('Y-m', $month)->locale('id')->translatedFormat('F Y'),
                 'worked' => $row['worked'] ?? 0,
-                'late_penalty' => $row['late_penalty'] ?? 0,
-                'report_penalty' => $row['report_penalty'] ?? 0,
-                'content_penalty' => $row['content_penalty'] ?? 0,
-                'absent_penalty' => $row['absent_penalty'] ?? 0,
                 'overtime' => $row['overtime'] ?? 0,
                 'net' => $row['net'] ?? 0,
             ];
@@ -219,16 +214,7 @@ class EmployeeController extends Controller
             ->where('month', $month)
             ->pluck('days', 'employee_id');
 
-        $content = [];
-        foreach ($employees->pluck('outlet_id')->unique()->filter() as $outletId) {
-            // Selalu bagi rata semua karyawan aktif outlet, termasuk saat buka slip 1 orang.
-            $heads = Employee::query()->where('outlet_id', $outletId)->where('is_active', true)->count();
-            $content[$outletId] = $heads > 0
-                ? ContentLink::share((int) $outletId, $start->toDateString(), $end->toDateString(), $heads)
-                : 0;
-        }
-
-        $rows = $employees->map(function (Employee $employee) use ($shifts, $present, $overrides, $content) {
+        $rows = $employees->map(function (Employee $employee) use ($shifts, $present, $overrides) {
             $mine = $shifts->get($employee->id, collect());
             $days = $present->get($employee->id, collect());
             $scheduled = $mine->filter(fn ($shift) => filled($shift->starts_at))->count();
@@ -237,10 +223,6 @@ class EmployeeController extends Controller
             $absent = $employee->absentCount($mine, $days);
             $worked = $overrides->has($employee->id) ? (int) $overrides[$employee->id] : $attended;
             $pay = $employee->pay($worked);
-            $latePenalty = $employee->latePenalty($days, $mine);
-            $reportPenalty = $employee->reportPenalty($mine, $days);
-            $contentPenalty = $employee->is_active ? ($content[$employee->outlet_id] ?? 0) : 0;
-            $absentPenalty = $employee->absentPenalty($mine, $days);
             $overtime = $employee->overtimePay($days, $mine);
             $shiftsByDay = $mine->keyBy(fn ($shift) => $shift->work_date->day);
             $cells = $days->keyBy(fn ($attendance) => $attendance->work_date->day)->map(function ($attendance) use ($shiftsByDay) {
@@ -271,13 +253,9 @@ class EmployeeController extends Controller
                 'lines' => $pay['lines'],
                 'bonus' => $pay['bonus'],
                 'deduction' => $pay['deduction'],
-                'late_penalty' => $latePenalty,
-                'report_penalty' => $reportPenalty,
-                'content_penalty' => $contentPenalty,
-                'absent_penalty' => $absentPenalty,
                 'overtime' => $overtime,
                 'earnings' => $pay['earnings'],
-                'net' => $pay['received'] - $latePenalty - $reportPenalty - $contentPenalty - $absentPenalty + $overtime,
+                'net' => $pay['received'] + $overtime,
             ];
         });
 

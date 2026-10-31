@@ -418,6 +418,7 @@
                         <span>
                             <span class="block text-sm font-semibold text-heading" x-text="held.customer || held.order_number"></span>
                             <span class="mt-0.5 block text-xs text-muted" x-text="heldMeta(held)"></span>
+                            <span class="mt-0.5 block text-xs text-muted" x-text="held.held_label"></span>
                         </span>
                         <span class="text-right">
                             <span class="block text-sm font-semibold text-heading" x-text="formatMoney(held.grand_total)"></span>
@@ -493,7 +494,6 @@ function posApp() {
             const status = held.status === 'draft' ? 'Draft' : 'Hold';
             const parts = [
                 status,
-                held.customer ? held.order_number : null,
                 held.order_type_label || held.order_type,
                 held.table ? `Meja ${held.table}` : null,
                 `${held.items_count || 0} item`,
@@ -834,27 +834,29 @@ function posApp() {
                 this.notice = e.message || 'Gagal menerapkan diskon.';
             }
         },
+        async askHoldName() {
+            if (!window.Swal) {
+                return String(window.prompt('Nama pelanggan untuk hold:') || '').trim();
+            }
+            const result = await Swal.fire({
+                title: 'Hold order',
+                input: 'text',
+                inputLabel: 'Nama pelanggan',
+                inputPlaceholder: 'Contoh: Budi',
+                inputValue: this.order.notes || this.order.customer?.name || '',
+                showCancelButton: true,
+                confirmButtonText: 'Hold',
+                confirmButtonColor: '#7a1f1f',
+                inputValidator: (value) => !String(value || '').trim() && 'Nama wajib diisi',
+            });
+            return result.isConfirmed ? String(result.value || '').trim() : '';
+        },
         async hold() {
             if (!this.order || this.busy) return false;
-            let name = '';
-            if (window.Swal) {
-                const result = await Swal.fire({
-                    title: 'Hold order',
-                    input: 'text',
-                    inputLabel: 'Nama pelanggan',
-                    inputPlaceholder: 'Contoh: Budi',
-                    inputValue: this.order.notes || this.order.customer?.name || '',
-                    showCancelButton: true,
-                    confirmButtonText: 'Hold',
-                    confirmButtonColor: '#7a1f1f',
-                    inputValidator: (value) => !String(value || '').trim() && 'Nama wajib diisi',
-                });
-                if (!result.isConfirmed) return false;
-                name = String(result.value || '').trim();
-            } else {
-                name = String(window.prompt('Nama pelanggan untuk hold:') || '').trim();
-                if (!name) return false;
-            }
+            // Order hold yang dilanjutkan sudah punya nama, jadi langsung hold lagi.
+            const saved = this.order.status === 'held' ? String(this.order.notes || '').trim() : '';
+            const name = saved || await this.askHoldName();
+            if (!name) return false;
             try {
                 await this.runBusy('Menyimpan hold…', async () => {
                     const held = await this.request(`/pos/${this.order.id}/hold`, {
