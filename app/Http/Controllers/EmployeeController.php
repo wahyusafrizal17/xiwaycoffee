@@ -89,7 +89,7 @@ class EmployeeController extends Controller
         return view('employees.payroll', [
             'month' => $month,
             'rows' => $rows,
-            'label' => Carbon::createFromFormat('Y-m', $month)->locale('id')->translatedFormat('F Y'),
+            'label' => Carbon::createFromFormat('!Y-m', $month)->locale('id')->translatedFormat('F Y'),
         ]);
     }
 
@@ -109,7 +109,7 @@ class EmployeeController extends Controller
 
             return [
                 'month' => $month,
-                'label' => Carbon::createFromFormat('Y-m', $month)->locale('id')->translatedFormat('F Y'),
+                'label' => Carbon::createFromFormat('!Y-m', $month)->locale('id')->translatedFormat('F Y'),
                 'worked' => $row['worked'] ?? 0,
                 'overtime' => $row['overtime'] ?? 0,
                 'net' => $row['net'] ?? 0,
@@ -174,7 +174,7 @@ class EmployeeController extends Controller
         return view('employees.slip', [
             'row' => $row,
             'month' => $month,
-            'label' => Carbon::createFromFormat('Y-m', $month)->locale('id')->translatedFormat('F Y'),
+            'label' => Carbon::createFromFormat('!Y-m', $month)->locale('id')->translatedFormat('F Y'),
             'outlet' => $employee->outlet,
         ]);
     }
@@ -185,7 +185,7 @@ class EmployeeController extends Controller
     protected function rows(Request $request, ?Employee $only = null): array
     {
         $month = $this->month($request);
-        $start = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        $start = Carbon::createFromFormat('!Y-m', $month)->startOfMonth();
         $end = $start->copy()->endOfMonth();
 
         $employees = Employee::query()
@@ -259,6 +259,9 @@ class EmployeeController extends Controller
             ];
         });
 
+        // Karyawan nonaktif hanya muncul di bulan yang masih ada hari kerjanya.
+        $rows = $rows->filter(fn (array $row) => $only || $row['employee']->is_active || $row['attended'] > 0 || $row['worked'] > 0)->values();
+
         return [$month, $rows];
     }
 
@@ -284,7 +287,7 @@ class EmployeeController extends Controller
         }
         $firstOverride = PayrollDay::query()->where('employee_id', $employee->id)->min('month');
         if (is_string($firstOverride) && Carbon::hasFormat($firstOverride, 'Y-m')) {
-            $overrideStart = Carbon::createFromFormat('Y-m', $firstOverride)->startOfMonth();
+            $overrideStart = Carbon::createFromFormat('!Y-m', $firstOverride)->startOfMonth();
             if ($overrideStart->lt($start)) {
                 $start = $overrideStart;
             }
