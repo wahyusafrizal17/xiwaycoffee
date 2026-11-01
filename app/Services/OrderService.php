@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\BankMovementType;
 use App\Enums\OrderChannel;
 use App\Enums\OrderStatus;
 use App\Enums\OrderType;
@@ -438,6 +439,17 @@ class OrderService
                 : ($paid > 0 ? PaymentStatus::Partial : PaymentStatus::Unpaid);
             $order->save();
 
+            if ($method === PaymentMethod::Qris) {
+                app(BankAccountService::class)->credit(
+                    (int) $order->outlet_id,
+                    (float) $paymentRow->amount,
+                    BankMovementType::Qris,
+                    $paymentRow,
+                    'Pembayaran QRIS '.$order->order_number,
+                    now('Asia/Jakarta')->toDateString(),
+                );
+            }
+
             return $order->fresh(['items', 'payments', 'customer', 'table']);
         });
     }
@@ -528,6 +540,10 @@ class OrderService
             }
 
             $this->transition($order, OrderStatus::Cancelled, $reason);
+
+            foreach ($order->payments()->where('method', PaymentMethod::Qris->value)->get() as $payment) {
+                app(BankAccountService::class)->forget($payment, BankMovementType::Qris);
+            }
 
             if ($order->table_id) {
                 $this->tables->release((int) $order->table_id);

@@ -12,6 +12,6 @@ Artisan::command('inspire', function () {
 Artisan::command('bank:close-qris', function (BankAccountService $bank) {
     $result = $bank->closeQris();
     $this->info($result['count'].' pembayaran QRIS masuk rekening, total '.number_format($result['total'], 0, ',', '.'));
-})->purpose('Closing harian: masukkan QRIS yang belum tercatat ke saldo rekening');
+})->purpose('Masukkan QRIS yang belum tercatat ke saldo rekening');
 
 Schedule::command('bank:close-qris')->dailyAt('00:00')->timezone('Asia/Jakarta');

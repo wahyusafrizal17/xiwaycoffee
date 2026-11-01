@@ -63,8 +63,8 @@ class BankAccountService
     }
 
     /**
-     * Closing harian: QRIS yang lunas sebelum hari ini (WIB) dan belum tercatat masuk ke saldo.
-     * Aman diulang, dan hari yang terlewat ikut terbawa di closing berikutnya.
+     * Cadangan: QRIS lunas yang belum tercatat di saldo, biasanya masuk langsung saat checkout.
+     * Aman diulang.
      *
      * @return array{count: int, total: float}
      */
@@ -75,7 +75,6 @@ class BankAccountService
             ->where('method', PaymentMethod::Qris->value)
             ->where('status', 'paid')
             ->where('created_at', '>=', Carbon::parse(self::QRIS_START, 'Asia/Jakarta')->utc()->toDateTimeString())
-            ->where('created_at', '<', now('Asia/Jakarta')->startOfDay()->utc()->toDateTimeString())
             ->whereHas('order', fn ($query) => $query->where('status', '!=', OrderStatus::Cancelled->value))
             ->whereNotIn('id', BankMovement::query()
                 ->where('type', BankMovementType::Qris->value)
