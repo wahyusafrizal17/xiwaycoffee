@@ -19,11 +19,11 @@
             var jobs = data.jobs || [];
             for (var i = 0; i < jobs.length; i++) {
                 var job = jobs[i];
-                if (seen[job.order_id] || !job.escpos) {
+                if (seen[job.ack_url] || !job.escpos) {
                     continue;
                 }
                 await window.RasaQz.printRaw(data.printer || job.printer?.name || '', job.escpos);
-                seen[job.order_id] = true;
+                seen[job.ack_url] = true;
                 await fetch(job.ack_url, {
                     method: 'POST',
                     headers: {

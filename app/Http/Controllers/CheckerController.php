@@ -59,7 +59,8 @@ class CheckerController extends Controller
             abort(403);
         }
 
-        $printers->markPrinted($order, $station);
+        $items = $request->query('items');
+        $printers->markPrinted($order, $station, $items === null ? null : array_map('intval', explode(',', (string) $items)));
 
         return response()->json(['ok' => true]);
     }
@@ -91,11 +92,11 @@ class CheckerController extends Controller
 
         $grouped = OrderItem::query()
             ->with(['order.table', 'order.customer', 'product', 'variant', 'confirmedBy'])
+            ->whereNotNull('sent_at')
             ->whereHas('order', function ($query) use ($outletId) {
                 $query->where('outlet_id', $outletId)
                     ->whereNotIn('status', [
                         OrderStatus::Draft->value,
-                        OrderStatus::Held->value,
                         OrderStatus::Completed->value,
                         OrderStatus::Cancelled->value,
                     ]);

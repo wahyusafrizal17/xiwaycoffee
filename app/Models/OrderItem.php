@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'order_id', 'product_id', 'product_variant_id', 'bundle_id', 'bundle_picks', 'batch_id', 'name',
     'quantity', 'unit_price', 'discount_amount', 'tax_amount', 'total', 'consignment_commission',
-    'notes', 'station', 'status', 'confirmed_by', 'confirmed_at',
+    'notes', 'station', 'status', 'sent_at', 'printed_at', 'confirmed_by', 'confirmed_at',
 ])]
 class OrderItem extends Model
 {
@@ -30,6 +30,8 @@ class OrderItem extends Model
             'total' => 'decimal:2',
             'consignment_commission' => 'decimal:2',
             'bundle_picks' => 'array',
+            'sent_at' => 'datetime',
+            'printed_at' => 'datetime',
             'confirmed_at' => 'datetime',
         ];
     }

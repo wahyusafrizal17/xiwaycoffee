@@ -135,6 +135,7 @@
                                     <div class="min-w-0">
                                         <p class="line-clamp-2 text-[13px] font-semibold leading-snug text-heading" x-text="item.name"></p>
                                         <p class="mt-0.5 text-[12px] text-muted" x-text="formatMoney(item.unit_price)"></p>
+                                        <span class="mt-1 inline-block rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand" x-show="item.sent_at" x-cloak>Terkirim ke dapur</span>
                                     </div>
                                     <button type="button" class="shrink-0 rounded-md p-1 text-muted transition hover:bg-white hover:text-brand" @click="removeItem(item.id)" title="Hapus">
                                         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 6l12 12M18 6L6 18"/></svg>

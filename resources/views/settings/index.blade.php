@@ -37,6 +37,21 @@
                     </div>
                 </div>
             </section>
+
+            <section x-data="{ phones: @js(array_values($kitchenPhones)) }">
+                <h6 class="text-sm font-semibold text-heading">WhatsApp dapur</h6>
+                <p class="mb-4 mt-1 text-[13px] text-muted">Pesanan dapur dikirim ke semua nomor ini.</p>
+                <div class="max-w-xl space-y-3">
+                    <template x-for="(phone, index) in phones" :key="index">
+                        <div class="flex items-center gap-2">
+                            <input class="input" type="tel" inputmode="tel" name="kitchen_whatsapp[]" placeholder="08xxxxxxxxxx" x-model="phones[index]">
+                            <button type="button" class="shrink-0 text-[13px] font-medium text-brand" @click="phones.length > 1 ? phones.splice(index, 1) : phones[0] = ''">Hapus</button>
+                        </div>
+                    </template>
+                    @error('kitchen_whatsapp')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+                    <button type="button" class="text-[13px] font-medium text-brand" @click="phones.push('')">+ Tambah nomor</button>
+                </div>
+            </section>
         </div>
 
         <div class="crud-modal-footer !rounded-none !border-t !border-line">

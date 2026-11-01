@@ -204,7 +204,7 @@ class PosController extends Controller
         );
     }
 
-    public function hold(Request $request, Order $order, OrderService $orders): JsonResponse
+    public function hold(Request $request, Order $order, OrderService $orders, PrinterRoutingService $printers, WaCloudService $wa): JsonResponse
     {
         abort_unless((int) $order->outlet_id === (int) current_outlet_id(), 403);
 
@@ -212,7 +212,10 @@ class PosController extends Controller
             'name' => ['required', 'string', 'max:80'],
         ]);
 
-        return response()->json($this->heldOrderPayload($orders->hold($order, $data['name'])));
+        $held = $orders->hold($order, $data['name']);
+        $this->notifyKitchenWhatsApp($held, $printers, $wa);
+
+        return response()->json($this->heldOrderPayload($held));
     }
 
     public function recall(Order $order): JsonResponse

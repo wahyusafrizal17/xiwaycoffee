@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\OrderStatus;
 use App\Enums\PrinterStation;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Printer;
 use App\Models\PrinterRoute;
 use Illuminate\Support\Collection;
@@ -30,7 +31,7 @@ class PrinterRoutingService
         $jobs = [];
 
         foreach ($printers as $printer) {
-            $items = $order->items->filter(function ($item) use ($printer) {
+            $items = $order->items->filter(fn ($item) => ! $item->printed_at)->filter(function ($item) use ($printer) {
                 $station = $item->station ?? $item->product?->station ?? $item->product?->category?->station;
                 $categoryId = $item->product?->category_id;
 
@@ -90,6 +91,14 @@ class PrinterRoutingService
         })->values();
     }
 
+    /** Item yang sudah masuk dapur tapi tiketnya belum tercetak atau terkirim. */
+    public function pendingItems(Order $order, string $station): Collection
+    {
+        return $this->stationItems($order, $station)
+            ->filter(fn ($item) => $item->sent_at && ! $item->printed_at)
+            ->values();
+    }
+
     public function printedColumn(string $station): ?string
     {
         return match ($station) {
@@ -99,12 +108,19 @@ class PrinterRoutingService
         };
     }
 
-    public function markPrinted(Order $order, string $station): void
+    /**
+     * @param  list<int>|null  $itemIds  Kosong berarti semua item yang menunggu.
+     */
+    public function markPrinted(Order $order, string $station, ?array $itemIds = null): void
     {
         $column = $this->printedColumn($station);
         if (! $column) {
             return;
         }
+
+        $ids = $this->pendingItems($order->fresh(), $station)->pluck('id')
+            ->when($itemIds !== null, fn ($pending) => $pending->intersect($itemIds));
+        OrderItem::query()->whereKey($ids)->update(['printed_at' => now()]);
 
         $order->forceFill([$column => now()])->save();
     }
@@ -115,12 +131,7 @@ class PrinterRoutingService
         $escpos = app(EscPosPrinter::class);
 
         foreach ([PrinterStation::Kitchen->value, PrinterStation::Bar->value] as $station) {
-            $column = $this->printedColumn($station);
-            if ($order->{$column}) {
-                continue;
-            }
-
-            $items = $this->stationItems($order, $station);
+            $items = $this->pendingItems($order, $station);
             if ($items->isEmpty()) {
                 continue;
             }
@@ -139,7 +150,7 @@ class PrinterRoutingService
 
             $bytes = $escpos->ticket($order, $station, $items);
             if ($escpos->send($printer->ip_address, (int) ($printer->port ?: 9100), $bytes)) {
-                $this->markPrinted($order, $station);
+                $this->markPrinted($order, $station, $items->pluck('id')->all());
             }
         }
     }
@@ -160,10 +171,9 @@ class PrinterRoutingService
         $orders = Order::query()
             ->with(['items.product.category', 'table', 'outlet'])
             ->where('outlet_id', $outletId)
-            ->whereNull($column)
+            ->whereHas('items', fn ($items) => $items->whereNotNull('sent_at')->whereNull('printed_at'))
             ->whereNotIn('status', [
                 OrderStatus::Draft->value,
-                OrderStatus::Held->value,
                 OrderStatus::Completed->value,
                 OrderStatus::Cancelled->value,
             ])
@@ -172,7 +182,7 @@ class PrinterRoutingService
             ->get();
 
         foreach ($orders as $order) {
-            $items = $this->stationItems($order, $station);
+            $items = $this->pendingItems($order, $station);
             if ($items->isEmpty()) {
                 continue;
             }
@@ -193,7 +203,7 @@ class PrinterRoutingService
                     'port' => (int) ($printer->port ?: 9100),
                 ] : null,
                 'escpos' => base64_encode($escpos->ticket($order, $station, $items)),
-                'ack_url' => route('print-jobs.ack', ['order' => $order, 'station' => $station]),
+                'ack_url' => route('print-jobs.ack', ['order' => $order, 'station' => $station, 'items' => $items->pluck('id')->implode(',')]),
             ];
         }
 

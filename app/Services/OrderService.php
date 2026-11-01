@@ -114,8 +114,10 @@ class OrderService
             $notes = $payload['notes'] ?? null;
             $optionIds = $selectedOptions->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
 
+            // Baris yang sudah terkirim ke dapur tidak digabung, supaya tambahannya terkirim sendiri.
             $existing = $order->items()
                 ->with('options')
+                ->whereNull('sent_at')
                 ->where('product_id', $product->id)
                 ->where('product_variant_id', $variant?->id)
                 ->where('bundle_id', $bundle?->id)
@@ -156,6 +158,7 @@ class OrderService
                 'notes' => $notes,
                 'station' => $product->station ?? $product->category?->station,
                 'status' => 'new',
+                'sent_at' => $this->awaitsSend($order) ? null : now(),
             ]);
 
             foreach ($selectedOptions as $option) {
@@ -240,6 +243,12 @@ class OrderService
         $order = $item->order;
         $this->assertMutable($order);
 
+        $extra = (float) ($payload['quantity'] ?? $item->quantity) - (float) $item->quantity;
+        if ($item->sent_at && $extra > 0) {
+            $this->splitExtra($item, $extra);
+            unset($payload['quantity']);
+        }
+
         $item->fill([
             'quantity' => $payload['quantity'] ?? $item->quantity,
             'notes' => $payload['notes'] ?? $item->notes,
@@ -248,6 +257,34 @@ class OrderService
         $item->save();
 
         return $this->recalculate($order->fresh(['items', 'discount']));
+    }
+
+    /**
+     * Tambahan qty pada baris yang sudah terkirim jadi baris baru, supaya dapur hanya menerima tambahannya.
+     */
+    protected function splitExtra(OrderItem $item, float $extra): void
+    {
+        $line = $item->replicate();
+        $line->fill([
+            'quantity' => $extra,
+            'discount_amount' => 0,
+            'total' => (float) $item->unit_price * $extra,
+            'status' => 'new',
+            'sent_at' => $this->awaitsSend($item->order) ? null : now(),
+            'printed_at' => null,
+            'batch_id' => null,
+            'confirmed_by' => null,
+            'confirmed_at' => null,
+        ])->save();
+
+        foreach ($item->options as $option) {
+            $line->options()->save($option->replicate());
+        }
+    }
+
+    protected function awaitsSend(Order $order): bool
+    {
+        return in_array($order->status, [OrderStatus::Draft, OrderStatus::Held], true);
     }
 
     public function removeItem(OrderItem $item): Order
@@ -338,7 +375,23 @@ class OrderService
         $order->notes = $name;
         $order->save();
 
-        return $this->transition($order, OrderStatus::Held, 'Order ditahan: '.$name);
+        $order = $this->transition($order, OrderStatus::Held, 'Order ditahan: '.$name);
+        $this->sendToStations($order);
+
+        return $order->fresh(['items', 'histories', 'payments']);
+    }
+
+    protected function sendToStations(Order $order): void
+    {
+        $order->items()->whereNull('sent_at')->update(['sent_at' => now()]);
+
+        $orderId = $order->id;
+        dispatch(function () use ($orderId) {
+            $fresh = Order::query()->find($orderId);
+            if ($fresh) {
+                app(PrinterRoutingService::class)->dispatchNetworkTickets($fresh);
+            }
+        })->afterResponse();
     }
 
     public function submit(Order $order, array $data = []): Order
@@ -364,16 +417,9 @@ class OrderService
         $this->recalculate($order);
 
         $order = $this->transition($order, OrderStatus::New, 'Order dikirim ke dapur');
+        $this->sendToStations($order);
 
-        $orderId = $order->id;
-        dispatch(function () use ($orderId) {
-            $fresh = Order::query()->find($orderId);
-            if ($fresh) {
-                app(PrinterRoutingService::class)->dispatchNetworkTickets($fresh);
-            }
-        })->afterResponse();
-
-        return $order;
+        return $order->fresh(['items', 'histories', 'payments']);
     }
 
     public function transition(Order $order, OrderStatus $status, ?string $notes = null): Order
@@ -438,6 +484,8 @@ class OrderService
                 ? PaymentStatus::Paid
                 : ($paid > 0 ? PaymentStatus::Partial : PaymentStatus::Unpaid);
             $order->save();
+            // Semua item bisa saja sudah disajikan selama order ditahan.
+            $order = $this->syncOrderFromItems($order->fresh(['items']));
 
             if ($method === PaymentMethod::Qris) {
                 app(BankAccountService::class)->credit(

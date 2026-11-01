@@ -240,24 +240,41 @@ class WaCloudService
 
     public function sendKitchenOrder(Order $order, PrinterRoutingService $printers): bool
     {
-        $kitchenPhone = (string) setting('kitchen_whatsapp', '');
-        if ($kitchenPhone === '') {
+        $phones = $this->kitchenPhones();
+        if ($phones === []) {
             return false;
         }
 
-        if ($order->kitchen_printed_at) {
-            return false;
-        }
-
-        $items = $printers->stationItems($order, PrinterStation::Kitchen->value);
+        $items = $printers->pendingItems($order, PrinterStation::Kitchen->value);
         if ($items->isEmpty()) {
             return false;
         }
 
-        $this->sendText($kitchenPhone, $this->kitchenMessage($order, $items));
-        $printers->markPrinted($order, PrinterStation::Kitchen->value);
+        $message = $this->kitchenMessage($order, $items);
+        $sent = false;
+        foreach ($phones as $phone) {
+            // Satu nomor gagal tidak boleh menghalangi nomor dapur lainnya.
+            try {
+                $this->sendText($phone, $message);
+                $sent = true;
+            } catch (RuntimeException $e) {
+                report($e);
+            }
+        }
 
-        return true;
+        if ($sent) {
+            $printers->markPrinted($order, PrinterStation::Kitchen->value, $items->pluck('id')->all());
+        }
+
+        return $sent;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function kitchenPhones(): array
+    {
+        return array_values(array_filter(array_map('trim', explode(',', (string) setting('kitchen_whatsapp', '')))));
     }
 
     protected function kitchenTableLabel(?string $code): ?string
