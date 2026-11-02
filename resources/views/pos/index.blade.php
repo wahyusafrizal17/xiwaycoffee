@@ -13,7 +13,7 @@
             <div class="flex items-center justify-between gap-3 border-b border-[#f0ece7] px-3 py-2 text-xs" x-show="!online" x-cloak>
                 <span class="font-medium text-[#d97706]">Mode offline — order akan dikirim saat koneksi kembali.</span>
             </div>
-            <div class="flex flex-col gap-2.5 border-b border-[#f0ece7] px-3 py-2.5 sm:flex-row sm:items-center">
+            <div class="flex flex-col gap-3 border-b border-[#efe9e2] bg-white px-4 py-3 sm:flex-row sm:items-center">
                 <div class="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     <button type="button" class="pos-chip" :class="!category ? 'pos-chip-active' : 'pos-chip-idle'" @click="category = null">Semua</button>
                     @if ($bundles->isNotEmpty())
@@ -23,27 +23,28 @@
                         <button type="button" class="pos-chip" :class="category == {{ $category->id }} ? 'pos-chip-active' : 'pos-chip-idle'" @click="category = {{ $category->id }}">{{ $category->name }}</button>
                     @endforeach
                 </div>
-                <div class="relative w-full shrink-0 sm:w-44">
+                <div class="relative w-full shrink-0 sm:w-56">
                     <svg class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/></svg>
-                    <input class="input !rounded-xl !border-[#ebe7e2] !bg-[#faf9f7] !py-2 !pl-9 !text-[13px]" placeholder="Cari menu..." x-model="search">
+                    <input class="input !h-10 !rounded-full !border-transparent !bg-[#f4f0eb] !py-2 !pl-9 !text-[13px] focus:!border-[#d9d0c6] focus:!bg-white" type="search" placeholder="Cari menu..." x-model="search">
                 </div>
             </div>
-            <div class="grid flex-1 auto-rows-min grid-cols-1 gap-2 overflow-y-auto p-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div class="grid flex-1 auto-rows-min grid-cols-2 gap-3 overflow-y-auto p-4 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                 @foreach ($bundles as $bundle)
                     @php [$normalMin, $normalMax] = $bundle->normalBounds(); @endphp
                     <article class="menu-card" x-show="(!category || category === 'bundle') && productMatch({{ Js::from(strtolower(trim(($bundle->campaign ? $bundle->campaign.' ' : '').$bundle->name))) }})" @click="beginBundle({{ $bundle->id }})">
                         <div class="menu-card-visual">
-                            <img src="{{ $bundle->product?->imageUrl() ?? asset('images/menu/placeholder.svg') }}" alt="{{ $bundle->name }}" class="menu-card-photo" loading="lazy">
+                            <img src="{{ $bundle->product?->imageUrl() ?? asset('images/menu/placeholder.svg') }}" alt="{{ $bundle->name }}" class="menu-card-photo" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/menu/placeholder.svg') }}'">
+                            <span class="menu-card-add" aria-hidden="true"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-width="2.4" d="M12 5v14M5 12h14"/></svg></span>
                         </div>
                         <div class="menu-card-body">
                             <div class="menu-card-meta">
                                 <span class="menu-card-badge">{{ $bundle->campaign ?: 'Paket' }}</span>
                             </div>
-                            <h3 class="line-clamp-2 text-[14px] font-semibold leading-snug text-heading">{{ $bundle->name }}</h3>
+                            <h3 class="menu-card-name">{{ $bundle->name }}</h3>
                             @if ($normalMin > (float) $bundle->price)
                                 <p class="text-[12px] text-muted line-through">{{ $normalMax > $normalMin ? money($normalMin).' – '.money($normalMax) : money($normalMin) }}</p>
                             @endif
-                            <p class="text-[14px] font-semibold tracking-tight text-heading">{{ money($bundle->price) }}</p>
+                            <p class="menu-card-price">{{ money($bundle->price) }}</p>
                             @if ($bundle->requirement)
                                 <p class="text-[11px] text-muted">{{ $bundle->requirement }}</p>
                             @endif
@@ -60,7 +61,8 @@
                         @click="beginAdd({{ $product->id }}, null, null)"
                     >
                         <div class="menu-card-visual">
-                            <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}" class="menu-card-photo" loading="lazy">
+                            <img src="{{ $product->imageUrl() }}" alt="{{ $product->name }}" class="menu-card-photo" loading="lazy" onerror="this.onerror=null;this.src='{{ asset('images/menu/placeholder.svg') }}'">
+                            <span class="menu-card-add" aria-hidden="true"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-width="2.4" d="M12 5v14M5 12h14"/></svg></span>
                         </div>
                         <div class="menu-card-body">
                             <div class="menu-card-meta">
@@ -69,12 +71,12 @@
                                     <span class="menu-card-opt">Opsi</span>
                                 @endif
                             </div>
-                            <h3 class="line-clamp-2 text-[14px] font-semibold leading-snug text-heading">{{ $product->name }}</h3>
-                            <p class="text-[14px] font-semibold tracking-tight text-heading">{{ money($product->price) }}</p>
+                            <h3 class="menu-card-name">{{ $product->name }}</h3>
+                            <p class="menu-card-price">{{ money($product->price) }}</p>
                             @if ($product->variants->count())
                                 <div class="mt-0.5 flex flex-wrap gap-1" @click.stop>
                                     @foreach ($product->variants as $variant)
-                                        <button type="button" class="rounded-full bg-[#f3f0ec] px-2 py-0.5 text-[11px] font-medium text-heading transition hover:bg-[#ebe7e2]" @click="beginAdd({{ $product->id }}, {{ $variant->id }}, null)">{{ $variant->name }}</button>
+                                        <button type="button" class="rounded-full border border-[#e6dfd7] bg-white px-2.5 py-1 text-[11px] font-semibold text-heading transition hover:border-heading active:scale-95" @click="beginAdd({{ $product->id }}, {{ $variant->id }}, null)">{{ $variant->name }}</button>
                                     @endforeach
                                 </div>
                             @endif
@@ -95,23 +97,23 @@
             class="order-panel pos-cart-sheet"
             :class="[cartOpen ? 'flex' : 'hidden lg:flex', (busy && !payOpen) ? 'pointer-events-none' : '']"
         >
-            <div class="border-b border-[#f0ece7] px-4 py-3 lg:px-4">
-                <div class="mx-auto mb-2.5 h-1 w-10 rounded-full bg-[#e5e5e5] lg:hidden"></div>
-                <div class="flex items-start justify-between gap-3">
+            <div class="border-b border-[#f1ece6] px-5 pb-4 pt-4">
+                <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-[#e5e5e5] lg:hidden"></div>
+                <div class="flex items-center justify-end gap-3 empty:hidden">
                     <div class="flex shrink-0 items-center gap-1.5">
                         <span class="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand" x-show="order?.status === 'held'" x-cloak>Hold</span>
                         <span class="rounded-full bg-[#f3f0ec] px-2 py-0.5 text-[10px] font-medium text-muted" x-show="order?.estimated_ready_at && order?.status !== 'held'" x-text="etaLabel()" x-cloak></span>
                         <button type="button" class="rounded-lg px-2 py-1 text-xs font-medium text-muted hover:bg-[#f3f0ec] lg:hidden" @click="cartOpen = false">Tutup</button>
                     </div>
                 </div>
-                <div class="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-[#f3f0ec] p-1">
-                    <button type="button" class="rounded-lg px-2 py-1.5 text-[12px] font-semibold transition" :class="order_type === 'dine_in' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setOrderType('dine_in')">Makan Disini</button>
-                    <button type="button" class="rounded-lg px-2 py-1.5 text-[12px] font-semibold transition" :class="order_type === 'pickup' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setOrderType('pickup')">Bawa Pulang</button>
-                    <button type="button" class="rounded-lg px-2 py-1.5 text-[12px] font-semibold transition" :class="order_type === 'online' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setOrderType('online')">Online</button>
+                <div class="mt-2 grid grid-cols-3 gap-1 rounded-full bg-[#f4f0eb] p-1">
+                    <button type="button" class="rounded-full px-2 py-2 text-[12px] font-semibold transition" :class="order_type === 'dine_in' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setOrderType('dine_in')">Makan Disini</button>
+                    <button type="button" class="rounded-full px-2 py-2 text-[12px] font-semibold transition" :class="order_type === 'pickup' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setOrderType('pickup')">Bawa Pulang</button>
+                    <button type="button" class="rounded-full px-2 py-2 text-[12px] font-semibold transition" :class="order_type === 'online' ? 'bg-white text-heading shadow-sm' : 'text-muted'" @click="setOrderType('online')">Online</button>
                 </div>
                 <div class="mt-2.5" x-show="needsTable()" x-cloak>
                     <label class="mb-1 block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Nomor meja</label>
-                    <select class="input !h-10 !rounded-xl text-[13px]" x-model="table_id">
+                    <select class="input !h-10 !rounded-full !border-[#ece6df] !px-4 text-[13px]" x-model="table_id">
                         <option value="">Pilih meja</option>
                         <template x-for="table in tables" :key="table.id">
                             <option :value="String(table.id)" x-text="'Meja ' + table.code"></option>
@@ -120,42 +122,43 @@
                 </div>
             </div>
 
-            <div class="flex-1 space-y-1.5 overflow-y-auto px-3 py-3">
+            <div class="flex-1 overflow-y-auto px-4 py-1">
                 <template x-if="!order || !order.items?.length">
-                    <div class="flex h-full min-h-28 flex-col items-center justify-center rounded-xl border border-dashed border-[#e8e4df] bg-[#faf9f7] px-4 text-center">
-                        <p class="text-sm font-medium text-heading">Belum ada item</p>
+                    <div class="my-3 flex h-[calc(100%-1.5rem)] min-h-28 flex-col items-center justify-center rounded-2xl border border-dashed border-[#e6dfd7] px-4 text-center">
+                        <span class="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[#f4f0eb] text-[#9a8f85]"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 3h2l2.4 12.2a2 2 0 002 1.6h7.7a2 2 0 002-1.5L21 8H6"/><circle cx="10" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/></svg></span>
+                        <p class="text-sm font-semibold text-heading">Belum ada item</p>
                         <p class="mt-1 text-xs text-muted">Ketuk menu untuk menambah.</p>
                     </div>
                 </template>
                 <template x-for="item in (order?.items || [])" :key="item.id">
                     <div class="order-item">
-                        <div class="flex items-start gap-2.5">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-start justify-between gap-2">
-                                    <div class="min-w-0">
-                                        <p class="line-clamp-2 text-[13px] font-semibold leading-snug text-heading" x-text="item.name"></p>
-                                        <p class="mt-0.5 text-[12px] text-muted" x-text="formatMoney(item.unit_price)"></p>
-                                        <span class="mt-1 inline-block rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand" x-show="item.sent_at" x-cloak>Terkirim ke dapur</span>
-                                    </div>
-                                    <button type="button" class="shrink-0 rounded-md p-1 text-muted transition hover:bg-white hover:text-brand" @click="removeItem(item.id)" title="Hapus">
-                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 6l12 12M18 6L6 18"/></svg>
-                                    </button>
-                                </div>
-                                <div class="mt-2 flex items-center gap-2">
-                                    <div class="order-qty">
-                                        <button type="button" @click="changeQty(item, -1)">−</button>
-                                        <span x-text="Number(item.quantity)"></span>
-                                        <button type="button" @click="changeQty(item, 1)">+</button>
-                                    </div>
-                                    <input class="order-note" placeholder="Catatan" x-model="item.notes" @change="updateItem(item)">
-                                </div>
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="line-clamp-2 text-[14px] font-semibold leading-snug text-heading" x-text="item.name"></p>
+                                <p class="mt-0.5 text-[12px] tabular-nums text-muted" x-text="formatMoney(item.unit_price) + ' × ' + Number(item.quantity)"></p>
+                                <span class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[#eaf6ee] px-2 py-0.5 text-[10px] font-semibold text-[#166534]" x-show="item.sent_at" x-cloak>
+                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 13l4 4L19 7"/></svg>
+                                    Terkirim ke dapur
+                                </span>
                             </div>
+                            <p class="shrink-0 text-[14px] font-bold tabular-nums text-heading" x-text="formatMoney(item.total)"></p>
+                        </div>
+                        <div class="mt-2.5 flex items-center gap-2">
+                            <div class="order-qty">
+                                <button type="button" @click="changeQty(item, -1)" aria-label="Kurangi">−</button>
+                                <span x-text="Number(item.quantity)"></span>
+                                <button type="button" @click="changeQty(item, 1)" aria-label="Tambah">+</button>
+                            </div>
+                            <input class="order-note" placeholder="Catatan" x-model="item.notes" @change="updateItem(item)">
+                            <button type="button" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#a59c93] transition hover:bg-brand-soft hover:text-brand" @click="removeItem(item.id)" title="Hapus" aria-label="Hapus item">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12M9 7V4h6v3"/></svg>
+                            </button>
                         </div>
                     </div>
                 </template>
             </div>
 
-            <div class="space-y-2.5 border-t border-[#f0ece7] px-4 py-3.5">
+            <div class="space-y-3 border-t border-[#f1ece6] bg-[#fcfaf8] px-5 py-4">
                 <div class="order-row text-muted">
                     <span>Subtotal</span>
                     <span class="font-medium text-heading" x-text="formatMoney(order?.subtotal || 0)"></span>
@@ -165,7 +168,7 @@
                         <span>Diskon</span>
                         <span class="font-medium" :class="Number(order?.discount_amount || 0) > 0 ? 'text-brand' : 'text-heading'" x-text="discountLine()"></span>
                     </div>
-                    <select class="h-9 w-full rounded-xl border border-[#ebe7e2] bg-[#faf9f7] px-2.5 text-xs text-heading outline-none" x-model="discount_id" @change="applyDiscount()">
+                    <select class="h-10 w-full rounded-full border border-[#ece6df] bg-white px-4 text-[13px] text-heading outline-none focus:border-[#d9d0c6]" x-model="discount_id" @change="applyDiscount()">
                         <option value="">Tanpa diskon</option>
                         @foreach ($discounts as $discount)
                             <option value="{{ $discount->id }}">{{ $discount->name }} · {{ $discount->valueLabel() }}</option>
@@ -177,13 +180,13 @@
                     <span>Charge</span>
                     <span class="font-medium text-heading" x-text="formatMoney(order?.tax_amount || 0)"></span>
                 </div>
-                <div class="flex items-center justify-between rounded-xl bg-heading px-3.5 py-3 text-white">
-                    <span class="text-sm font-medium">Total</span>
-                    <span class="text-[17px] font-semibold tracking-tight" x-text="formatMoney(order?.grand_total || 0)"></span>
+                <div class="flex items-end justify-between border-t border-dashed border-[#e6dfd7] pt-3">
+                    <span class="text-[13px] font-semibold text-heading">Total</span>
+                    <span class="text-[26px] font-bold leading-none tracking-tight tabular-nums text-heading" x-text="formatMoney(order?.grand_total || 0)"></span>
                 </div>
                 <p class="text-xs font-medium text-brand" x-show="notice" x-text="notice" x-cloak></p>
-                <div class="grid grid-cols-2 gap-2">
-                    <button type="button" class="inline-flex items-center justify-center gap-2 rounded-xl border border-[#ebe7e2] bg-white px-4 py-2.5 text-sm font-medium text-heading transition hover:bg-[#faf9f7] disabled:cursor-not-allowed disabled:opacity-40" @click="hold()" :disabled="!order?.items?.length || busy">
+                <div class="grid grid-cols-[1fr_1.6fr] gap-2">
+                    <button type="button" class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-[#e6dfd7] bg-white px-4 text-sm font-semibold text-heading transition hover:bg-[#faf9f7] disabled:cursor-not-allowed disabled:opacity-40" @click="hold()" :disabled="!order?.items?.length || busy">
                         <svg x-show="busy && busyLabel === 'Menyimpan hold…'" x-cloak class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
                             <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v3a5 5 0 00-5 5H4z"></path>
@@ -198,7 +201,7 @@
                             title="Lihat order hold"
                         ></span>
                     </button>
-                    <button type="button" class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40" @click="openPay()" :disabled="!canPay()">Bayar</button>
+                    <button type="button" class="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-brand px-4 text-[15px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(232,25,44,0.9)] transition hover:bg-brand-dark active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none" @click="openPay()" :disabled="!canPay()">Bayar</button>
                 </div>
             </div>
         </aside>

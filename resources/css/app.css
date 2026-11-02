@@ -322,26 +322,25 @@
     }
 
     .menu-card {
-        @apply relative flex cursor-pointer items-stretch gap-3 overflow-hidden rounded-xl border border-[#ebe7e2] bg-white p-2.5 text-left transition;
+        @apply relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#ece6df] bg-white text-left transition duration-150 select-none;
         box-shadow: 0 1px 2px rgba(17, 17, 17, 0.04);
     }
 
     .menu-card:hover {
-        border-color: #ddd6ce;
-        box-shadow: 0 8px 20px rgba(17, 17, 17, 0.07);
-        background: #fffcfa;
+        border-color: #e2d9cf;
+        box-shadow: 0 12px 26px -14px rgba(17, 17, 17, 0.22);
     }
 
     .menu-card:active {
-        transform: scale(0.985);
+        transform: scale(0.97);
     }
 
     .menu-card-visual {
-        @apply relative h-[68px] w-[68px] shrink-0 overflow-hidden rounded-lg bg-[#f6f3ef];
+        @apply relative h-24 w-full shrink-0 overflow-hidden bg-[#f6f2ee];
     }
 
     .menu-card-badge {
-        @apply inline-flex max-w-full truncate rounded-md bg-[#f3f0ec] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#6b635c];
+        @apply inline-flex max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-[#9a8f85];
     }
 
     .menu-card-photo {
@@ -349,15 +348,31 @@
     }
 
     .menu-card-body {
-        @apply flex min-w-0 flex-1 flex-col justify-center gap-1 py-0.5;
+        @apply flex min-w-0 flex-1 flex-col gap-1 px-3 pb-3 pt-2.5;
     }
 
     .menu-card-meta {
-        @apply flex flex-wrap items-center gap-1.5;
+        @apply flex items-center justify-between gap-1.5;
+    }
+
+    .menu-card-name {
+        @apply line-clamp-2 font-sans text-[14px] font-semibold leading-snug text-heading;
+    }
+
+    .menu-card-price {
+        @apply mt-auto pt-1 font-sans text-[15px] font-bold tracking-tight tabular-nums text-heading;
+    }
+
+    .menu-card-add {
+        @apply absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-heading text-white shadow-[0_6px_14px_-6px_rgba(17,17,17,0.6)] transition;
+    }
+
+    .menu-card:hover .menu-card-add {
+        @apply bg-brand;
     }
 
     .menu-card-opt {
-        @apply inline-flex items-center rounded-md bg-brand-soft px-1.5 py-0.5 text-[10px] font-semibold text-brand;
+        @apply inline-flex shrink-0 items-center rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand;
     }
 
     .pos-opt-chip {
@@ -373,44 +388,44 @@
     }
 
     .order-panel {
-        @apply flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#ebe7e2] bg-white;
-        box-shadow: 0 8px 28px rgba(17, 17, 17, 0.06);
+        @apply flex min-h-0 flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-[#ece6df];
+        box-shadow: 0 18px 40px -24px rgba(17, 17, 17, 0.28);
     }
 
     .order-item {
-        @apply rounded-xl border border-[#f0ece7] bg-[#faf9f7] px-3 py-2.5;
+        @apply border-b border-[#f1ece6] px-1 py-3 last:border-0;
     }
 
     .order-qty {
-        @apply inline-flex overflow-hidden rounded-lg border border-[#e8e4df] bg-white;
+        @apply inline-flex shrink-0 items-center gap-1 rounded-full bg-[#f4f0eb] p-0.5;
     }
 
     .order-qty button {
-        @apply flex h-7 w-7 items-center justify-center text-sm text-heading transition hover:bg-[#f3f0ec];
+        @apply flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-semibold text-heading shadow-[0_1px_2px_rgba(17,17,17,0.08)] transition active:scale-90;
     }
 
     .order-qty span {
-        @apply flex h-7 min-w-7 items-center justify-center border-x border-[#e8e4df] text-[13px] font-semibold text-heading;
+        @apply flex h-8 min-w-7 items-center justify-center px-1 text-[14px] font-bold tabular-nums text-heading;
     }
 
     .order-note {
-        @apply h-7 w-full rounded-lg border border-[#e8e4df] bg-white px-2 text-[12px] text-heading outline-none placeholder:text-neutral-400 focus:border-heading;
+        @apply h-9 w-full rounded-full border border-transparent bg-[#f7f4f0] px-3.5 text-[12px] text-heading outline-none placeholder:text-[#a59c93] focus:border-[#d9d0c6] focus:bg-white;
     }
 
     .order-row {
-        @apply flex items-center justify-between text-[12px];
+        @apply flex items-center justify-between text-[13px];
     }
 
     .pos-chip {
-        @apply shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition;
+        @apply shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold transition active:scale-95;
     }
 
     .pos-chip-active {
-        @apply bg-heading text-white;
+        @apply bg-heading text-white shadow-[0_6px_14px_-8px_rgba(17,17,17,0.7)];
     }
 
     .pos-chip-idle {
-        @apply bg-[#f3f0ec] text-heading hover:bg-[#ebe7e2];
+        @apply bg-[#f4f0eb] text-[#5f574f] hover:bg-[#ece6df] hover:text-heading;
     }
 
     .pos-shell {
@@ -420,7 +435,7 @@
 
     @media (min-width: 1024px) {
         .pos-shell {
-            grid-template-columns: minmax(0, 1fr) 380px;
+            grid-template-columns: minmax(0, 1fr) 360px;
         }
     }
 
@@ -433,7 +448,7 @@
     }
 
     .pos-catalog {
-        @apply flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#ebe7e2] bg-white;
+        @apply flex min-h-0 flex-col overflow-hidden rounded-3xl bg-[#fbf9f6] shadow-[0_1px_0_rgba(17,17,17,0.03)] ring-1 ring-[#ece6df];
         transition: opacity 0.15s ease;
     }
 
