@@ -3,13 +3,16 @@
 @section('breadcrumb', 'Dashboard')
 @section('content')
     @php
-        $outletName = current_outlet()?->name ?? 'Semua outlet';
         $showFinance = auth()->user()->hasPermission('reports.view');
         $showFoodShare = $showFinance || auth()->user()->hasPermission('reports.food');
         $periodLabel = $range['label'] ?? $metrics['label'] ?? '';
         $filterPeriod = $period;
-        $statGrid = $showFoodShare ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-2';
         $tabs = ['cafe' => 'Cafe', 'food' => 'Makanan'];
+        $isCafe = $tab === 'cafe';
+        $margin = $metrics['sales'] > 0 ? (int) round($metrics['net'] / $metrics['sales'] * 100) : null;
+        $mixTotal = max(0.01, $metrics['drinks'] + $metrics['food_cafe']);
+        $drinkShare = (int) round($metrics['drinks'] / $mixTotal * 100);
+        $foodCups = $charts['top_food']->sum('qty');
     @endphp
 
     <form
@@ -96,310 +99,302 @@
         @endunless
     </form>
 
-    @if ($tab === 'cafe')
-        <div class="mb-3">
-            <h2 class="font-serif text-xl font-semibold text-heading">Pendapatan</h2>
-            <p class="mt-1 text-[12px] text-muted">{{ $periodLabel }}.</p>
+    {{-- Ringkasan utama --}}
+    <section class="mb-5 overflow-hidden rounded-2xl bg-[#161414] text-white shadow-[0_18px_40px_-24px_rgba(0,0,0,.55)]">
+        <div class="grid lg:grid-cols-[1.35fr_1fr]">
+            <div class="p-6 sm:p-8">
+                <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">
+                    @if ($isCafe)
+                        {{ $showFinance ? 'Omzet cafe' : 'Pendapatan minuman' }}
+                    @else
+                        Pendapatan makanan
+                    @endif
+                    · {{ $periodLabel }}
+                </p>
+                <p class="mt-3 font-sans text-[2.6rem] font-semibold leading-none tracking-tight tabular-nums sm:text-[3.25rem]">
+                    {{ money($isCafe ? ($showFinance ? $metrics['sales'] : $metrics['drinks']) : $metrics['food_sales']) }}
+                </p>
+
+                @if ($isCafe && $showFinance)
+                    <div class="mt-7">
+                        <div class="flex h-2 gap-0.5 overflow-hidden rounded-full bg-white/10">
+                            <div class="h-full rounded-full bg-brand" style="width: {{ $drinkShare }}%"></div>
+                            <div class="h-full flex-1 rounded-full bg-[#f4c27a]"></div>
+                        </div>
+                        <div class="mt-4 grid grid-cols-2 gap-4 text-[13px]">
+                            <div>
+                                <p class="flex items-center gap-2 text-white/60"><span class="h-2 w-2 rounded-full bg-brand"></span>Pendapatan minuman</p>
+                                <p class="mt-1 text-lg font-semibold tabular-nums">{{ money($metrics['drinks']) }}</p>
+                            </div>
+                            <div>
+                                <p class="flex items-center gap-2 text-white/60"><span class="h-2 w-2 rounded-full bg-[#f4c27a]"></span>Komisi makanan</p>
+                                <p class="mt-1 text-lg font-semibold tabular-nums">{{ money($metrics['food_cafe']) }}</p>
+                            </div>
+                        </div>
+                        <p class="mt-3 text-[12px] text-white/40">Omzet cafe = semua pendapatan − setoran makanan.</p>
+                    </div>
+                @else
+                    <p class="mt-4 text-[13px] text-white/50">Setelah diskon pada periode ini</p>
+                @endif
+            </div>
+
+            <div class="grid border-t border-white/10 lg:border-l lg:border-t-0">
+                @if ($isCafe && $showFinance)
+                    <div class="p-6 sm:p-8">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">Omzet bersih</p>
+                        <p class="mt-3 text-[2rem] font-semibold leading-none tracking-tight tabular-nums {{ $metrics['net'] < 0 ? 'text-[#ff8a8a]' : 'text-[#7ee2a8]' }}">{{ money($metrics['net']) }}</p>
+                        @if ($margin !== null)
+                            <span class="mt-3 inline-flex rounded-full px-2.5 py-1 text-[12px] font-semibold {{ $metrics['net'] < 0 ? 'bg-[#ff8a8a]/15 text-[#ff8a8a]' : 'bg-[#7ee2a8]/15 text-[#7ee2a8]' }}">Margin {{ $margin }}%</span>
+                        @endif
+                    </div>
+                    <div class="border-t border-white/10 p-6 sm:px-8">
+                        <p class="text-[13px] text-white/60">Total operasional</p>
+                        <p class="mt-1 text-xl font-semibold tabular-nums">{{ money($metrics['operational']) }}</p>
+                        <p class="mt-1 text-[12px] text-white/40">BOP + gaji + sewa</p>
+                    </div>
+                @elseif ($isCafe)
+                    <div class="p-6 sm:p-8">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">Target minuman</p>
+                        <p class="mt-3 text-[2rem] font-semibold leading-none tabular-nums {{ $metrics['drink_target_percent'] >= 100 ? 'text-[#7ee2a8]' : '' }}">{{ $metrics['drink_target_percent'] }}%</p>
+                        <div class="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                            <div class="h-full rounded-full {{ $metrics['drink_target_percent'] >= 100 ? 'bg-[#7ee2a8]' : 'bg-brand' }}" style="width: {{ min(100, (int) $metrics['drink_target_percent']) }}%"></div>
+                        </div>
+                        <p class="mt-3 text-[12px] text-white/50">{{ qty($metrics['drink_cups']) }} dari {{ qty($metrics['drink_target']) }} cup · target {{ $metrics['drink_daily_target'] }} cup/hari</p>
+                    </div>
+                @elseif ($showFoodShare)
+                    <div class="p-6 sm:p-8">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">Pendapatan cafe dari makanan</p>
+                        <p class="mt-3 text-[2rem] font-semibold leading-none tracking-tight tabular-nums text-[#f4c27a]">{{ money($metrics['food_cafe']) }}</p>
+                        <p class="mt-3 text-[12px] text-white/50">Komisi cafe</p>
+                    </div>
+                @else
+                    <div class="p-6 sm:p-8">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">Makanan terjual</p>
+                        <p class="mt-3 text-[2rem] font-semibold leading-none tabular-nums">{{ qty($foodCups) }}</p>
+                        <p class="mt-3 text-[12px] text-white/50">Porsi pada periode ini</p>
+                    </div>
+                @endif
+            </div>
         </div>
-    @endif
-    <div class="mb-5 grid gap-4 {{ $statGrid }}">
-        @if ($tab !== 'food')
-        <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Pendapatan minuman</p>
-                    <p class="stat-value">{{ money($metrics['drinks']) }}</p>
-                    <p class="stat-hint">Setelah diskon pada periode ini</p>
-                </div>
-                <span class="stat-icon bg-[#e8f1ff] text-[#2563eb]">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>
-                </span>
+    </section>
+
+    {{-- Angka pendukung --}}
+    @if ($isCafe)
+        <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
+                <p class="text-[12px] font-medium text-muted">Order lunas</p>
+                <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-heading">{{ qty($metrics['orders']) }}</p>
             </div>
-        @endif
-        @if ($tab === 'food')
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Pendapatan makanan</p>
-                    <p class="stat-value">{{ money($metrics['food_sales']) }}</p>
-                    <p class="stat-hint">Setelah diskon pada periode ini</p>
-                </div>
-                <span class="stat-icon bg-[#fff3e8] text-[#c2410c]">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>
-                </span>
+            <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
+                <p class="text-[12px] font-medium text-muted">Rata-rata per order</p>
+                <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-heading">{{ money($metrics['aov']) }}</p>
             </div>
-        @endif
-        @if ($tab === 'food' && ! $showFoodShare)
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Makanan terjual</p>
-                    <p class="stat-value">{{ qty($charts['top_food']->sum('qty')) }}</p>
-                    <p class="stat-hint">Porsi pada periode ini</p>
-                </div>
-            </div>
-        @endif
-        @if ($tab === 'food' && $showFoodShare)
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Pendapatan cafe dari makanan</p>
-                    <p class="stat-value">{{ money($metrics['food_cafe']) }}</p>
-                    <p class="stat-hint">Komisi cafe</p>
-                </div>
-            </div>
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Setoran makanan</p>
-                    <p class="stat-value">{{ money($metrics['food_setoran']) }}</p>
-                    <p class="stat-hint">Sudah disetor {{ money($metrics['food_setoran_paid']) }}</p>
-                </div>
-            </div>
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Sisa setoran</p>
-                    <p class="stat-value">{{ money($metrics['food_setoran_remaining']) }}</p>
-                    <p class="stat-hint">Belum disetor pada periode ini</p>
-                </div>
-            </div>
-        @endif
-        @if ($tab === 'cafe' && $showFinance)
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Komisi makanan</p>
-                    <p class="stat-value">{{ money($metrics['food_cafe']) }}</p>
-                    <p class="stat-hint">Bagian cafe dari penjualan makanan</p>
-                </div>
-            </div>
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Omzet cafe</p>
-                    <p class="stat-value">{{ money($metrics['sales']) }}</p>
-                    <p class="stat-hint">Semua pendapatan − setoran makanan</p>
-                </div>
-            </div>
-        @endif
-        @if ($tab !== 'food')
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Target minuman</p>
-                    <p class="stat-value {{ $metrics['drink_target_percent'] >= 100 ? 'text-[#166534]' : '' }}">{{ $metrics['drink_target_percent'] }}%</p>
-                    <p class="stat-hint">{{ qty($metrics['drink_cups']) }} dari {{ qty($metrics['drink_target']) }} cup · target {{ $metrics['drink_daily_target'] }} cup/hari</p>
+            @if ($showFinance)
+                <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
+                    <p class="text-[12px] font-medium text-muted">Target minuman</p>
+                    <div class="mt-2 flex items-baseline justify-between gap-2">
+                        <p class="text-2xl font-semibold tracking-tight tabular-nums {{ $metrics['drink_target_percent'] >= 100 ? 'text-[#166534]' : 'text-heading' }}">{{ $metrics['drink_target_percent'] }}%</p>
+                        <p class="text-[12px] tabular-nums text-muted">{{ qty($metrics['drink_cups']) }}/{{ qty($metrics['drink_target']) }} cup</p>
+                    </div>
                     <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-brand-soft">
                         <div class="h-full rounded-full {{ $metrics['drink_target_percent'] >= 100 ? 'bg-[#166534]' : 'bg-brand' }}" style="width: {{ min(100, (int) $metrics['drink_target_percent']) }}%"></div>
                     </div>
+                    <p class="mt-2 text-[11px] text-muted">target {{ $metrics['drink_daily_target'] }} cup/hari</p>
                 </div>
-                <span class="stat-icon {{ $metrics['drink_target_percent'] >= 100 ? 'bg-[#eef6f0] text-[#166534]' : 'bg-brand-soft text-brand' }}">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                </span>
+            @else
+                <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
+                    <p class="text-[12px] font-medium text-muted">Cup terjual</p>
+                    <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-heading">{{ qty($metrics['drink_cups']) }}</p>
+                </div>
+            @endif
+            <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
+                <p class="text-[12px] font-medium text-muted">Pendapatan kotor</p>
+                <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-heading">{{ money($metrics['gross']) }}</p>
+                <p class="mt-1 text-[11px] text-muted">Semua order lunas, termasuk makanan</p>
+            </div>
+        </div>
+    @elseif ($showFoodShare)
+        <div class="mb-5 grid gap-4 sm:grid-cols-3">
+            <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
+                <p class="text-[12px] font-medium text-muted">Setoran makanan</p>
+                <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-heading">{{ money($metrics['food_setoran']) }}</p>
+                <p class="mt-1 text-[11px] text-muted">Sudah disetor {{ money($metrics['food_setoran_paid']) }}</p>
+            </div>
+            <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
+                <p class="text-[12px] font-medium text-muted">Sisa setoran</p>
+                <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums {{ $metrics['food_setoran_remaining'] > 0 ? 'text-brand' : 'text-heading' }}">{{ money($metrics['food_setoran_remaining']) }}</p>
+                <p class="mt-1 text-[11px] text-muted">Belum disetor pada periode ini</p>
+            </div>
+            <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
+                <p class="text-[12px] font-medium text-muted">Makanan terjual</p>
+                <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-heading">{{ qty($foodCups) }}</p>
+                <p class="mt-1 text-[11px] text-muted">Porsi pada periode ini</p>
+            </div>
+        </div>
+    @endif
+
+    {{-- Tren + operasional --}}
+    <div class="mb-5 grid items-start gap-5 {{ $isCafe && $showFinance ? 'xl:grid-cols-3' : '' }}">
+        <div class="rounded-2xl border border-[#ebe4dc] bg-white p-6 {{ $isCafe && $showFinance ? 'xl:col-span-2' : '' }}">
+            <div class="mb-5">
+                <h2 class="font-serif text-xl font-semibold text-heading">Tren penjualan {{ $isCafe ? 'minuman' : 'makanan' }}</h2>
+                <p class="mt-1 text-[12px] text-muted">14 hari terakhir · total {{ money($charts['sales_trend']->sum('total')) }}</p>
+            </div>
+            <div class="h-72"><canvas id="salesTrend" role="img" aria-label="Tren penjualan 14 hari terakhir"></canvas></div>
+        </div>
+
+        @if ($isCafe && $showFinance)
+            <div class="flex flex-col rounded-2xl border border-[#ebe4dc] bg-white p-6">
+                <h2 class="font-serif text-xl font-semibold text-heading">Operasional cafe</h2>
+                <p class="mt-1 text-[12px] text-muted">Rincian operasional per kategori, terbesar di atas.</p>
+                <div class="mt-5 flex-1 space-y-4">
+                    @forelse ($metrics['expense_groups'] as $group)
+                        <div>
+                            <div class="flex items-baseline justify-between gap-3 text-[13px]">
+                                <p class="font-medium text-heading">{{ $group['label'] }}</p>
+                                <p class="font-semibold tabular-nums text-heading">{{ money($group['amount']) }}</p>
+                            </div>
+                            <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#f3eee8]">
+                                <div class="h-full rounded-full bg-heading" style="width: {{ $group['percent'] }}%"></div>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="py-10 text-center text-sm text-muted">Belum ada biaya di periode ini.</p>
+                    @endforelse
+                </div>
+                <div class="mt-5 flex items-baseline justify-between border-t border-[#f0ebe4] pt-4">
+                    <p class="text-[13px] font-semibold text-heading">Total operasional</p>
+                    <p class="text-lg font-semibold tabular-nums text-heading">{{ money($metrics['operational']) }}</p>
+                </div>
             </div>
         @endif
     </div>
 
-    @if ($tab === 'cafe' && $showFinance)
-    <div class="mb-3">
-        <h2 class="font-serif text-xl font-semibold text-heading">Operasional cafe</h2>
-        <p class="mt-1 text-[12px] text-muted">{{ $periodLabel }}.</p>
-    </div>
-        <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">BOP</p>
-                    <p class="stat-value">{{ money($metrics['bop_other']) }}</p>
-                    <p class="stat-hint">Bahan, sewa, listrik, dan lainnya, tanpa gaji</p>
-                </div>
+    {{-- Terlaris + bagi hasil --}}
+    <div class="mb-5 grid items-start gap-5 {{ $isCafe && $showFinance ? 'xl:grid-cols-3' : '' }}">
+        <div class="overflow-hidden rounded-2xl border border-[#ebe4dc] bg-white {{ $isCafe && $showFinance ? 'xl:col-span-2' : '' }}">
+            <div class="px-6 pt-6">
+                <h2 class="font-serif text-xl font-semibold text-heading">{{ $isCafe ? 'Minuman terlaris' : 'Makanan terlaris' }}</h2>
+                <p class="mt-1 text-[12px] text-muted">Semua terjual {{ strtolower($periodLabel) }}. Omzet setelah diskon.@if ($showFoodShare) Profit = omzet − HPP.@endif</p>
             </div>
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Gaji karyawan</p>
-                    <p class="stat-value">{{ money($metrics['salary']) }}</p>
-                    <p class="stat-hint">Gaji tetap karyawan aktif</p>
-                </div>
-            </div>
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Total operasional</p>
-                    <p class="stat-value">{{ money($metrics['operational']) }}</p>
-                    <p class="stat-hint">BOP + gaji karyawan</p>
-                </div>
-            </div>
-            <div class="stat-card !items-start">
-                <div class="min-w-0 flex-1">
-                    <p class="stat-kicker">Omzet bersih</p>
-                    <p class="stat-value {{ $metrics['net'] < 0 ? 'text-brand' : '' }}">{{ money($metrics['net']) }}</p>
-                    <p class="stat-hint">Omzet cafe − total operasional</p>
-                </div>
-            </div>
-        </div>
-
-    <div class="mb-5 grid gap-4 lg:grid-cols-2">
-        <div class="card overflow-hidden">
-            <div class="card-header">
-                <div>
-                    <h5 class="card-header-title">Rincian operasional</h5>
-                    <p class="card-header-subtitle">Per kategori, terbesar di atas.</p>
-                </div>
-            </div>
-            <div class="divide-y divide-[#f0ebe4] px-5 py-1 text-sm">
-                @forelse ($metrics['expense_groups'] as $group)
-                    <div class="py-3.5">
-                        <div class="flex items-center justify-between gap-4">
-                            <p class="font-medium text-heading">{{ $group['label'] }}</p>
-                            <p class="tabular-nums font-semibold text-heading">{{ money($group['amount']) }}</p>
-                        </div>
-                        <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-soft">
-                            <div class="h-full rounded-full bg-brand" style="width: {{ $group['percent'] }}%"></div>
-                        </div>
-                    </div>
-                @empty
-                    <p class="py-10 text-center text-sm text-muted">Belum ada biaya di periode ini.</p>
-                @endforelse
-            </div>
-        </div>
-        <div class="card overflow-hidden">
-            <div class="card-header">
-                <div>
-                    <h5 class="card-header-title">Bagi hasil</h5>
-                    <p class="card-header-subtitle">Dari omzet cafe − charge − BOP {{ money($metrics['share_base']) }}.</p>
-                </div>
-                <a href="{{ route('reports.profit', ['period' => $period]) }}" class="text-[12px] font-medium text-brand hover:underline">Detail</a>
-            </div>
-            <div class="divide-y divide-[#f0ebe4] px-5 py-1 text-sm">
-                @forelse ($metrics['shares'] as $share)
-                    <div class="flex items-center justify-between gap-4 py-3.5">
-                        <div>
-                            <p class="font-medium text-heading">{{ $share['name'] }}</p>
-                            <p class="text-[12px] text-muted">{{ number_format($share['percent'], 1, ',', '.') }}% · modal {{ money($share['capital']) }}</p>
-                        </div>
-                        <p class="tabular-nums font-semibold text-heading">{{ money($share['amount']) }}</p>
-                    </div>
-                @empty
-                    <p class="py-10 text-center text-sm text-muted">Belum ada data investor.</p>
-                @endforelse
-            </div>
-        </div>
-    </div>
-    @endif
-
-    <div class="mb-5 card overflow-hidden p-5">
-        <div class="mb-4 flex items-start justify-between gap-3">
-            <div>
-                <h2 class="font-serif text-xl font-semibold text-heading">Tren penjualan {{ $tab === 'food' ? 'makanan' : 'minuman' }}</h2>
-                <p class="mt-1 text-[12px] text-muted">14 hari terakhir</p>
-            </div>
-        </div>
-        <div class="h-72"><canvas id="salesTrend"></canvas></div>
-    </div>
-
-    <div class="mb-5">
-        @foreach ([$tab === 'food'
-            ? ['title' => 'Makanan terlaris', 'rows' => $charts['top_food']]
-            : ['title' => 'Minuman terlaris', 'rows' => $charts['top_drinks']]] as $block)
-            <div class="card overflow-hidden">
-                <div class="card-header">
-                    <div>
-                        <h5 class="card-header-title">{{ $block['title'] }}</h5>
-                        <p class="card-header-subtitle">Semua terjual {{ strtolower($periodLabel) }}. Omzet setelah diskon.@if ($showFoodShare) Profit = omzet − HPP.@endif</p>
-                    </div>
-                </div>
-                <div class="table-wrap">
-                    <table class="list-table">
-                        <thead>
-                            <tr>
-                                <th class="w-10">#</th>
-                                <th>Produk</th>
-                                <th class="text-right">Qty</th>
-                                <th class="text-right">Omzet</th>
+            @php $rows = $isCafe ? $charts['top_drinks'] : $charts['top_food']; $topTotal = max(0.01, (float) $rows->max('total')); @endphp
+            <div class="table-wrap mt-4 max-h-[520px] overflow-y-auto">
+                <table class="w-full text-[13px]">
+                    <thead class="sticky top-0 bg-white text-[11px] uppercase tracking-[0.08em] text-muted">
+                        <tr class="border-b border-[#f0ebe4]">
+                            <th class="w-10 px-6 py-3 text-left font-semibold">#</th>
+                            <th class="py-3 text-left font-semibold">Produk</th>
+                            <th class="py-3 pl-3 text-right font-semibold">Qty</th>
+                            <th class="py-3 pl-3 text-right font-semibold {{ $showFoodShare ? '' : 'pr-6' }}">Omzet</th>
+                            @if ($showFoodShare)
+                                <th class="py-3 pl-3 pr-6 text-right font-semibold">Profit</th>
+                            @endif
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($rows as $i => $row)
+                            <tr class="border-b border-[#f6f2ee] last:border-0">
+                                <td class="px-6 py-3 tabular-nums text-muted">{{ $i + 1 }}</td>
+                                <td class="py-3">
+                                    <p class="font-medium text-heading">{{ $row->name }}</p>
+                                    <div class="mt-1.5 h-1 max-w-[220px] overflow-hidden rounded-full bg-[#f3eee8]">
+                                        <div class="h-full rounded-full bg-brand" style="width: {{ (int) round((float) $row->total / $topTotal * 100) }}%"></div>
+                                    </div>
+                                </td>
+                                <td class="py-3 pl-3 text-right tabular-nums">{{ number_format((float) $row->qty) }}</td>
+                                <td class="py-3 pl-3 text-right font-semibold tabular-nums text-heading {{ $showFoodShare ? '' : 'pr-6' }}">{{ money($row->total) }}</td>
                                 @if ($showFoodShare)
-                                    <th class="text-right">Profit</th>
+                                    <td class="py-3 pl-3 pr-6 text-right tabular-nums {{ (float) $row->profit >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ money($row->profit) }}</td>
                                 @endif
                             </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($block['rows'] as $i => $row)
-                                <tr>
-                                    <td class="text-muted">{{ $i + 1 }}</td>
-                                    <td class="font-medium text-heading">{{ $row->name }}</td>
-                                    <td class="text-right tabular-nums">{{ number_format((float) $row->qty) }}</td>
-                                    <td class="text-right tabular-nums">{{ money($row->total) }}</td>
-                                    @if ($showFoodShare)
-                                        <td class="text-right tabular-nums {{ (float) $row->profit >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ money($row->profit) }}</td>
-                                    @endif
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="{{ $showFoodShare ? 5 : 4 }}" class="py-14 text-center text-sm text-muted">Belum ada penjualan di periode ini.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                        @empty
+                            <tr>
+                                <td colspan="{{ $showFoodShare ? 5 : 4 }}" class="py-14 text-center text-sm text-muted">Belum ada penjualan di periode ini.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        @if ($isCafe && $showFinance)
+            <div class="flex flex-col rounded-2xl border border-[#ebe4dc] bg-white p-6">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 class="font-serif text-xl font-semibold text-heading">Bagi hasil</h2>
+                        <p class="mt-1 text-[12px] text-muted">Dari omzet cafe − charge − BOP {{ money($metrics['share_base']) }}.</p>
+                    </div>
+                    <a href="{{ route('reports.profit', ['period' => $period]) }}" class="text-[12px] font-medium text-brand hover:underline">Detail</a>
+                </div>
+                <div class="mt-4 divide-y divide-[#f0ebe4]">
+                    @forelse ($metrics['shares'] as $share)
+                        <div class="flex items-center justify-between gap-4 py-3.5">
+                            <div class="min-w-0">
+                                <p class="font-medium text-heading">{{ $share['name'] }}</p>
+                                <p class="text-[12px] text-muted">{{ number_format($share['percent'], 1, ',', '.') }}% · modal {{ money($share['capital']) }}</p>
+                            </div>
+                            <p class="font-semibold tabular-nums text-heading">{{ money($share['amount']) }}</p>
+                        </div>
+                    @empty
+                        <p class="py-10 text-center text-sm text-muted">Belum ada data investor.</p>
+                    @endforelse
                 </div>
             </div>
-        @endforeach
+        @endif
     </div>
 
-    @if ($tab === 'cafe')
-    <div class="mb-3">
-        <h2 class="font-serif text-xl font-semibold text-heading">Pembayaran</h2>
-        <p class="mt-1 text-[12px] text-muted">{{ $periodLabel }}.</p>
-    </div>
-    <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <div class="stat-card !items-start">
-            <div class="min-w-0 flex-1">
-                <p class="stat-kicker">Cash</p>
-                <p class="stat-value">{{ money($metrics['cash']) }}</p>
-                <p class="stat-hint">Pembayaran tunai {{ strtolower($periodLabel) }}</p>
-            </div>
-            <span class="stat-icon bg-[#eef6f0] text-[#166534]">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-            </span>
-        </div>
-        <div class="stat-card !items-start">
-            <div class="min-w-0 flex-1">
-                <p class="stat-kicker">QRIS</p>
-                <p class="stat-value">{{ money($metrics['qris']) }}</p>
-                <p class="stat-hint">Pembayaran QRIS {{ strtolower($periodLabel) }}</p>
-            </div>
-            <span class="stat-icon bg-[#e8f1ff] text-[#2563eb]">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 3h2v3h-2v-3zm4-3h2v2h-2v-2zm-4 0h2v2h-2v-2zm4 3h2v3h-2v-3z"/></svg>
-            </span>
-        </div>
-        <div class="stat-card !items-start">
-            <div class="min-w-0 flex-1">
-                <p class="stat-kicker">Total pembayaran</p>
-                <p class="stat-value">{{ money($metrics['payment_total']) }}</p>
-                <p class="stat-hint">Dibanding pendapatan kotor {{ money($metrics['gross']) }}</p>
-            </div>
-        </div>
-    </div>
-
-    @if (! $metrics['payments_match'])
-        <div class="mb-5 rounded-xl border border-[#f5d0a9] bg-[#fff7ed] px-4 py-3 text-[13px] text-[#9a3412]">
-            Perlu rekonsiliasi. Total pembayaran {{ money($metrics['payment_total']) }}, pendapatan kotor {{ money($metrics['gross']) }}, selisih {{ money($metrics['payment_gap']) }}.
-        </div>
-    @endif
-
-
-    <div class="mb-5 card overflow-hidden">
-        <div class="card-header">
-            <div>
-                <h5 class="card-header-title">Sumber kedatangan</h5>
-                <p class="card-header-subtitle">Order lunas {{ strtolower($periodLabel) }}. Yang paling banyak di atas.</p>
-            </div>
-        </div>
-        <div class="divide-y divide-[#f0ebe4] px-5 py-1 text-sm">
-            @forelse ($charts['arrival_sources'] as $row)
-                <div class="py-3.5">
-                    <div class="flex items-center justify-between gap-4">
-                        <p class="font-medium text-heading">{{ $row['label'] }}</p>
-                        <p class="tabular-nums text-[13px] text-muted">{{ $row['qty'] }} order · {{ $row['percent'] }}%</p>
+    {{-- Pembayaran + sumber --}}
+    @if ($isCafe)
+        <div class="mb-5 grid gap-5 xl:grid-cols-2">
+            <div class="rounded-2xl border border-[#ebe4dc] bg-white p-6">
+                <h2 class="font-serif text-xl font-semibold text-heading">Pembayaran</h2>
+                <p class="mt-1 text-[12px] text-muted">{{ $periodLabel }}.</p>
+                @php $payTotal = max(0.01, $metrics['payment_total']); @endphp
+                <div class="mt-5 flex h-2 gap-0.5 overflow-hidden rounded-full bg-[#f3eee8]">
+                    <div class="h-full rounded-full bg-heading" style="width: {{ (int) round($metrics['cash'] / $payTotal * 100) }}%"></div>
+                    <div class="h-full rounded-full bg-brand" style="width: {{ (int) round($metrics['qris'] / $payTotal * 100) }}%"></div>
+                </div>
+                <div class="mt-5 grid grid-cols-3 gap-4">
+                    <div>
+                        <p class="flex items-center gap-2 text-[12px] text-muted"><span class="h-2 w-2 rounded-full bg-heading"></span>Cash</p>
+                        <p class="mt-1 text-lg font-semibold tabular-nums text-heading">{{ money($metrics['cash']) }}</p>
                     </div>
-                    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-soft">
-                        <div class="h-full rounded-full bg-brand" style="width: {{ $row['percent'] }}%"></div>
+                    <div>
+                        <p class="flex items-center gap-2 text-[12px] text-muted"><span class="h-2 w-2 rounded-full bg-brand"></span>QRIS</p>
+                        <p class="mt-1 text-lg font-semibold tabular-nums text-heading">{{ money($metrics['qris']) }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[12px] text-muted">Total pembayaran</p>
+                        <p class="mt-1 text-lg font-semibold tabular-nums text-heading">{{ money($metrics['payment_total']) }}</p>
                     </div>
                 </div>
-            @empty
-                <p class="py-10 text-center text-sm text-muted">Belum ada data sumber kedatangan.</p>
-            @endforelse
-        </div>
-    </div>
+                @if (! $metrics['payments_match'])
+                    <div class="mt-5 rounded-xl border border-[#f5d0a9] bg-[#fff7ed] px-4 py-3 text-[13px] text-[#9a3412]">
+                        Perlu rekonsiliasi. Total pembayaran {{ money($metrics['payment_total']) }}, pendapatan kotor {{ money($metrics['gross']) }}, selisih {{ money($metrics['payment_gap']) }}.
+                    </div>
+                @endif
+            </div>
 
+            <div class="rounded-2xl border border-[#ebe4dc] bg-white p-6">
+                <h2 class="font-serif text-xl font-semibold text-heading">Sumber kedatangan</h2>
+                <p class="mt-1 text-[12px] text-muted">Order lunas {{ strtolower($periodLabel) }}. Yang paling banyak di atas.</p>
+                <div class="mt-5 space-y-4">
+                    @forelse ($charts['arrival_sources'] as $row)
+                        <div>
+                            <div class="flex items-baseline justify-between gap-4 text-[13px]">
+                                <p class="font-medium text-heading">{{ $row['label'] }}</p>
+                                <p class="tabular-nums text-muted">{{ $row['qty'] }} order · {{ $row['percent'] }}%</p>
+                            </div>
+                            <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#f3eee8]">
+                                <div class="h-full rounded-full bg-brand" style="width: {{ $row['percent'] }}%"></div>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="py-10 text-center text-sm text-muted">Belum ada data sumber kedatangan.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
     @endif
 @endsection
 
@@ -431,31 +426,55 @@
         const el = document.getElementById('salesTrend');
         if (!el || !window.Chart) return;
 
+        const rupiah = (v) => 'Rp ' + Math.round(v).toLocaleString('id-ID');
+        const compact = (v) => v >= 1e6 ? (v / 1e6).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' jt'
+            : v >= 1e3 ? Math.round(v / 1e3) + ' rb' : String(v);
+        const ctx = el.getContext('2d');
+        const fill = ctx.createLinearGradient(0, 0, 0, el.parentElement.clientHeight || 288);
+        fill.addColorStop(0, 'rgba(232,25,44,.16)');
+        fill.addColorStop(1, 'rgba(232,25,44,0)');
+
         new window.Chart(el, {
             type: 'line',
             data: {
-                labels: @json($charts['sales_trend']->pluck('d')),
+                labels: @json($charts['sales_trend']->pluck('d')->map(fn ($d) => \Illuminate\Support\Carbon::parse($d)->locale('id')->translatedFormat('d M'))),
                 datasets: [{
                     data: @json($charts['sales_trend']->pluck('total')->map(fn ($v) => (float) $v)),
-                    backgroundColor: 'rgba(111,23,21,.10)',
+                    backgroundColor: fill,
                     borderColor: '#e8192c',
                     fill: true,
                     tension: .35,
-                    borderWidth: 2.5,
-                    pointBackgroundColor: '#e8192c',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#e8192c',
+                    pointBorderWidth: 2,
                     pointRadius: 3,
-                    pointHoverRadius: 5,
+                    pointHoverRadius: 6,
                 }],
             },
             options: {
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { display: false },
-                    tooltip: { backgroundColor: '#171717', padding: 10, cornerRadius: 8 },
+                    tooltip: {
+                        backgroundColor: '#161414',
+                        padding: 12,
+                        cornerRadius: 10,
+                        displayColors: false,
+                        titleFont: { weight: '500' },
+                        bodyFont: { size: 14, weight: '600' },
+                        callbacks: { label: (item) => rupiah(item.parsed.y) },
+                    },
                 },
-                maintainAspectRatio: false,
                 scales: {
-                    x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-                    y: { grid: { color: 'rgba(0,0,0,.04)' }, ticks: { font: { size: 11 } }, beginAtZero: true },
+                    x: { grid: { display: false }, border: { display: false }, ticks: { color: '#8a8580', font: { size: 11 } } },
+                    y: {
+                        beginAtZero: true,
+                        border: { display: false },
+                        grid: { color: 'rgba(0,0,0,.05)' },
+                        ticks: { color: '#8a8580', font: { size: 11 }, maxTicksLimit: 5, callback: (v) => compact(v) },
+                    },
                 },
             },
         });

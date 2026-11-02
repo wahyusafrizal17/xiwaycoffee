@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
+use App\Services\DashboardService;
 use App\Services\WaCloudService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,10 +15,12 @@ class SettingController extends Controller
 {
     protected array $keys = [
         'service_charge',
+        'rent_yearly',
     ];
 
     protected array $defaults = [
         'service_charge' => 0,
+        'rent_yearly' => DashboardService::RENT_YEARLY,
     ];
 
     public function index(WaCloudService $wa): View
@@ -43,6 +46,7 @@ class SettingController extends Controller
         abort_unless($request->user()->hasPermission('settings.manage'), 403);
         $data = $request->validate([
             'service_charge' => ['nullable', 'numeric', 'min:0'],
+            'rent_yearly' => ['nullable', 'numeric', 'min:0'],
             'kitchen_whatsapp' => ['nullable', 'array'],
             'kitchen_whatsapp.*' => ['nullable', 'string', 'max:30'],
         ]);

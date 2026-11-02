@@ -38,6 +38,18 @@
                 </div>
             </section>
 
+            <section>
+                <h6 class="text-sm font-semibold text-heading">Sewa ruko</h6>
+                <p class="mb-4 mt-1 text-[13px] text-muted">Masuk operasional dashboard per bulan, yaitu nilai per tahun dibagi 12.</p>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label class="label">Sewa per tahun (Rp)</label>
+                        <input class="input" type="number" step="1" min="0" name="rent_yearly" value="{{ $settings['rent_yearly'] }}">
+                        @error('rent_yearly')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                    </div>
+                </div>
+            </section>
+
             <section x-data="{ phones: @js(array_values($kitchenPhones)) }">
                 <h6 class="text-sm font-semibold text-heading">WhatsApp dapur</h6>
                 <p class="mb-4 mt-1 text-[13px] text-muted">Pesanan dapur dikirim ke semua nomor ini.</p>

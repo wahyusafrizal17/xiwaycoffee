@@ -95,11 +95,12 @@ class DashboardService
             : 0.0;
         $sales = round($gross - $setoran, 2);
         $bop = (float) $summary['bop'];
-        // Gaji pakai nilai tetap karyawan, jadi BOP kategori Gaji tidak dihitung lagi di operasional.
+        // Gaji dan sewa pakai nilai tetap, jadi BOP kategori Gaji dan Sewa tidak dihitung lagi di operasional.
         $salary = $this->fixedSalary($outletId, $range);
-        $otherExpenses = $summary['expenses']->reject(fn ($expense) => $expense->category === ExpenseCategory::Salary);
+        $rent = round((float) setting('rent_yearly', self::RENT_YEARLY) / 12 * $this->months($range), 2);
+        $otherExpenses = $summary['expenses']->reject(fn ($expense) => in_array($expense->category, [ExpenseCategory::Salary, ExpenseCategory::Rent], true));
         $bopOther = round((float) $otherExpenses->sum('amount'), 2);
-        $operational = round($bopOther + $salary, 2);
+        $operational = round($bopOther + $salary + $rent, 2);
         $serviceFee = round((float) (clone $this->validOrders($outletId, $range))->sum('tax_amount'), 2);
         $net = round($sales - $operational, 2);
         $shareBase = round($sales - $serviceFee - $bop, 2);
@@ -131,9 +132,10 @@ class DashboardService
             'sales' => $sales,
             'bop' => $bop,
             'salary' => $salary,
+            'rent' => $rent,
             'bop_other' => $bopOther,
             'operational' => $operational,
-            'expense_groups' => $this->expenseGroups($otherExpenses, $salary, $operational),
+            'expense_groups' => $this->expenseGroups($otherExpenses, $salary, $rent, $operational),
             'net' => $net,
             'share_base' => $shareBase,
             'shares' => $this->shares->split($shareBase, $this->shares->partners()),
@@ -155,8 +157,11 @@ class DashboardService
         ];
     }
 
+    /** Sewa ruko per tahun bila belum diatur di Settings. */
+    public const RENT_YEARLY = 45_000_000;
+
     /**
-     * Gaji bulanan karyawan aktif. Bulanan penuh, tahunan per bulan berjalan, harian/range prorata kalender.
+     * Gaji bulanan karyawan aktif.
      */
     protected function fixedSalary(?int $outletId, array $range): float
     {
@@ -166,27 +171,37 @@ class DashboardService
             ->get()
             ->sum(fn (Employee $employee) => array_sum($employee->payParts()));
 
+        return round($monthly * $this->months($range), 2);
+    }
+
+    /**
+     * Jumlah bulan biaya tetap: bulanan penuh, tahunan per bulan berjalan, harian/range prorata kalender.
+     */
+    protected function months(array $range): float
+    {
         $from = Carbon::parse($range['from']);
         $to = Carbon::parse($range['to']);
-        $months = match ($range['period']) {
+
+        return match ($range['period']) {
             'month' => 1,
             'year' => $to->month,
             default => ($from->diffInDays($to) + 1) / $from->daysInMonth,
         };
-
-        return round($monthly * $months, 2);
     }
 
     /**
      * @return list<array{label: string, amount: float, percent: int}>
      */
-    protected function expenseGroups($expenses, float $salary, float $total): array
+    protected function expenseGroups($expenses, float $salary, float $rent, float $total): array
     {
         $groups = $expenses
             ->groupBy(fn ($expense) => $expense->category?->label() ?? 'Lainnya')
             ->map(fn ($rows) => (float) $rows->sum('amount'));
         if ($salary > 0) {
             $groups['Gaji karyawan'] = $salary;
+        }
+        if ($rent > 0) {
+            $groups['Sewa ruko'] = $rent;
         }
 
         return $groups
