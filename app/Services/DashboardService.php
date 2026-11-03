@@ -6,6 +6,7 @@ use App\Enums\ExpenseCategory;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\TableStatus;
+use App\Models\BankAccount;
 use App\Models\DiningTable;
 use App\Models\Employee;
 use App\Models\Order;
@@ -95,14 +96,24 @@ class DashboardService
             : 0.0;
         $sales = round($gross - $setoran, 2);
         $bop = (float) $summary['bop'];
+
+        // Operasional dan omzet bersih selalu per bulan: filter harian/range memakai bulan tanggal akhirnya.
+        $opsRange = in_array($range['period'], ['month', 'year'], true)
+            ? $range
+            : $this->monthRange(Carbon::parse($range['to'])->format('Y-m'));
+        $opsSummary = $opsRange === $range
+            ? $summary
+            : $this->shares->summarize(['outlet_id' => $outletId, 'from' => $opsRange['from'], 'to' => $opsRange['to']]);
+        $opsSales = $opsRange === $range ? $sales : $this->cafeSales($outletId, $opsRange);
+
         // Gaji dan sewa pakai nilai tetap, jadi BOP kategori Gaji dan Sewa tidak dihitung lagi di operasional.
-        $salary = $this->fixedSalary($outletId, $range);
-        $rent = round((float) setting('rent_yearly', self::RENT_YEARLY) / 12 * $this->months($range), 2);
-        $otherExpenses = $summary['expenses']->reject(fn ($expense) => in_array($expense->category, [ExpenseCategory::Salary, ExpenseCategory::Rent], true));
+        $salary = $this->fixedSalary($outletId, $opsRange);
+        $rent = round((float) setting('rent_yearly', self::RENT_YEARLY) / 12 * $this->months($opsRange), 2);
+        $otherExpenses = $opsSummary['expenses']->reject(fn ($expense) => in_array($expense->category, [ExpenseCategory::Salary, ExpenseCategory::Rent], true));
         $bopOther = round((float) $otherExpenses->sum('amount'), 2);
         $operational = round($bopOther + $salary + $rent, 2);
         $serviceFee = round((float) (clone $this->validOrders($outletId, $range))->sum('tax_amount'), 2);
-        $net = round($sales - $operational, 2);
+        $net = round($opsSales - $operational, 2);
         $shareBase = round($sales - $serviceFee - $bop, 2);
 
         $orderCount = (int) (clone $this->validOrders($outletId, $range))->count();
@@ -130,6 +141,9 @@ class DashboardService
             'food_setoran_paid' => $setoranPaid,
             'food_setoran_remaining' => round(max(0, $setoran - $setoranPaid), 2),
             'sales' => $sales,
+            'ops_label' => $opsRange['label'],
+            'ops_sales' => $opsSales,
+            'bank_balance' => $this->bankBalance($outletId),
             'bop' => $bop,
             'salary' => $salary,
             'rent' => $rent,
@@ -155,6 +169,24 @@ class DashboardService
             'occupied_tables' => (clone $tables)->where('status', TableStatus::Occupied->value)->count(),
             'available_tables' => (clone $tables)->where('status', TableStatus::Available->value)->count(),
         ];
+    }
+
+    /** Omzet cafe: semua order lunas dikurangi setoran makanan. */
+    protected function cafeSales(?int $outletId, array $range): float
+    {
+        $filters = ['outlet_id' => $outletId, 'from' => $range['from'], 'to' => $range['to']];
+        $food = $this->excludeCancelledFood($this->reports->foodSetoran($filters), $filters);
+        $gross = (float) (clone $this->validOrders($outletId, $range))->sum('grand_total');
+
+        return round($gross - (float) $food['setoran'], 2);
+    }
+
+    protected function bankBalance(?int $outletId): float
+    {
+        $bank = app(BankAccountService::class);
+        $outlets = $outletId ? [$outletId] : BankAccount::query()->pluck('outlet_id')->all();
+
+        return round(array_sum(array_map(fn ($id) => $bank->balance((int) $id), $outlets)), 2);
     }
 
     /** Sewa ruko per tahun bila belum diatur di Settings. */
@@ -423,7 +455,7 @@ class DashboardService
      */
     protected function monthRange(string $month): array
     {
-        $start = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        $start = Carbon::createFromFormat('!Y-m', $month)->startOfMonth();
         $end = (clone $start)->endOfMonth();
         if ($end->isFuture()) {
             $end = Carbon::now()->startOfDay();

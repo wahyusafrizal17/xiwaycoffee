@@ -9,7 +9,8 @@
         $filterPeriod = $period;
         $tabs = ['cafe' => 'Cafe', 'food' => 'Makanan'];
         $isCafe = $tab === 'cafe';
-        $margin = $metrics['sales'] > 0 ? (int) round($metrics['net'] / $metrics['sales'] * 100) : null;
+        $margin = $metrics['ops_sales'] > 0 ? (int) round($metrics['net'] / $metrics['ops_sales'] * 100) : null;
+        $opsMonthly = $metrics['ops_label'] !== $periodLabel;
         $mixTotal = max(0.01, $metrics['drinks'] + $metrics['food_cafe']);
         $drinkShare = (int) round($metrics['drinks'] / $mixTotal * 100);
         $foodCups = $charts['top_food']->sum('qty');
@@ -141,7 +142,7 @@
             <div class="grid border-t border-white/10 lg:border-l lg:border-t-0">
                 @if ($isCafe && $showFinance)
                     <div class="p-6 sm:p-8">
-                        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">Omzet bersih</p>
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/50">Omzet bersih · {{ $metrics['ops_label'] }}</p>
                         <p class="mt-3 text-[2rem] font-semibold leading-none tracking-tight tabular-nums {{ $metrics['net'] < 0 ? 'text-[#ff8a8a]' : 'text-[#7ee2a8]' }}">{{ money($metrics['net']) }}</p>
                         @if ($margin !== null)
                             <span class="mt-3 inline-flex rounded-full px-2.5 py-1 text-[12px] font-semibold {{ $metrics['net'] < 0 ? 'bg-[#ff8a8a]/15 text-[#ff8a8a]' : 'bg-[#7ee2a8]/15 text-[#7ee2a8]' }}">Margin {{ $margin }}%</span>
@@ -150,7 +151,10 @@
                     <div class="border-t border-white/10 p-6 sm:px-8">
                         <p class="text-[13px] text-white/60">Total operasional</p>
                         <p class="mt-1 text-xl font-semibold tabular-nums">{{ money($metrics['operational']) }}</p>
-                        <p class="mt-1 text-[12px] text-white/40">BOP + gaji + sewa</p>
+                        <p class="mt-1 text-[12px] text-white/40">BOP + gaji + sewa · {{ $metrics['ops_label'] }}</p>
+                        @if ($opsMonthly)
+                            <p class="mt-1 text-[12px] text-white/40">Omzet cafe {{ $metrics['ops_label'] }} {{ money($metrics['ops_sales']) }}</p>
+                        @endif
                     </div>
                 @elseif ($isCafe)
                     <div class="p-6 sm:p-8">
@@ -180,7 +184,14 @@
 
     {{-- Angka pendukung --}}
     @if ($isCafe)
-        <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="mb-5 grid gap-4 sm:grid-cols-2 {{ $showFinance ? 'xl:grid-cols-5' : 'xl:grid-cols-4' }}">
+            @if ($showFinance)
+                <a href="{{ route('bank.index') }}" class="rounded-2xl border border-[#ebe4dc] bg-white p-5 transition hover:border-[#dcd2c7]">
+                    <p class="text-[12px] font-medium text-muted">Saldo rekening</p>
+                    <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums {{ $metrics['bank_balance'] < 0 ? 'text-brand' : 'text-heading' }}">{{ money($metrics['bank_balance']) }}</p>
+                    <p class="mt-1 text-[11px] text-muted">Saldo saat ini, bukan per periode</p>
+                </a>
+            @endif
             <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
                 <p class="text-[12px] font-medium text-muted">Order lunas</p>
                 <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-heading">{{ qty($metrics['orders']) }}</p>
@@ -246,7 +257,7 @@
         @if ($isCafe && $showFinance)
             <div class="flex flex-col rounded-2xl border border-[#ebe4dc] bg-white p-6">
                 <h2 class="font-serif text-xl font-semibold text-heading">Operasional cafe</h2>
-                <p class="mt-1 text-[12px] text-muted">Rincian operasional per kategori, terbesar di atas.</p>
+                <p class="mt-1 text-[12px] text-muted">Rincian operasional {{ $metrics['ops_label'] }} per kategori, terbesar di atas.</p>
                 <div class="mt-5 flex-1 space-y-4">
                     @forelse ($metrics['expense_groups'] as $group)
                         <div>
