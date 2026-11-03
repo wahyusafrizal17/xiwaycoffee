@@ -6,7 +6,7 @@ use App\Enums\ExpenseCategory;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\TableStatus;
-use App\Models\BankAccount;
+use App\Models\BankMovement;
 use App\Models\DiningTable;
 use App\Models\Employee;
 use App\Models\Order;
@@ -143,7 +143,7 @@ class DashboardService
             'sales' => $sales,
             'ops_label' => $opsRange['label'],
             'ops_sales' => $opsSales,
-            'bank_balance' => $this->bankBalance($outletId),
+            'bank_balance' => $this->bankBalance($outletId, $range['to']),
             'bop' => $bop,
             'salary' => $salary,
             'rent' => $rent,
@@ -181,12 +181,13 @@ class DashboardService
         return round($gross - (float) $food['setoran'], 2);
     }
 
-    protected function bankBalance(?int $outletId): float
+    /** Saldo rekening per akhir tanggal: jumlah semua mutasi sampai tanggal itu. */
+    protected function bankBalance(?int $outletId, string $to): float
     {
-        $bank = app(BankAccountService::class);
-        $outlets = $outletId ? [$outletId] : BankAccount::query()->pluck('outlet_id')->all();
-
-        return round(array_sum(array_map(fn ($id) => $bank->balance((int) $id), $outlets)), 2);
+        return round((float) BankMovement::query()
+            ->when($outletId, fn ($q) => $q->where('outlet_id', $outletId))
+            ->whereDate('occurred_on', '<=', $to)
+            ->sum('amount'), 2);
     }
 
     /** Sewa ruko per tahun bila belum diatur di Settings. */

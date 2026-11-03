@@ -189,7 +189,7 @@
                 <a href="{{ route('bank.index') }}" class="rounded-2xl border border-[#ebe4dc] bg-white p-5 transition hover:border-[#dcd2c7]">
                     <p class="text-[12px] font-medium text-muted">Saldo rekening</p>
                     <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums {{ $metrics['bank_balance'] < 0 ? 'text-brand' : 'text-heading' }}">{{ money($metrics['bank_balance']) }}</p>
-                    <p class="mt-1 text-[11px] text-muted">Saldo saat ini, bukan per periode</p>
+                    <p class="mt-1 text-[11px] text-muted">Per {{ \Illuminate\Support\Carbon::parse($range['to'])->locale('id')->translatedFormat('d M Y') }}</p>
                 </a>
             @endif
             <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
