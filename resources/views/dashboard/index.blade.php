@@ -148,13 +148,20 @@
                             <span class="mt-3 inline-flex rounded-full px-2.5 py-1 text-[12px] font-semibold {{ $metrics['net'] < 0 ? 'bg-[#ff8a8a]/15 text-[#ff8a8a]' : 'bg-[#7ee2a8]/15 text-[#7ee2a8]' }}">Margin {{ $margin }}%</span>
                         @endif
                     </div>
-                    <div class="border-t border-white/10 p-6 sm:px-8">
+                    <div class="grid grid-cols-2 border-t border-white/10">
+                    <div class="p-6 sm:px-8">
                         <p class="text-[13px] text-white/60">Total operasional</p>
                         <p class="mt-1 text-xl font-semibold tabular-nums">{{ money($metrics['operational']) }}</p>
                         <p class="mt-1 text-[12px] text-white/40">BOP + gaji + sewa · {{ $metrics['ops_label'] }}</p>
                         @if ($opsMonthly)
                             <p class="mt-1 text-[12px] text-white/40">Omzet cafe {{ $metrics['ops_label'] }} {{ money($metrics['ops_sales']) }}</p>
                         @endif
+                    </div>
+                    <a href="{{ route('bank.index') }}" class="border-l border-white/10 p-6 transition hover:bg-white/5 sm:px-8">
+                        <p class="text-[13px] text-white/60">Saldo rekening</p>
+                        <p class="mt-1 text-xl font-semibold tabular-nums {{ $metrics['bank_balance'] < 0 ? 'text-[#ff8a8a]' : 'text-[#7ee2a8]' }}">{{ money($metrics['bank_balance']) }}</p>
+                        <p class="mt-1 text-[12px] text-white/40">Saldo saat ini · lihat rekening</p>
+                    </a>
                     </div>
                 @elseif ($isCafe)
                     <div class="p-6 sm:p-8">
@@ -184,14 +191,7 @@
 
     {{-- Angka pendukung --}}
     @if ($isCafe)
-        <div class="mb-5 grid gap-4 sm:grid-cols-2 {{ $showFinance ? 'xl:grid-cols-5' : 'xl:grid-cols-4' }}">
-            @if ($showFinance)
-                <a href="{{ route('bank.index') }}" class="rounded-2xl border border-[#ebe4dc] bg-white p-5 transition hover:border-[#dcd2c7]">
-                    <p class="text-[12px] font-medium text-muted">Saldo rekening</p>
-                    <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums {{ $metrics['bank_balance'] < 0 ? 'text-brand' : 'text-heading' }}">{{ money($metrics['bank_balance']) }}</p>
-                    <p class="mt-1 text-[11px] text-muted">Per {{ \Illuminate\Support\Carbon::parse($range['to'])->locale('id')->translatedFormat('d M Y') }}</p>
-                </a>
-            @endif
+        <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
                 <p class="text-[12px] font-medium text-muted">Order lunas</p>
                 <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-heading">{{ qty($metrics['orders']) }}</p>
