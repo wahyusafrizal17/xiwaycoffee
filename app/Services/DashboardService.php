@@ -171,6 +171,126 @@ class DashboardService
         ];
     }
 
+    /**
+     * Laba rugi bulanan dengan dasar yang sama seperti dashboard:
+     * omzet cafe (tanpa bagian vendor makanan) − HPP − BOP − gaji tetap − sewa ruko.
+     */
+    public function incomeStatement(?int $outletId, string $month, bool $withPrevious = true): array
+    {
+        $range = $this->monthRange($month);
+        $filters = ['outlet_id' => $outletId, 'from' => $range['from'], 'to' => $range['to']];
+        $rate = (float) config('pos.food_cafe_percent', 10) / 100;
+
+        $orders = $this->validOrders($outletId, $range);
+        $gross = round((float) (clone $orders)->sum('grand_total'), 2);
+        $service = round((float) (clone $orders)->sum('tax_amount'), 2);
+        $discount = round((float) (clone $orders)->sum('discount_amount'), 2);
+        $orderCount = (int) (clone $orders)->count();
+        [$drinks, $cups] = $this->drinkSales($filters);
+        $food = $this->excludeCancelledFood($this->reports->foodSetoran($filters), $filters);
+        $other = round($gross - $drinks - (float) $food['sales'] - $service, 2);
+        $setoran = (float) $food['setoran'];
+        $omzet = round($gross - $setoran, 2);
+
+        $net = order_item_net_total_sql();
+        $foodAmount = order_item_food_amount_sql();
+        $categories = OrderItem::query()
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
+            ->leftJoin('categories', 'categories.id', '=', 'products.category_id')
+            ->leftJoin('bundles', 'bundles.id', '=', 'order_items.bundle_id')
+            ->where('orders.payment_status', PaymentStatus::Paid->value)
+            ->where('orders.status', '!=', OrderStatus::Cancelled->value)
+            ->when($outletId, fn ($q) => $q->where('orders.outlet_id', $outletId))
+            ->whereDate('orders.created_at', '>=', $range['from'])
+            ->whereDate('orders.created_at', '<=', $range['to'])
+            ->selectRaw("COALESCE(categories.name, 'Lainnya') as name")
+            ->selectRaw('SUM(order_items.quantity) as qty')
+            ->selectRaw("SUM({$net}) as sales")
+            ->selectRaw('SUM(order_items.quantity * COALESCE(products.cost, 0)) as hpp')
+            ->selectRaw("SUM({$foodAmount}) as food")
+            ->groupBy('categories.name')
+            ->get()
+            ->map(function ($row) use ($rate) {
+                $sales = (float) $row->sales;
+                $hpp = (float) $row->hpp;
+                // Makanan titipan: bagian cafe hanya komisinya, sisanya disetor ke vendor.
+                $vendor = (float) $row->food * (1 - $rate);
+                $profit = $sales - $hpp - $vendor;
+
+                return [
+                    'name' => (string) $row->name,
+                    'qty' => (float) $row->qty,
+                    'sales' => round($sales, 2),
+                    'hpp' => round($hpp, 2),
+                    'consignment' => (float) $row->food > $sales / 2,
+                    'profit' => round($profit, 2),
+                    'margin' => $sales > 0 ? round($profit / $sales * 100, 1) : 0.0,
+                ];
+            })
+            ->sortByDesc('sales')
+            ->values()
+            ->all();
+
+        $hpp = round(array_sum(array_column($categories, 'hpp')), 2);
+        $grossProfit = round($omzet - $hpp, 2);
+
+        $expenses = $this->shares->summarize($filters)['expenses'];
+        $fixedCategories = [ExpenseCategory::Salary, ExpenseCategory::Rent];
+        $bopRows = $expenses
+            ->reject(fn ($expense) => in_array($expense->category, $fixedCategories, true))
+            ->groupBy(fn ($expense) => $expense->category?->label() ?? 'Lainnya')
+            ->map(fn ($rows, $label) => ['label' => (string) $label, 'total' => round((float) $rows->sum('amount'), 2), 'count' => $rows->count()])
+            ->sortByDesc('total')
+            ->values()
+            ->all();
+        $bop = round(array_sum(array_column($bopRows, 'total')), 2);
+        $skippedFixed = round((float) $expenses->filter(fn ($expense) => in_array($expense->category, $fixedCategories, true))->sum('amount'), 2);
+        $salary = $this->fixedSalary($outletId, $range);
+        $rent = round((float) setting('rent_yearly', self::RENT_YEARLY) / 12, 2);
+        $operational = round($bop + $salary + $rent, 2);
+        $netProfit = round($grossProfit - $operational, 2);
+
+        $previous = null;
+        if ($withPrevious) {
+            $prevMonth = Carbon::createFromFormat('!Y-m', $range['month'])->subMonth()->format('Y-m');
+            $previous = $this->incomeStatement($outletId, $prevMonth, false);
+        }
+
+        return [
+            'label' => $range['label'],
+            'month' => $range['month'],
+            'from' => $range['from'],
+            'to' => $range['to'],
+            'drinks' => round($drinks, 2),
+            'food_sales' => (float) $food['sales'],
+            'service' => $service,
+            'other' => abs($other) < 1 ? 0.0 : $other,
+            'gross' => $gross,
+            'discount' => $discount,
+            'setoran' => $setoran,
+            'commission' => (float) $food['commission'],
+            'omzet' => $omzet,
+            'categories' => $categories,
+            'hpp' => $hpp,
+            'gross_profit' => $grossProfit,
+            'gross_margin' => $omzet > 0 ? round($grossProfit / $omzet * 100, 1) : 0.0,
+            'bop_rows' => $bopRows,
+            'bop' => $bop,
+            'skipped_fixed' => $skippedFixed,
+            'salary' => $salary,
+            'rent' => $rent,
+            'operational' => $operational,
+            'net' => $netProfit,
+            'net_margin' => $omzet > 0 ? round($netProfit / $omzet * 100, 1) : 0.0,
+            'status' => $netProfit > 0 ? 'Laba' : ($netProfit < 0 ? 'Rugi' : 'Impas'),
+            'orders' => $orderCount,
+            'aov' => $orderCount > 0 ? round($gross / $orderCount, 2) : 0.0,
+            'cups' => $cups,
+            'previous' => $previous,
+        ];
+    }
+
     /** Omzet cafe: semua order lunas dikurangi setoran makanan. */
     protected function cafeSales(?int $outletId, array $range): float
     {

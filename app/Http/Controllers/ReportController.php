@@ -162,7 +162,7 @@ class ReportController extends Controller
 
         $month = $request->string('month')->toString() ?: now()->format('Y-m');
         try {
-            $start = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+            $start = Carbon::createFromFormat('!Y-m', $month)->startOfMonth();
         } catch (\Throwable) {
             $start = now()->startOfMonth();
             $month = $start->format('Y-m');
@@ -184,8 +184,7 @@ class ReportController extends Controller
             'month' => $month,
         ];
 
-        $summary = $this->reports->profitLoss($filters);
-        $summary['label'] = $start->locale('id')->translatedFormat('F Y');
+        $summary = app(DashboardService::class)->incomeStatement($outletId, $month);
 
         return view('reports.laba-rugi', [
             'summary' => $summary,
