@@ -41,6 +41,8 @@ return [
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
+            // "Ingat saya" berlaku 30 hari (menit).
+            'remember' => 43200,
         ],
     ],
 

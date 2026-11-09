@@ -32,7 +32,8 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 43200),
+    // Minimal 30 hari supaya kasir dan admin tidak sering ter-logout, walau .env server masih 120.
+    'lifetime' => max(43200, (int) env('SESSION_LIFETIME', 43200)),
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 

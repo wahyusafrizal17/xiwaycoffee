@@ -31,7 +31,7 @@
         @error('password') <p class="-mt-2 text-xs text-brand">{{ $message }}</p> @enderror
 
         <label class="login-remember">
-            <input type="checkbox" name="remember">
+            <input type="checkbox" name="remember" value="1" checked>
             <span>Ingat saya</span>
         </label>
 
