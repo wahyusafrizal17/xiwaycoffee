@@ -191,7 +191,7 @@
 
     {{-- Angka pendukung --}}
     @if ($isCafe)
-        <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
                 <p class="text-[12px] font-medium text-muted">Order lunas</p>
                 <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-heading">{{ qty($metrics['orders']) }}</p>
@@ -218,6 +218,11 @@
                     <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-heading">{{ qty($metrics['drink_cups']) }}</p>
                 </div>
             @endif
+            <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
+                <p class="text-[12px] font-medium text-muted">{{ $showFinance ? 'Omzet cafe rata-rata/hari' : 'Pendapatan minuman rata-rata/hari' }}</p>
+                <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-heading">{{ money($showFinance ? $metrics['avg_sales'] : $metrics['avg_drinks']) }}</p>
+                <p class="mt-1 text-[11px] text-muted">{{ $metrics['avg_days'] }} hari · {{ \Illuminate\Support\Carbon::parse($metrics['avg_from'])->locale('id')->translatedFormat('d M') }}–{{ \Illuminate\Support\Carbon::parse($metrics['avg_to'])->locale('id')->translatedFormat('d M Y') }}</p>
+            </div>
             <div class="rounded-2xl border border-[#ebe4dc] bg-white p-5">
                 <p class="text-[12px] font-medium text-muted">Pendapatan kotor</p>
                 <p class="mt-2 text-2xl font-semibold tracking-tight tabular-nums text-heading">{{ money($metrics['gross']) }}</p>
@@ -246,12 +251,46 @@
 
     {{-- Tren + operasional --}}
     <div class="mb-5 grid items-start gap-5 {{ $isCafe && $showFinance ? 'xl:grid-cols-3' : '' }}">
-        <div class="rounded-2xl border border-[#ebe4dc] bg-white p-6 {{ $isCafe && $showFinance ? 'xl:col-span-2' : '' }}">
-            <div class="mb-5">
-                <h2 class="font-serif text-xl font-semibold text-heading">Tren penjualan {{ $isCafe ? 'minuman' : 'makanan' }}</h2>
-                <p class="mt-1 text-[12px] text-muted">14 hari terakhir · total {{ money($charts['sales_trend']->sum('total')) }}</p>
+        <div class="space-y-5 {{ $isCafe && $showFinance ? 'xl:col-span-2' : '' }}">
+            <div class="rounded-2xl border border-[#ebe4dc] bg-white p-6">
+                <div class="mb-5">
+                    <h2 class="font-serif text-xl font-semibold text-heading">Tren penjualan {{ $isCafe ? 'minuman' : 'makanan' }}</h2>
+                    <p class="mt-1 text-[12px] text-muted">14 hari terakhir · total {{ money($charts['sales_trend']->sum('total')) }}</p>
+                </div>
+                <div class="h-72"><canvas id="salesTrend" role="img" aria-label="Tren penjualan 14 hari terakhir"></canvas></div>
             </div>
-            <div class="h-72"><canvas id="salesTrend" role="img" aria-label="Tren penjualan 14 hari terakhir"></canvas></div>
+
+            {{-- Jam kedatangan --}}
+            @if ($isCafe)
+                @php $hours = $charts['arrival_hours']; @endphp
+                <div class="rounded-2xl border border-[#ebe4dc] bg-white p-6">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <h2 class="font-serif text-xl font-semibold text-heading">Jam kedatangan</h2>
+                            <p class="mt-1 text-[12px] text-muted">Rata-rata order lunas per jam per hari · {{ $hours['days'] }} hari, {{ strtolower($periodLabel) }}.</p>
+                        </div>
+                        @if ($hours['peak'])
+                            <div class="flex flex-wrap gap-3">
+                                <div class="rounded-xl bg-brand-soft px-4 py-2.5">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand">Paling ramai</p>
+                                    <p class="mt-0.5 text-[15px] font-semibold tabular-nums text-heading">{{ $hours['peak']['label'] }}–{{ sprintf('%02d.00', $hours['peak']['hour'] + 1) }} <span class="text-[12px] font-normal text-muted">· {{ number_format($hours['peak']['avg'], 1, ',', '.') }} order/hari</span></p>
+                                </div>
+                                @if ($hours['quiet'])
+                                    <div class="rounded-xl bg-[#f3eee8] px-4 py-2.5">
+                                        <p class="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Paling sepi</p>
+                                        <p class="mt-0.5 text-[15px] font-semibold tabular-nums text-heading">{{ $hours['quiet']['label'] }}–{{ sprintf('%02d.00', $hours['quiet']['hour'] + 1) }} <span class="text-[12px] font-normal text-muted">· {{ number_format($hours['quiet']['avg'], 1, ',', '.') }} order/hari</span></p>
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                    @if ($hours['peak'])
+                        <div class="mt-5 h-60"><canvas id="arrivalHours" role="img" aria-label="Rata-rata order per jam"></canvas></div>
+                    @else
+                        <p class="py-12 text-center text-sm text-muted">Belum ada order di periode ini.</p>
+                    @endif
+                </div>
+            @endif
         </div>
 
         @if ($isCafe && $showFinance)
@@ -434,6 +473,45 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        const hoursEl = document.getElementById('arrivalHours');
+        if (hoursEl && window.Chart) {
+            const hours = @json($charts['arrival_hours']);
+            const peak = hours.peak?.hour;
+            const quiet = hours.quiet?.hour;
+            new window.Chart(hoursEl, {
+                type: 'bar',
+                data: {
+                    labels: hours.rows.map((row) => row.label),
+                    datasets: [{
+                        data: hours.rows.map((row) => row.avg),
+                        backgroundColor: hours.rows.map((row) => row.hour === peak ? '#e8192c' : (row.hour === quiet ? '#cfc6bc' : '#f1a0a8')),
+                        borderRadius: 4,
+                        maxBarThickness: 36,
+                    }],
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#161414',
+                            padding: 12,
+                            cornerRadius: 10,
+                            displayColors: false,
+                            callbacks: {
+                                title: (items) => items[0].label + '–' + String(hours.rows[items[0].dataIndex].hour + 1).padStart(2, '0') + '.00',
+                                label: (item) => item.parsed.y.toLocaleString('id-ID') + ' order/hari',
+                            },
+                        },
+                    },
+                    scales: {
+                        x: { grid: { display: false }, border: { display: false }, ticks: { color: '#8a8580', font: { size: 11 } } },
+                        y: { beginAtZero: true, border: { display: false }, grid: { color: 'rgba(0,0,0,.05)' }, ticks: { color: '#8a8580', font: { size: 11 }, maxTicksLimit: 5 } },
+                    },
+                },
+            });
+        }
+
         const el = document.getElementById('salesTrend');
         if (!el || !window.Chart) return;
 

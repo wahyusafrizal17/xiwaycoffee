@@ -166,6 +166,7 @@ class DashboardService
             'drink_daily_target' => $drinkDailyTarget,
             'drink_target' => $drinkTarget,
             'drink_target_percent' => $drinkTarget > 0 ? (int) round($drinkCups / $drinkTarget * 100) : 0,
+            ...$this->dailyAverage($outletId, $range, $sales, $drinks),
             'occupied_tables' => (clone $tables)->where('status', TableStatus::Occupied->value)->count(),
             'available_tables' => (clone $tables)->where('status', TableStatus::Available->value)->count(),
         ];
@@ -291,6 +292,32 @@ class DashboardService
         ];
     }
 
+    /**
+     * Omzet rata-rata per hari. Filter harian memakai awal bulan s.d. tanggal itu, supaya ada pembanding.
+     */
+    protected function dailyAverage(?int $outletId, array $range, float $sales, float $drinks): array
+    {
+        $avgRange = $range;
+        if ($range['period'] === 'day') {
+            $avgRange = [
+                'period' => 'range',
+                'from' => Carbon::parse($range['to'])->startOfMonth()->toDateString(),
+                'to' => $range['to'],
+            ];
+            $sales = $this->cafeSales($outletId, $avgRange);
+            [$drinks] = $this->drinkSales(['outlet_id' => $outletId, 'from' => $avgRange['from'], 'to' => $avgRange['to']]);
+        }
+        $days = $this->days($avgRange);
+
+        return [
+            'avg_days' => $days,
+            'avg_from' => $avgRange['from'],
+            'avg_to' => $avgRange['to'],
+            'avg_sales' => round($sales / $days, 2),
+            'avg_drinks' => round($drinks / $days, 2),
+        ];
+    }
+
     /** Omzet cafe: semua order lunas dikurangi setoran makanan. */
     protected function cafeSales(?int $outletId, array $range): float
     {
@@ -377,7 +404,51 @@ class DashboardService
             'top_drinks' => $this->topProducts($outletId, $range, 'drink'),
             'top_food' => $this->topProducts($outletId, $range, 'food'),
             'arrival_sources' => $this->arrivalSources($outletId, $range),
+            'arrival_hours' => $this->arrivalHours($outletId, $range),
         ];
+    }
+
+    /**
+     * Rata-rata order lunas per jam (WIB) per hari pada periode, plus jam paling ramai dan sepi.
+     *
+     * @return array{rows: list<array{hour: int, label: string, avg: float}>, days: int, peak: ?array, quiet: ?array}
+     */
+    protected function arrivalHours(?int $outletId, array $range): array
+    {
+        $counts = array_fill(0, 24, 0);
+        foreach ((clone $this->validOrders($outletId, $range))->pluck('created_at') as $at) {
+            $counts[(int) Carbon::parse($at)->timezone('Asia/Jakarta')->format('G')]++;
+        }
+
+        $days = $this->days($range);
+        $open = array_keys(array_filter($counts, fn ($count) => round($count / $days, 1) > 0));
+        // Tampilkan jam buka (09-22) dan jam lain yang rutin ada order, bukan order nyasar tengah malam.
+        $first = min([9, ...$open]);
+        $last = max([21, ...$open]);
+
+        $rows = [];
+        for ($hour = $first; $hour <= $last; $hour++) {
+            $rows[] = [
+                'hour' => $hour,
+                'label' => sprintf('%02d.00', $hour),
+                'avg' => round($counts[$hour] / $days, 1),
+            ];
+        }
+
+        $busy = collect($rows)->filter(fn ($row) => $row['avg'] > 0);
+        $window = collect($rows)->filter(fn ($row) => $row['hour'] >= 9 && $row['hour'] <= 21);
+
+        return [
+            'rows' => $rows,
+            'days' => $days,
+            'peak' => $busy->sortByDesc('avg')->first(),
+            'quiet' => $busy->isEmpty() ? null : $window->sortBy('avg')->first(),
+        ];
+    }
+
+    protected function days(array $range): int
+    {
+        return max(1, (int) Carbon::parse($range['from'])->startOfDay()->diffInDays(Carbon::parse($range['to'])->startOfDay()) + 1);
     }
 
     /**
